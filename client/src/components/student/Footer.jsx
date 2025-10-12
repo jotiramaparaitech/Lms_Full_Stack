@@ -1,43 +1,119 @@
-import React from 'react';
-import { assets } from '../../assets/assets';
+import React from "react";
+import { assets } from "../../assets/assets";
+import {
+  FaFacebookF,
+  FaInstagram,
+  FaLinkedinIn,
+  FaTwitter,
+  FaYoutube,
+} from "react-icons/fa";
 
 const Footer = () => {
   return (
-    <footer className="bg-gray-900 md:px-36 text-left w-full mt-10">
-      <div className="flex flex-col md:flex-row items-start px-8 md:px-0 justify-center gap-10 md:gap-32 py-10 border-b border-white/30">
+    <footer className="relative bg-gradient-to-b from-gray-900 via-gray-950 to-black text-white pt-10 pb-8 px-6 md:px-20 lg:px-32">
+      {/* Top Animated Gradient Border */}
+      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-cyan-400 to-purple-600 animate-gradient-x"></div>
 
-        <div className="flex flex-col md:items-start items-center w-full">
-          <img src={assets.logo_dark} alt="logo" />
-          <p className="mt-6 text-center md:text-left text-sm text-white/80">
-            Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text.
+      {/* Main Content */}
+      <div className="flex flex-col md:flex-row items-start justify-between gap-12 border-b border-white/10 pb-12 relative z-10">
+        {/* Brand Section */}
+        <div className="flex flex-col md:items-start items-center md:w-1/3 w-full">
+          <img
+            src={assets.logo1}
+            alt="logo"
+            className="w-32 md:w-40 mb-5 rounded-1xl shadow-lg hover:brightness-110 transition-all duration-300"
+          />
+          <p className="text-sm text-gray-400 text-center md:text-left leading-relaxed">
+            Empowering learners and educators through innovation, technology,
+            and meaningful learning experiences worldwide.
           </p>
-        </div>
 
-        <div className="flex flex-col md:items-start items-center w-full">
-          <h2 className="font-semibold text-white mb-5">Company</h2>
-          <ul className="flex md:flex-col w-full justify-between text-sm text-white/80 md:space-y-2">
-            <li><a href="#">Home</a></li>
-            <li><a href="#">About us</a></li>
-            <li><a href="#">Contact us</a></li>
-            <li><a href="#">Privacy policy</a></li>
-          </ul>
-        </div>
-
-        <div className="hidden md:flex flex-col items-start w-full">
-          <h2 className="font-semibold text-white mb-5">Subscribe to our newsletter</h2>
-          <p className="text-sm text-white/80">
-            The latest news, articles, and resources, sent to your inbox weekly.
-          </p>
-          <div className="flex items-center gap-2 pt-4">
-            <input className="border border-gray-500/30 bg-gray-800 text-gray-500 placeholder-gray-500 outline-none w-64 h-9 rounded px-2 text-sm" type="email" placeholder="Enter your email" />
-            <button className="bg-blue-600 w-24 h-9 text-white rounded">Subscribe</button>
+          {/* Social Icons */}
+          <div className="flex gap-4 mt-6">
+            {[FaFacebookF, FaTwitter, FaInstagram, FaLinkedinIn, FaYoutube].map(
+              (Icon, idx) => (
+                <a
+                  key={idx}
+                  href="#"
+                  className="p-2 rounded-full bg-white/10 hover:bg-gradient-to-r hover:from-blue-600 hover:to-purple-600 hover:scale-110 transition-all duration-300"
+                >
+                  <Icon className="text-white text-lg" />
+                </a>
+              )
+            )}
           </div>
         </div>
 
+        {/* Company Links */}
+        <div className="flex flex-col md:w-1/4 w-full md:items-start items-center">
+          <h2 className="font-semibold text-lg mb-4 relative after:content-[''] after:block after:w-10 after:h-[2px] after:bg-blue-500 after:mt-1">
+            Company
+          </h2>
+          <ul className="space-y-3 text-gray-400">
+            {[
+              "Home",
+              "About us",
+              "Courses",
+              "Contact us",
+              "Privacy policy",
+            ].map((link, i) => (
+              <li key={i}>
+                <a
+                  href="#"
+                  className="hover:text-blue-400 hover:pl-1 transition-all duration-300"
+                >
+                  {link}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Newsletter Section */}
+        <div className="flex flex-col md:w-1/3 w-full md:items-start items-center">
+          <h2 className="font-semibold text-lg mb-4 relative after:content-[''] after:block after:w-10 after:h-[2px] after:bg-purple-500 after:mt-1">
+            Stay Updated
+          </h2>
+          <p className="text-sm text-gray-400 leading-relaxed text-center md:text-left">
+            Subscribe to our newsletter and receive the latest insights,
+            tutorials, and exclusive updates directly to your inbox.
+          </p>
+
+          <div className="flex items-center gap-2 mt-5 w-full max-w-md">
+            <input
+              type="email"
+              placeholder="Enter your email"
+              className="flex-1 bg-gray-800/70 border border-gray-700 text-gray-300 rounded-lg px-3 py-2 outline-none text-sm transition-all duration-300 
+              focus:border-blue-500 focus:ring-2 focus:ring-blue-400 
+              hover:border-cyan-400 hover:bg-gray-800 hover:shadow-[0_0_10px_1px_rgba(56,189,248,0.3)]"
+            />
+            <button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:opacity-90 text-white px-5 py-2 rounded-lg text-sm font-medium shadow-lg transition-all duration-300">
+              Subscribe
+            </button>
+          </div>
+        </div>
       </div>
-      <p className="py-4 text-center text-xs md:text-sm text-white/60">
-        Copyright 2024 © GreatStack. All Right Reserved.
-      </p>
+
+      {/* Bottom Section */}
+      <div className="text-center mt-8 text-sm text-gray-500">
+        <p>
+          Copyright {new Date().getFullYear()} ©
+          <span className="font-semibold text-white"> Aparaitech</span>. All
+          rights reserved.
+        </p>
+      </div>
+
+      {/* Gradient Animation Keyframes */}
+      <style>{`
+        @keyframes gradient-x {
+          0%, 100% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+        }
+        .animate-gradient-x {
+          background-size: 200% 200%;
+          animation: gradient-x 5s ease infinite;
+        }
+      `}</style>
     </footer>
   );
 };

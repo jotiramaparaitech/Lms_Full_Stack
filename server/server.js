@@ -20,8 +20,12 @@ await connectCloudinary();
 // Middlewares
 app.use(
   cors({
-    origin: ["http://localhost:5173", "https://your-frontend-domain.com"],
+    origin: [
+      "http://localhost:5173",
+      "https://lms-full-stack-client.vercel.app",
+    ], // whitelist your frontend
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
   })
 );
