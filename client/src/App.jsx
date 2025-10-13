@@ -1,5 +1,6 @@
 import React, { useContext } from "react";
-import { Routes, Route, useLocation, useMatch } from "react-router-dom";
+import { Routes, Route, Navigate, useMatch } from "react-router-dom";
+import { AppContext } from "./context/AppContext";
 import Navbar from "./components/student/Navbar";
 import Home from "./pages/student/Home";
 import CourseDetails from "./pages/student/CourseDetails";
@@ -15,16 +16,21 @@ import { ToastContainer } from "react-toastify";
 import Player from "./pages/student/Player";
 import MyEnrollments from "./pages/student/MyEnrollments";
 import Loading from "./components/student/Loading";
+import WhatsAppButton from "./components/common/WhatsAppButton"; // ✅ Added import
 
 const App = () => {
+  const { isEducator } = useContext(AppContext);
   const isEducatorRoute = useMatch("/educator/*");
 
   return (
-    <div className="text-default min-h-screen bg-white">
+    <div className="text-default min-h-screen bg-white relative">
       <ToastContainer />
-      {/* Render Student Navbar only if not on educator routes */}
+
+      {/* ✅ Student Navbar (Hidden on educator/admin routes) */}
       {!isEducatorRoute && <Navbar />}
+
       <Routes>
+        {/* 🧩 Student Routes */}
         <Route path="/" element={<Home />} />
         <Route path="/course/:id" element={<CourseDetails />} />
         <Route path="/course-list" element={<CoursesList />} />
@@ -32,13 +38,21 @@ const App = () => {
         <Route path="/my-enrollments" element={<MyEnrollments />} />
         <Route path="/player/:courseId" element={<Player />} />
         <Route path="/loading/:path" element={<Loading />} />
-        <Route path="/educator" element={<Educator />}>
-          <Route path="/educator" element={<Dashboard />} />
+
+        {/* 🧑‍🏫 Educator/Admin Routes (Protected) */}
+        <Route
+          path="/educator/*"
+          element={isEducator ? <Educator /> : <Navigate to="/" replace />}
+        >
+          <Route index element={<Dashboard />} />
           <Route path="add-course" element={<AddCourse />} />
           <Route path="my-courses" element={<MyCourses />} />
           <Route path="student-enrolled" element={<StudentsEnrolled />} />
         </Route>
       </Routes>
+
+      {/* 💬 WhatsApp Floating Button (Visible on all pages) */}
+      <WhatsAppButton />
     </div>
   );
 };

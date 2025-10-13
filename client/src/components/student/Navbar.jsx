@@ -1,53 +1,36 @@
+// 📁 src/components/student/Navbar.jsx
 import React, { useContext, useEffect, useState } from "react";
 import { assets } from "../../assets/assets";
 import { Link, useLocation } from "react-router-dom";
 import { AppContext } from "../../context/AppContext";
 import { useClerk, UserButton, useUser } from "@clerk/clerk-react";
 import { toast } from "react-toastify";
-import axios from "axios";
 import { motion } from "framer-motion";
-import { Menu, X } from "lucide-react"; // ✅ For mobile toggle icon
+import { Menu, X } from "lucide-react";
 
 const Navbar = () => {
   const location = useLocation();
   const isCoursesListPage = location.pathname.includes("/course-list");
 
-  const { backendUrl, isEducator, setIsEducator, navigate, getToken } =
-    useContext(AppContext);
+  const { backendUrl, navigate } = useContext(AppContext);
   const { openSignIn } = useClerk();
-  const { user } = useUser();
+  const { user, isLoaded } = useUser();
 
   const [isFixed, setIsFixed] = useState(true);
-  const [menuOpen, setMenuOpen] = useState(false); // ✅ For mobile menu toggle
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsFixed(false), 3000);
     return () => clearTimeout(timer);
   }, []);
 
-  const becomeEducator = async () => {
-    try {
-      if (isEducator) {
-        navigate("/educator");
-        return;
-      }
+  const userRole = user?.publicMetadata?.role || "student";
 
-      const token = await getToken();
-      const { data } = await axios.get(
-        `${backendUrl}/api/educator/update-role`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      if (data.success) {
-        toast.success(data.message);
-        setIsEducator(true);
-      } else {
-        toast.error(data.message);
-      }
-    } catch (error) {
-      toast.error(error.message);
+  const handleEducatorAccess = () => {
+    if (userRole === "educator" || userRole === "admin") {
+      navigate("/educator");
+    } else {
+      toast.info("You need educator access to open this dashboard.");
     }
   };
 
@@ -65,7 +48,7 @@ const Navbar = () => {
       }`}
     >
       <div className="max-w-[1400px] mx-auto flex items-center justify-between flex-wrap px-4 sm:px-8 md:px-14 lg:px-20 py-2">
-        {/* 🔹 Logo Section (Static) */}
+        {/* Logo */}
         <div
           className="flex items-center flex-shrink-0 cursor-pointer"
           onClick={() => navigate("/")}
@@ -77,15 +60,12 @@ const Navbar = () => {
             alt="Aparaitech Logo"
             className="w-16 sm:w-20 md:w-24 drop-shadow-lg transition-all duration-300"
           />
-          <span
-            className="ml-2 font-semibold text-gray-800 tracking-wide 
-              text-lg sm:text-xl md:text-2xl lg:text-3xl whitespace-nowrap"
-          >
+          <span className="ml-2 font-semibold text-gray-800 tracking-wide text-lg sm:text-xl md:text-2xl lg:text-3xl whitespace-nowrap">
             Aparaitech
           </span>
         </div>
 
-        {/* 🔹 Hamburger Icon (Mobile Only) */}
+        {/* Mobile Toggle */}
         <button
           className="md:hidden flex items-center justify-center w-10 h-10 rounded-lg hover:bg-cyan-100 transition-all duration-300"
           onClick={() => setMenuOpen(!menuOpen)}
@@ -97,7 +77,7 @@ const Navbar = () => {
           )}
         </button>
 
-        {/* 🔹 Desktop Menu */}
+        {/* Desktop Menu */}
         <div className="hidden md:flex items-center gap-8 text-gray-700 font-medium">
           <div className="flex items-center flex-wrap gap-6">
             <Link
@@ -128,23 +108,30 @@ const Navbar = () => {
 
           {user && (
             <div className="flex items-center flex-wrap gap-5 ml-6">
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                className="hover:text-cyan-700 transition-colors duration-200"
-                onClick={becomeEducator}
-              >
-                {isEducator ? "Educator Dashboard" : "Become Educator"}
-              </motion.button>
-              <span className="text-gray-300">|</span>
-              <Link
-                to="/my-enrollments"
-                className="hover:text-cyan-700 transition-colors duration-200"
-              >
-                My Enrollments
-              </Link>
+              {/* Educator/Admin button - only visible for educator/admin */}
+              {(userRole === "educator" || userRole === "admin") && (
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  className="hover:text-cyan-700 transition-colors duration-200"
+                  onClick={handleEducatorAccess}
+                >
+                  Educator Dashboard
+                </motion.button>
+              )}
+
+              {/* Student-only link */}
+              {userRole === "student" && (
+                <Link
+                  to="/my-enrollments"
+                  className="hover:text-cyan-700 transition-colors duration-200"
+                >
+                  My Enrollments
+                </Link>
+              )}
             </div>
           )}
 
+          {/* User Button / Sign In */}
           {user ? (
             <UserButton afterSignOutUrl="/" />
           ) : (
@@ -154,12 +141,12 @@ const Navbar = () => {
               onClick={() => openSignIn()}
               className="bg-cyan-600 text-white px-5 py-2 rounded-full shadow-md hover:shadow-xl hover:bg-cyan-700 transition-all duration-300"
             >
-              Create Account
+              Sign In
             </motion.button>
           )}
         </div>
 
-        {/* 🔹 Mobile Dropdown Menu */}
+        {/* Mobile Dropdown Menu */}
         {menuOpen && (
           <div className="md:hidden w-full mt-3 bg-white/90 backdrop-blur-sm rounded-xl shadow-lg p-4 flex flex-col gap-4 text-gray-700 font-medium">
             <Link
@@ -193,22 +180,27 @@ const Navbar = () => {
 
             {user && (
               <>
-                <button
-                  onClick={() => {
-                    becomeEducator();
-                    setMenuOpen(false);
-                  }}
-                  className="hover:text-cyan-700 text-left"
-                >
-                  {isEducator ? "Educator Dashboard" : "Become Educator"}
-                </button>
-                <Link
-                  to="/my-enrollments"
-                  onClick={() => setMenuOpen(false)}
-                  className="hover:text-cyan-700 transition-colors"
-                >
-                  My Enrollments
-                </Link>
+                {(userRole === "educator" || userRole === "admin") && (
+                  <button
+                    onClick={() => {
+                      handleEducatorAccess();
+                      setMenuOpen(false);
+                    }}
+                    className="hover:text-cyan-700 text-left"
+                  >
+                    Educator Dashboard
+                  </button>
+                )}
+
+                {userRole === "student" && (
+                  <Link
+                    to="/my-enrollments"
+                    onClick={() => setMenuOpen(false)}
+                    className="hover:text-cyan-700 transition-colors"
+                  >
+                    My Enrollments
+                  </Link>
+                )}
               </>
             )}
 
@@ -222,7 +214,7 @@ const Navbar = () => {
                 }}
                 className="bg-cyan-600 text-white px-4 py-2 rounded-md hover:bg-cyan-700 transition-all"
               >
-                Create Account
+                Sign In
               </button>
             )}
           </div>

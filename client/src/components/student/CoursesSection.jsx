@@ -24,12 +24,13 @@ const CoursesSection = () => {
 
       {/* Heading */}
       <div className="text-center mb-12">
-        <h2 className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-purple-600 to-pink-500 animate-text">
-          Learn from the Best
+        <h2 className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 pb-5 via-purple-600 to-pink-500 animate-text">
+          Projects That Shape the Future
         </h2>
         <p className="text-gray-600 mt-3 max-w-2xl mx-auto">
-          Discover our top-rated projects crafted by expert educators. Master
-          coding, design, business, and more — all at your pace.
+          Step into the world of next-gen innovation — explore live projects,
+          engineered with precision and creativity. Learn, innovate, and push
+          boundaries with every line of code.
         </p>
       </div>
 
