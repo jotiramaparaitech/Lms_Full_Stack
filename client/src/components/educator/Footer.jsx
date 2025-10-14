@@ -1,19 +1,26 @@
 import React from "react";
-import { assets } from "../../assets/assets";
 import { motion } from "framer-motion";
+import {
+  FaFacebookF,
+  FaInstagram,
+  FaLinkedinIn,
+  FaTwitter,
+  FaYoutube,
+} from "react-icons/fa";
+import { assets } from "../../assets/assets";
 
-const Footer = () => {
+const AdminFooter = () => {
   return (
     <motion.footer
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: "easeOut" }}
       className="w-full border-t border-gray-200/60 
-      bg-gradient-to-r from-cyan-50 via-sky-100 to-blue-50 
-      backdrop-blur-md shadow-[0_-4px_15px_rgba(0,0,0,0.05)] 
-      px-6 md:px-12 py-4 flex flex-col md:flex-row items-center justify-between"
+        bg-gradient-to-r from-cyan-50 via-sky-100 to-blue-50 
+        backdrop-blur-md shadow-[0_-4px_15px_rgba(0,0,0,0.05)] 
+        px-6 md:px-12 py-4 flex flex-col md:flex-row items-center justify-between"
     >
-      {/* 🔹 Left Section */}
+      {/* Left Section */}
       <div className="flex items-center gap-4">
         <img
           className="hidden md:block w-20 rounded-lg"
@@ -27,32 +34,55 @@ const Footer = () => {
         </p>
       </div>
 
-      {/* 🔹 Right Section - Social Icons */}
+      {/* Right Section - Social Icons */}
       <div className="flex items-center gap-4 mt-4 md:mt-0">
-        <a href="#" className="transition-all duration-300 hover:scale-110">
-          <img
-            src={assets.facebook_icon}
-            alt="facebook_icon"
-            className="w-6 h-6 opacity-80 hover:opacity-100 hover:drop-shadow-[0_0_8px_rgba(59,130,246,0.6)]"
-          />
+        <a
+          href="https://www.linkedin.com/company/aparaitech"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="transition-all duration-300 hover:scale-110 text-blue-700"
+        >
+          <FaLinkedinIn size={24} />
         </a>
-        <a href="#" className="transition-all duration-300 hover:scale-110">
-          <img
-            src={assets.twitter_icon}
-            alt="twitter_icon"
-            className="w-6 h-6 opacity-80 hover:opacity-100 hover:drop-shadow-[0_0_8px_rgba(56,189,248,0.6)]"
-          />
+
+        <a
+          href="https://www.youtube.com/@Aparaitech"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="transition-all duration-300 hover:scale-110 text-red-600"
+        >
+          <FaYoutube size={24} />
         </a>
-        <a href="#" className="transition-all duration-300 hover:scale-110">
-          <img
-            src={assets.instagram_icon}
-            alt="instagram_icon"
-            className="w-6 h-6 opacity-80 hover:opacity-100 hover:drop-shadow-[0_0_8px_rgba(147,51,234,0.6)]"
-          />
+
+        <a
+          href="https://www.instagram.com/aparaitech_global/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="transition-all duration-300 hover:scale-110 text-purple-600"
+        >
+          <FaInstagram size={24} />
+        </a>
+
+        <a
+          href="https://www.facebook.com/yourpage"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="transition-all duration-300 hover:scale-110 text-blue-600"
+        >
+          <FaFacebookF size={24} />
+        </a>
+
+        <a
+          href="https://twitter.com/yourprofile"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="transition-all duration-300 hover:scale-110 text-sky-400"
+        >
+          <FaTwitter size={24} />
         </a>
       </div>
     </motion.footer>
   );
 };
 
-export default Footer;
+export default AdminFooter;

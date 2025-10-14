@@ -17,7 +17,10 @@ const CoursesSection = () => {
   const validCourses = allCourses.filter((course) => course && course.educator);
 
   return (
-    <section className="relative py-20 md:px-36 px-6 bg-gradient-to-b from-gray-50 via-white to-gray-100 overflow-hidden">
+    <section
+      id="courses-section"
+      className="relative py-20 md:px-36 px-6 bg-gradient-to-b from-gray-50 via-white to-gray-100 overflow-hidden"
+    >
       {/* Subtle floating background blobs */}
       <div className="absolute top-0 left-1/3 w-80 h-80 bg-blue-300/20 blur-3xl rounded-full -z-10 animate-pulse"></div>
       <div className="absolute bottom-10 right-1/4 w-96 h-96 bg-purple-300/20 blur-3xl rounded-full -z-10 animate-pulse"></div>

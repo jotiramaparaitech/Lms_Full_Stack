@@ -1,4 +1,3 @@
-// 📁 src/components/student/Navbar.jsx
 import React, { useContext, useEffect, useState } from "react";
 import { assets } from "../../assets/assets";
 import { Link, useLocation } from "react-router-dom";
@@ -12,9 +11,9 @@ const Navbar = () => {
   const location = useLocation();
   const isCoursesListPage = location.pathname.includes("/course-list");
 
-  const { backendUrl, navigate } = useContext(AppContext);
+  const { navigate } = useContext(AppContext);
   const { openSignIn } = useClerk();
-  const { user, isLoaded } = useUser();
+  const { user } = useUser();
 
   const [isFixed, setIsFixed] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -26,11 +25,26 @@ const Navbar = () => {
 
   const userRole = user?.publicMetadata?.role || "student";
 
+  // Educator Access Handler
   const handleEducatorAccess = () => {
     if (userRole === "educator" || userRole === "admin") {
       navigate("/educator");
     } else {
       toast.info("You need educator access to open this dashboard.");
+    }
+  };
+
+  // Scroll to Footer Handler
+  const handleScrollToFooter = () => {
+    const footer = document.getElementById("contact-section");
+    if (footer) {
+      footer.scrollIntoView({ behavior: "smooth" });
+    } else {
+      navigate("/");
+      setTimeout(() => {
+        const section = document.getElementById("contact-section");
+        section?.scrollIntoView({ behavior: "smooth" });
+      }, 400);
     }
   };
 
@@ -93,33 +107,33 @@ const Navbar = () => {
               About Us
             </Link>
             <Link
-              to="/projects"
+              to="/course-list"
               className="hover:text-cyan-700 transition-colors duration-200"
             >
               Projects
             </Link>
-            <Link
-              to="/contact"
+
+            {/* Scroll to Footer Instead of Redirect */}
+            <button
+              onClick={handleScrollToFooter}
               className="hover:text-cyan-700 transition-colors duration-200"
             >
               Contact Us
-            </Link>
+            </button>
           </div>
 
           {user && (
             <div className="flex items-center flex-wrap gap-5 ml-6">
-              {/* Educator/Admin button - only visible for educator/admin */}
               {(userRole === "educator" || userRole === "admin") && (
                 <motion.button
                   whileHover={{ scale: 1.1 }}
                   className="hover:text-cyan-700 transition-colors duration-200"
                   onClick={handleEducatorAccess}
                 >
-                  Educator Dashboard
+                  Admin Dashboard
                 </motion.button>
               )}
 
-              {/* Student-only link */}
               {userRole === "student" && (
                 <Link
                   to="/my-enrollments"
@@ -164,19 +178,23 @@ const Navbar = () => {
               About Us
             </Link>
             <Link
-              to="/projects"
+              to="/course-list"
               onClick={() => setMenuOpen(false)}
               className="hover:text-cyan-700 transition-colors"
             >
               Projects
             </Link>
-            <Link
-              to="/contact"
-              onClick={() => setMenuOpen(false)}
-              className="hover:text-cyan-700 transition-colors"
+
+            {/* Contact Us — Scroll to Footer */}
+            <button
+              onClick={() => {
+                setMenuOpen(false);
+                handleScrollToFooter();
+              }}
+              className="text-left hover:text-cyan-700 transition-colors"
             >
               Contact Us
-            </Link>
+            </button>
 
             {user && (
               <>
@@ -188,7 +206,7 @@ const Navbar = () => {
                     }}
                     className="hover:text-cyan-700 text-left"
                   >
-                    Educator Dashboard
+                    Admin Dashboard
                   </button>
                 )}
 

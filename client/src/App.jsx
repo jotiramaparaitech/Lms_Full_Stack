@@ -17,6 +17,8 @@ import Player from "./pages/student/Player";
 import MyEnrollments from "./pages/student/MyEnrollments";
 import Loading from "./components/student/Loading";
 import WhatsAppButton from "./components/common/WhatsAppButton"; // ✅ Added import
+import ChatbotWidget from "./components/common/ChatbotWidget";
+import About from "./pages/student/About";
 
 const App = () => {
   const { isEducator } = useContext(AppContext);
@@ -38,6 +40,7 @@ const App = () => {
         <Route path="/my-enrollments" element={<MyEnrollments />} />
         <Route path="/player/:courseId" element={<Player />} />
         <Route path="/loading/:path" element={<Loading />} />
+        <Route path="/about" element={<About />} />
 
         {/* 🧑‍🏫 Educator/Admin Routes (Protected) */}
         <Route
@@ -53,6 +56,7 @@ const App = () => {
 
       {/* 💬 WhatsApp Floating Button (Visible on all pages) */}
       <WhatsAppButton />
+      {/* <ChatbotWidget /> */}
     </div>
   );
 };

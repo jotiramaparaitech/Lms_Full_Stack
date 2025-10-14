@@ -4,6 +4,7 @@ import { AppContext } from "../../context/AppContext";
 import axios from "axios";
 import { toast } from "react-toastify";
 import Loading from "../../components/student/Loading";
+import { motion } from "framer-motion";
 
 const Dashboard = () => {
   const { backendUrl, isEducator, currency, getToken } = useContext(AppContext);
@@ -30,101 +31,102 @@ const Dashboard = () => {
     if (isEducator) fetchDashboardData();
   }, [isEducator]);
 
+  const cards = [
+    {
+      icon: assets.patients_icon,
+      value: dashboardData?.enrolledStudentsData.length,
+      label: "Total Enrolments",
+      gradient: "from-pink-500 to-red-500",
+      shadow: "rgba(239,68,68,0.5)",
+    },
+    {
+      icon: assets.appointments_icon,
+      value: dashboardData?.totalCourses,
+      label: "Total Projects",
+      gradient: "from-green-400 to-teal-500",
+      shadow: "rgba(34,197,94,0.5)",
+    },
+    {
+      icon: assets.earning_icon,
+      value: `${currency}${Math.floor(dashboardData?.totalEarnings)}`,
+      label: "Total Earnings",
+      gradient: "from-blue-400 to-indigo-500",
+      shadow: "rgba(59,130,246,0.5)",
+    },
+  ];
+
   return dashboardData ? (
-    <div className="min-h-screen flex flex-col items-start justify-between gap-8 md:p-8 md:pb-0 p-4 pt-8 pb-0 bg-gradient-to-b from-sky-50 via-cyan-50 to-white transition-all">
-      <div className="space-y-6 w-full">
-        {/* Top Statistic Cards */}
-        <div className="flex flex-wrap gap-6 items-center justify-start">
-          {/* Card 1 */}
-          <div className="flex items-center gap-4 bg-gradient-to-tr from-sky-400 to-cyan-500 text-white p-5 w-60 rounded-2xl shadow-[0_10px_25px_rgba(56,189,248,0.4)] hover:shadow-[0_15px_35px_rgba(56,189,248,0.5)] transition-all transform hover:-translate-y-1 cursor-pointer">
-            <img
-              src={assets.patients_icon}
-              alt="enrolments"
-              className="w-10 h-10 bg-white/20 p-2 rounded-xl backdrop-blur-md shadow-inner"
-            />
-            <div>
-              <p className="text-3xl font-bold">
-                {dashboardData.enrolledStudentsData.length}
-              </p>
-              <p className="text-base opacity-90 font-medium">
-                Total Enrolments
-              </p>
-            </div>
-          </div>
+    <div className="min-h-screen flex flex-col gap-10 md:p-12 p-6 bg-gradient-to-br from-blue-50 via-white to-cyan-50 relative overflow-hidden">
+      {/* Background 3D Glows */}
+      <div className="absolute top-[-100px] left-[10%] w-72 h-72 bg-blue-400/20 blur-3xl rounded-full animate-pulse -z-10"></div>
+      <div className="absolute bottom-[-100px] right-[5%] w-96 h-96 bg-purple-400/20 blur-3xl rounded-full animate-pulse -z-10"></div>
 
-          {/* Card 2 */}
-          <div className="flex items-center gap-4 bg-gradient-to-tr from-blue-400 to-sky-500 text-white p-5 w-60 rounded-2xl shadow-[0_10px_25px_rgba(59,130,246,0.4)] hover:shadow-[0_15px_35px_rgba(59,130,246,0.5)] transition-all transform hover:-translate-y-1 cursor-pointer">
-            <img
-              src={assets.appointments_icon}
-              alt="courses"
-              className="w-10 h-10 bg-white/20 p-2 rounded-xl backdrop-blur-md shadow-inner"
-            />
-            <div>
-              <p className="text-3xl font-bold">{dashboardData.totalCourses}</p>
-              <p className="text-base opacity-90 font-medium">Total Projects</p>
+      {/* Top Statistic Cards */}
+      <div className="flex flex-wrap gap-8 items-center justify-start">
+        {cards.map((card, index) => (
+          <motion.div
+            key={index}
+            whileHover={{ scale: 1.08, rotateY: 5 }}
+            transition={{ type: "spring", stiffness: 200 }}
+            className={`flex items-center gap-5 bg-gradient-to-tr ${card.gradient} text-white p-6 w-64 rounded-3xl shadow-[0_10px_35px_${card.shadow}] hover:shadow-[0_20px_50px_${card.shadow}] backdrop-blur-md transform transition-all cursor-pointer`}
+          >
+            <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-lg shadow-inner">
+              <img src={card.icon} alt="icon" className="w-10 h-10" />
             </div>
-          </div>
-
-          {/* Card 3 */}
-          <div className="flex items-center gap-4 bg-gradient-to-tr from-cyan-500 to-blue-500 text-white p-5 w-60 rounded-2xl shadow-[0_10px_25px_rgba(14,165,233,0.4)] hover:shadow-[0_15px_35px_rgba(14,165,233,0.5)] transition-all transform hover:-translate-y-1 cursor-pointer">
-            <img
-              src={assets.earning_icon}
-              alt="earnings"
-              className="w-10 h-10 bg-white/20 p-2 rounded-xl backdrop-blur-md shadow-inner"
-            />
             <div>
-              <p className="text-3xl font-bold">
-                {currency}
-                {Math.floor(dashboardData.totalEarnings)}
-              </p>
-              <p className="text-base opacity-90 font-medium">Total Earnings</p>
+              <p className="text-3xl font-bold drop-shadow-md">{card.value}</p>
+              <p className="text-base opacity-90 font-medium">{card.label}</p>
             </div>
-          </div>
-        </div>
-
-        {/* Latest Enrolments Table */}
-        <div className="w-full">
-          <h2 className="pb-4 text-xl font-semibold text-gray-800">
-            Latest Enrolments
-          </h2>
-          <div className="flex flex-col items-center max-w-4xl w-full overflow-hidden rounded-xl bg-white/80 backdrop-blur-lg border border-gray-200 shadow-md hover:shadow-lg transition-all">
-            <table className="table-fixed md:table-auto w-full overflow-hidden">
-              <thead className="text-gray-900 bg-gradient-to-r from-sky-100 to-cyan-100 border-b border-gray-200 text-sm text-left">
-                <tr>
-                  <th className="px-4 py-3 font-semibold text-center hidden sm:table-cell">
-                    #
-                  </th>
-                  <th className="px-4 py-3 font-semibold">Student Name</th>
-                  <th className="px-4 py-3 font-semibold">Project Title</th>
-                </tr>
-              </thead>
-              <tbody className="text-sm text-gray-700">
-                {dashboardData.enrolledStudentsData.map((item, index) => (
-                  <tr
-                    key={index}
-                    className="border-b border-gray-100 hover:bg-sky-50/60 transition-colors"
-                  >
-                    <td className="px-4 py-3 text-center hidden sm:table-cell">
-                      {index + 1}
-                    </td>
-                    <td className="md:px-4 px-2 py-3 flex items-center space-x-3">
-                      <img
-                        src={item.student.imageUrl}
-                        alt="Profile"
-                        className="w-9 h-9 rounded-full shadow-sm"
-                      />
-                      <span className="truncate font-medium">
-                        {item.student.name}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 truncate">{item.courseTitle}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+          </motion.div>
+        ))}
       </div>
+
+      {/* Latest Enrolments Table */}
+      <motion.div
+        initial={{ opacity: 0, y: 40 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8 }}
+        className="w-full max-w-5xl"
+      >
+        <h2 className="pb-4 text-2xl font-semibold text-gray-800">
+          Latest Enrolments
+        </h2>
+        <div className="overflow-hidden rounded-3xl bg-white/80 backdrop-blur-xl border border-gray-200 shadow-xl hover:shadow-2xl transition-all">
+          <table className="table-auto w-full">
+            <thead className="bg-gradient-to-r from-sky-100 to-cyan-100 text-gray-800 text-sm">
+              <tr>
+                <th className="px-6 py-3 font-semibold text-center hidden sm:table-cell">
+                  #
+                </th>
+                <th className="px-6 py-3 font-semibold">Student Name</th>
+                <th className="px-6 py-3 font-semibold">Project Title</th>
+              </tr>
+            </thead>
+            <tbody className="text-gray-700">
+              {dashboardData.enrolledStudentsData.map((item, index) => (
+                <motion.tr
+                  key={index}
+                  whileHover={{ scale: 1.02, backgroundColor: "#E0F2FE" }}
+                  className="border-b border-gray-200 transition-all"
+                >
+                  <td className="px-6 py-3 text-center hidden sm:table-cell">
+                    {index + 1}
+                  </td>
+                  <td className="px-6 py-3 flex items-center gap-3">
+                    <img
+                      src={item.student.imageUrl}
+                      alt="Profile"
+                      className="w-10 h-10 rounded-full shadow-md ring-2 ring-sky-300"
+                    />
+                    <span className="font-medium">{item.student.name}</span>
+                  </td>
+                  <td className="px-6 py-3 truncate">{item.courseTitle}</td>
+                </motion.tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </motion.div>
     </div>
   ) : (
     <Loading />

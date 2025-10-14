@@ -11,19 +11,19 @@ const WhatsAppButton = () => {
 
   return (
     <motion.div
-      className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[9999] flex items-center gap-2 sm:gap-3"
+      className="fixed bottom-6 right-3 sm:bottom-8 sm:right-6 z-[9999] flex items-center gap-2 sm:gap-3 px-2"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.8, ease: "easeOut" }}
     >
       {/* 💬 Message Bubble */}
       <motion.div
-        className="bg-white text-black px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg shadow-md 
-                   text-[10px] sm:text-sm md:text-base font-normal border border-gray-200 
+        className="bg-white text-black px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg shadow-md
+                   text-[9px] sm:text-sm md:text-base font-normal border border-gray-200
                    cursor-pointer hover:shadow-lg transition-all duration-300"
         whileHover={{ scale: 1 }}
       >
-        Need Help? <span className="font-bold">Chat with us</span>
+        Need Help? <span className="font-bold ml-1">Chat with us</span>
       </motion.div>
 
       {/* 🟢 WhatsApp Logo Button */}
@@ -38,10 +38,10 @@ const WhatsAppButton = () => {
         <img
           src={assets.whatsappLogo}
           alt="WhatsApp"
-          className="w-10 h-10 sm:w-14 sm:h-14 md:w-16 md:h-16"
+          className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16"
           style={{
             borderRadius: "50%",
-            boxShadow: "0px 3px 5px rgba(0,0,0,0.25)",
+            boxShadow: "0px 4px 6px rgba(0,0,0,0.25)",
           }}
         />
       </motion.a>

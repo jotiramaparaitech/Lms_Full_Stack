@@ -3,6 +3,8 @@ import { AppContext } from "../../context/AppContext";
 import axios from "axios";
 import { Line } from "rc-progress";
 import Footer from "../../components/student/Footer";
+import { motion } from "framer-motion"; // ✅ for smooth hover and depth animation
+import { toast } from "react-hot-toast"; // optional, if used globally
 
 const MyEnrollments = () => {
   const {
@@ -53,76 +55,106 @@ const MyEnrollments = () => {
   }, [enrolledCourses]);
 
   return (
-    <div className="flex flex-col min-h-screen">
-      {/* Main content */}
-      <div className="md:px-36 px-8 pt-10 flex-1">
-        <h1 className="text-2xl font-semibold">My Enrollments</h1>
+    <div className="flex flex-col min-h-screen bg-gradient-to-b from-gray-50 via-blue-50 to-gray-100 relative overflow-hidden">
+      {/* Floating glow background blobs */}
+      <div className="absolute top-10 left-1/3 w-80 h-80 bg-blue-400/20 blur-[120px] rounded-full -z-10 animate-pulse"></div>
+      <div className="absolute bottom-20 right-1/4 w-96 h-96 bg-purple-400/20 blur-[120px] rounded-full -z-10 animate-pulse"></div>
 
-        <table className="md:table-auto table-fixed w-full overflow-hidden border mt-10">
-          <thead className="text-gray-900 border-b border-gray-500/20 text-sm text-left max-sm:hidden">
-            <tr>
-              <th className="px-4 py-3 font-semibold truncate">Course</th>
-              <th className="px-4 py-3 font-semibold truncate max-sm:hidden">
-                Duration
-              </th>
-              <th className="px-4 py-3 font-semibold truncate max-sm:hidden">
-                Completed
-              </th>
-              <th className="px-4 py-3 font-semibold truncate">Status</th>
-            </tr>
-          </thead>
-          <tbody className="text-gray-700">
-            {enrolledCourses.map((course, index) => (
-              <tr key={index} className="border-b border-gray-500/20">
-                <td className="md:px-4 pl-2 md:pl-4 py-3 flex items-center space-x-3 ">
-                  <img
-                    src={course.courseThumbnail}
-                    alt=""
-                    className="w-14 sm:w-24 md:w-28"
-                  />
-                  <div className="flex-1">
-                    <p className="mb-1 max-sm:text-sm">{course.courseTitle}</p>
-                    <Line
-                      className="bg-gray-300 rounded-full"
-                      strokeWidth={2}
-                      percent={
-                        progressArray[index]
-                          ? (progressArray[index].lectureCompleted * 100) /
-                            progressArray[index].totalLectures
-                          : 0
-                      }
-                    />
-                  </div>
-                </td>
-                <td className="px-4 py-3 max-sm:hidden">
-                  {calculateCourseDuration(course)}
-                </td>
-                <td className="px-4 py-3 max-sm:hidden">
-                  {progressArray[index] &&
-                    `${progressArray[index].lectureCompleted} / ${progressArray[index].totalLectures}`}
-                  <span className="text-xs ml-2">Lectures</span>
-                </td>
-                <td className="px-4 py-3 max-sm:text-right">
-                  <button
-                    onClick={() => navigate("/player/" + course._id)}
-                    className="px-3 sm:px-5 py-1.5 sm:py-2 bg-blue-600 max-sm:text-xs text-white"
-                  >
-                    {progressArray[index] &&
-                    progressArray[index].lectureCompleted /
-                      progressArray[index].totalLectures ===
-                      1
-                      ? "Completed"
-                      : "On Going"}
-                  </button>
-                </td>
+      {/* Main content */}
+      <div className="md:px-36 px-6 pt-16 flex-1">
+        <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-700 via-purple-700 to-pink-600 animate-text">
+          My Enrollments
+        </h1>
+
+        <div className="mt-10 overflow-x-auto">
+          <table className="min-w-full rounded-xl overflow-hidden backdrop-blur-sm bg-white/70 shadow-[0_10px_30px_rgba(0,0,0,0.1)]">
+            <thead className="bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm text-left hidden sm:table-header-group">
+              <tr>
+                <th className="px-6 py-3 font-semibold">Course</th>
+                <th className="px-6 py-3 font-semibold">Duration</th>
+                <th className="px-6 py-3 font-semibold">Completed</th>
+                <th className="px-6 py-3 font-semibold">Status</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {enrolledCourses.map((course, index) => (
+                <motion.tr
+                  key={index}
+                  whileHover={{ scale: 1.02, y: -2 }}
+                  transition={{ duration: 0.3 }}
+                  className="border-b border-gray-200 hover:shadow-xl hover:bg-white/90 transition-all duration-300"
+                >
+                  <td className="px-4 sm:px-6 py-4 flex items-center gap-4">
+                    <img
+                      src={course.courseThumbnail}
+                      alt={course.courseTitle}
+                      className="w-14 sm:w-24 md:w-28 rounded-xl shadow-md hover:shadow-blue-300/50 transition-all duration-300"
+                    />
+                    <div className="flex-1">
+                      <p className="font-medium text-gray-800 mb-1 max-sm:text-sm">
+                        {course.courseTitle}
+                      </p>
+                      <Line
+                        className="bg-gray-200 rounded-full"
+                        strokeWidth={3}
+                        trailWidth={3}
+                        strokeColor="#3b82f6"
+                        percent={
+                          progressArray[index]
+                            ? (progressArray[index].lectureCompleted * 100) /
+                              progressArray[index].totalLectures
+                            : 0
+                        }
+                      />
+                    </div>
+                  </td>
+
+                  <td className="px-4 sm:px-6 py-3 text-gray-700 max-sm:hidden">
+                    {calculateCourseDuration(course)}
+                  </td>
+
+                  <td className="px-4 sm:px-6 py-3 text-gray-700 max-sm:hidden">
+                    {progressArray[index] &&
+                      `${progressArray[index].lectureCompleted} / ${progressArray[index].totalLectures}`}
+                    <span className="text-xs ml-1">Lectures</span>
+                  </td>
+
+                  <td className="px-4 sm:px-6 py-3 text-right">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => navigate("/player/" + course._id)}
+                      className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-md shadow-md hover:shadow-lg transition-all duration-300"
+                    >
+                      {progressArray[index] &&
+                      progressArray[index].lectureCompleted /
+                        progressArray[index].totalLectures ===
+                        1
+                        ? "Completed"
+                        : "On Going"}
+                    </motion.button>
+                  </td>
+                </motion.tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Footer */}
       <Footer />
+
+      {/* Gradient animation for title */}
+      <style>{`
+        @keyframes text {
+          0%, 100% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+        }
+        .animate-text {
+          background-size: 200% auto;
+          animation: text 5s ease infinite;
+        }
+      `}</style>
     </div>
   );
 };

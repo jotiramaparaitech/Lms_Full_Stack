@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import { assets } from "../../assets/assets";
 import {
   FaFacebookF,
@@ -9,8 +10,38 @@ import {
 } from "react-icons/fa";
 
 const Footer = () => {
+  const navigate = useNavigate();
+
+  // Smooth scroll to a section on the same page
+  const handleScroll = (targetId) => {
+    const target = document.getElementById(targetId);
+    if (target) {
+      target.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
+  // Handle footer link clicks
+  const handleLinkClick = (link) => {
+    if (link.id === "hero") {
+      // Scroll to hero section if on home page
+      if (window.location.pathname === "/") {
+        handleScroll("hero");
+      } else {
+        navigate("/"); // Go to home first, then scroll after small delay
+        setTimeout(() => handleScroll("hero"), 300);
+      }
+    } else if (link.id === "contact-section") {
+      handleScroll("contact-section");
+    } else if (link.route) {
+      navigate(link.route);
+    }
+  };
+
   return (
-    <footer className="relative bg-gradient-to-b from-gray-900 via-gray-950 to-black text-white pt-10 pb-8 px-6 md:px-20 lg:px-32">
+    <footer
+      id="contact-section"
+      className="relative w-full bg-gradient-to-b from-gray-900 via-gray-950 to-black text-white pt-10 pb-8 px-6 md:px-20 lg:px-32"
+    >
       {/* Top Animated Gradient Border */}
       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-cyan-400 to-purple-600 animate-gradient-x"></div>
 
@@ -30,17 +61,29 @@ const Footer = () => {
 
           {/* Social Icons */}
           <div className="flex gap-4 mt-6">
-            {[FaFacebookF, FaTwitter, FaInstagram, FaLinkedinIn, FaYoutube].map(
-              (Icon, idx) => (
-                <a
-                  key={idx}
-                  href="#"
-                  className="p-2 rounded-full bg-white/10 hover:bg-gradient-to-r hover:from-blue-600 hover:to-purple-600 hover:scale-110 transition-all duration-300"
-                >
-                  <Icon className="text-white text-lg" />
-                </a>
-              )
-            )}
+            {[
+              { Icon: FaFacebookF, link: "https://www.facebook.com/yourpage" },
+              { Icon: FaTwitter, link: "https://twitter.com/yourprofile" },
+              {
+                Icon: FaInstagram,
+                link: "https://www.instagram.com/aparaitech_global/",
+              },
+              {
+                Icon: FaLinkedinIn,
+                link: "https://www.linkedin.com/company/aparaitech",
+              },
+              { Icon: FaYoutube, link: "https://www.youtube.com/@Aparaitech" },
+            ].map(({ Icon, link }, idx) => (
+              <a
+                key={idx}
+                href={link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-2 rounded-full bg-white/10 hover:bg-gradient-to-r hover:from-blue-600 hover:to-purple-600 hover:scale-110 transition-all duration-300"
+              >
+                <Icon className="text-white text-lg" />
+              </a>
+            ))}
           </div>
         </div>
 
@@ -49,20 +92,22 @@ const Footer = () => {
           <h2 className="font-semibold text-lg mb-4 relative after:content-[''] after:block after:w-10 after:h-[2px] after:bg-blue-500 after:mt-1">
             Company
           </h2>
+
           <ul className="space-y-3 text-gray-400">
             {[
-              "Home",
-              "About us",
-              "Courses",
-              "Contact us",
-              "Privacy policy",
+              { name: "Home", id: "hero" },
+              { name: "About us", route: "/about" },
+              { name: "Project", route: "/course-list" },
+              { name: "Contact us", id: "contact-section" },
+              { name: "Privacy policy" },
             ].map((link, i) => (
               <li key={i}>
                 <a
                   href="#"
+                  onClick={() => handleLinkClick(link)}
                   className="hover:text-blue-400 hover:pl-1 transition-all duration-300"
                 >
-                  {link}
+                  {link.name}
                 </a>
               </li>
             ))}

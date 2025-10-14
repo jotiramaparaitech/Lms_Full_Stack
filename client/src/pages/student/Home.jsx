@@ -9,12 +9,17 @@ import CallToAction from "../../components/student/CallToAction";
 const Home = () => {
   return (
     <div className="flex flex-col items-center text-center">
-      <Hero />
+      <Hero id="hero" />
       <Companies />
-      <CoursesSection />
+      <div id="courses">
+        <CoursesSection />
+      </div>
       <TestimonialsSection />
       <CallToAction />
-      <Footer />
+      {/* ✅ Added ID for smooth scroll from Navbar */}
+      <div id="contact-section">
+        <Footer />
+      </div>
     </div>
   );
 };
