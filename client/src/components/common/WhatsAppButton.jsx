@@ -4,7 +4,7 @@ import { assets } from "../../assets/assets";
 
 const WhatsAppButton = () => {
   // ✅ Your WhatsApp business number (no '+' or spaces)
-  const phoneNumber = "918767011846";
+  const phoneNumber = "916364326342";
 
   // ✅ Pre-filled message
   const message = "Hello! I’d like to know more about Aparaitech Projects.";
