@@ -3,11 +3,34 @@ import { motion } from "framer-motion";
 import { assets } from "../../assets/assets";
 
 const WhatsAppButton = () => {
-  const phoneNumber = "919766085448";
+  // ✅ Your WhatsApp business number (no '+' or spaces)
+  const phoneNumber = "918767011846";
+
+  // ✅ Pre-filled message
   const message = "Hello! I’d like to know more about Aparaitech Projects.";
-  const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(
+
+  // ✅ Default Click-to-Chat link (works for normal accounts)
+  const defaultUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(
     message
   )}`;
+
+  // ✅ Fallback to Business Short Link (replace XXXX with your own)
+  // 👉 You can find this inside WhatsApp Business App → Business Tools → Short link
+  const businessShortLink = "https://wa.me/message/XXXXXX"; // ← update this once you copy it
+
+  // ✅ Smart open handler
+  const openWhatsApp = () => {
+    // Open default URL first
+    const newWindow = window.open(defaultUrl, "_blank");
+
+    // Fallback check after a small delay — if message doesn’t show, use short link
+    setTimeout(() => {
+      if (newWindow && !newWindow.closed) {
+        // if WhatsApp Business API blocks text injection, open short link instead
+        newWindow.location.href = businessShortLink;
+      }
+    }, 2500);
+  };
 
   return (
     <motion.div
@@ -16,22 +39,21 @@ const WhatsAppButton = () => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.8, ease: "easeOut" }}
     >
-      {/* 💬 Message Bubble */}
+      {/* 💬 Chat bubble */}
       <motion.div
         className="bg-white text-black px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg shadow-md
                    text-[9px] sm:text-sm md:text-base font-normal border border-gray-200
                    cursor-pointer hover:shadow-lg transition-all duration-300"
         whileHover={{ scale: 1 }}
+        onClick={openWhatsApp}
       >
         Need Help? <span className="font-bold ml-1">Chat with us</span>
       </motion.div>
 
-      {/* 🟢 WhatsApp Logo Button */}
-      <motion.a
-        href={whatsappUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex items-center justify-center transition-all duration-300"
+      {/* 🟢 WhatsApp Icon */}
+      <motion.div
+        onClick={openWhatsApp}
+        className="flex items-center justify-center transition-all duration-300 cursor-pointer"
         whileHover={{ scale: 1.08 }}
         whileTap={{ scale: 0.95 }}
       >
@@ -44,7 +66,7 @@ const WhatsAppButton = () => {
             boxShadow: "0px 4px 6px rgba(0,0,0,0.25)",
           }}
         />
-      </motion.a>
+      </motion.div>
     </motion.div>
   );
 };

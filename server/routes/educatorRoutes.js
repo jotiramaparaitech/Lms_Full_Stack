@@ -1,25 +1,65 @@
-import express from 'express'
-import { addCourse, educatorDashboardData, getEducatorCourses, getEnrolledStudentsData, updateRoleToEducator } from '../controllers/educatorController.js';
-import upload from '../configs/multer.js';
-import { protectEducator } from '../middlewares/authMiddleware.js';
+import express from "express";
+import {
+  addCourse,
+  updateCourse,
+  deleteCourse,
+  educatorDashboardData,
+  getEducatorCourses,
+  getEnrolledStudentsData,
+  updateRoleToEducator,
+} from "../controllers/educatorController.js";
+import upload from "../configs/multer.js";
+import { protectEducator } from "../middlewares/authMiddleware.js";
 
+const educatorRouter = express.Router();
 
-const educatorRouter = express.Router()
+// -----------------------------
+// Add Educator Role
+// -----------------------------
+educatorRouter.get("/update-role", updateRoleToEducator);
 
-// Add Educator Role 
-educatorRouter.get('/update-role', updateRoleToEducator)
+// -----------------------------
+// Add Course
+// -----------------------------
+educatorRouter.post(
+  "/add-course",
+  protectEducator,
+  upload.single("image"),
+  addCourse
+);
 
-// Add Courses 
-educatorRouter.post('/add-course', upload.single('image'), protectEducator, addCourse)
+// -----------------------------
+// Get Educator Courses
+// -----------------------------
+educatorRouter.get("/courses", protectEducator, getEducatorCourses);
 
-// Get Educator Courses 
-educatorRouter.get('/courses', protectEducator, getEducatorCourses)
+// -----------------------------
+// Update Course
+// -----------------------------
+educatorRouter.put(
+  "/course/:id",
+  protectEducator,
+  upload.single("image"),
+  updateCourse
+);
 
-// Get Educator Dashboard Data
-educatorRouter.get('/dashboard', protectEducator, educatorDashboardData)
+// -----------------------------
+// Delete Course
+// -----------------------------
+educatorRouter.delete("/course/:id", protectEducator, deleteCourse);
 
-// Get Educator Students Data
-educatorRouter.get('/enrolled-students', protectEducator, getEnrolledStudentsData)
+// -----------------------------
+// Educator Dashboard Data
+// -----------------------------
+educatorRouter.get("/dashboard", protectEducator, educatorDashboardData);
 
+// -----------------------------
+// Get Enrolled Students Data
+// -----------------------------
+educatorRouter.get(
+  "/enrolled-students",
+  protectEducator,
+  getEnrolledStudentsData
+);
 
 export default educatorRouter;

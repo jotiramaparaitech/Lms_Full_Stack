@@ -25,6 +25,7 @@ const AddCourse = () => {
     isPreviewFree: false,
   });
 
+  // ---------------------- Chapter Handling ----------------------
   const handleChapter = (action, chapterId) => {
     if (action === "add") {
       const title = prompt("Enter Chapter Name:");
@@ -40,20 +41,17 @@ const AddCourse = () => {
         setChapters([...chapters, newChapter]);
       }
     } else if (action === "remove") {
-      setChapters(
-        chapters.filter((chapter) => chapter.chapterId !== chapterId)
-      );
+      setChapters(chapters.filter((ch) => ch.chapterId !== chapterId));
     } else if (action === "toggle") {
       setChapters(
-        chapters.map((chapter) =>
-          chapter.chapterId === chapterId
-            ? { ...chapter, collapsed: !chapter.collapsed }
-            : chapter
+        chapters.map((ch) =>
+          ch.chapterId === chapterId ? { ...ch, collapsed: !ch.collapsed } : ch
         )
       );
     }
   };
 
+  // ---------------------- Lecture Handling ----------------------
   const handleLecture = (action, chapterId, lectureIndex) => {
     if (action === "add") {
       setCurrentChapterId(chapterId);
@@ -62,7 +60,9 @@ const AddCourse = () => {
       setChapters(
         chapters.map((chapter) => {
           if (chapter.chapterId === chapterId) {
-            chapter.chapterContent.splice(lectureIndex, 1);
+            const updatedLectures = [...chapter.chapterContent];
+            updatedLectures.splice(lectureIndex, 1);
+            return { ...chapter, chapterContent: updatedLectures };
           }
           return chapter;
         })
@@ -71,6 +71,11 @@ const AddCourse = () => {
   };
 
   const addLecture = () => {
+    if (!lectureDetails.lectureTitle || !lectureDetails.lectureUrl) {
+      toast.error("Please fill all lecture fields.");
+      return;
+    }
+
     setChapters(
       chapters.map((chapter) => {
         if (chapter.chapterId === currentChapterId) {
@@ -82,11 +87,16 @@ const AddCourse = () => {
                 : 1,
             lectureId: uniqid(),
           };
-          chapter.chapterContent.push(newLecture);
+          return {
+            ...chapter,
+            chapterContent: [...chapter.chapterContent, newLecture],
+          };
         }
         return chapter;
       })
     );
+
+    // Reset lecture modal
     setShowPopup(false);
     setLectureDetails({
       lectureTitle: "",
@@ -96,10 +106,12 @@ const AddCourse = () => {
     });
   };
 
+  // ---------------------- Submit Handler ----------------------
   const handleSubmit = async (e) => {
+    e.preventDefault();
     try {
-      e.preventDefault();
       if (!image) return toast.error("Thumbnail Not Selected");
+      if (!courseTitle) return toast.error("Please enter course title");
 
       const courseData = {
         courseTitle,
@@ -116,35 +128,38 @@ const AddCourse = () => {
       const token = await getToken();
 
       const { data } = await axios.post(
-        backendUrl + "/api/educator/add-course",
+        `${backendUrl}/api/educator/add-course`,
         formData,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
       if (data.success) {
-        toast.success(data.message);
+        toast.success(data.message || "Course added successfully!");
         setCourseTitle("");
         setCoursePrice(0);
         setDiscount(0);
         setImage(null);
         setChapters([]);
-        quillRef.current.root.innerHTML = "";
-      } else toast.error(data.message);
+        if (quillRef.current) quillRef.current.root.innerHTML = "";
+      } else {
+        toast.error(data.message || "Failed to add course");
+      }
     } catch (error) {
-      toast.error(error.message);
+      console.error(error);
+      toast.error("Something went wrong while adding the course.");
     }
   };
 
+  // ---------------------- Quill Editor ----------------------
   useEffect(() => {
-    if (!quillRef.current && editorRef.current) {
-      quillRef.current = new Quill(editorRef.current, {
-        theme: "snow",
-      });
+    if (editorRef.current && !quillRef.current) {
+      quillRef.current = new Quill(editorRef.current, { theme: "snow" });
     }
   }, []);
 
+  // ---------------------- UI ----------------------
   return (
-    <div className="min-h-screen w-full flex pt-50px items-start p-6 md:p-10 bg-gradient-to-tr from-[#e6f7f1] via-[#f0f9ff] to-[#e3f2fd]">
+    <div className="min-h-screen w-full flex pt-20 items-start p-6 md:p-10 bg-gradient-to-tr from-[#e6f7f1] via-[#f0f9ff] to-[#e3f2fd]">
       <form
         onSubmit={handleSubmit}
         className="backdrop-blur-xl bg-white/70 border border-white/40 shadow-[0_10px_40px_rgba(0,0,0,0.15)] rounded-3xl p-8 md:p-10 w-full max-w-3xl transition-all duration-300 hover:shadow-[0_15px_60px_rgba(0,0,0,0.25)]"
@@ -153,7 +168,7 @@ const AddCourse = () => {
           Add New Project
         </h2>
 
-        {/* Course Title */}
+        {/* Title */}
         <div className="flex flex-col mb-5">
           <label className="text-gray-700 font-semibold">Project Title</label>
           <input
@@ -210,7 +225,7 @@ const AddCourse = () => {
             {image && (
               <img
                 src={URL.createObjectURL(image)}
-                alt=""
+                alt="preview"
                 className="max-h-16 mt-2 rounded-xl shadow-md"
               />
             )}
@@ -230,11 +245,11 @@ const AddCourse = () => {
           />
         </div>
 
-        {/* Chapters Section */}
+        {/* Chapters */}
         <div className="bg-white/80 border border-gray-200 rounded-2xl p-4 mb-6 shadow-md">
-          {chapters.map((chapter, chapterIndex) => (
+          {chapters.map((chapter, index) => (
             <div
-              key={chapterIndex}
+              key={chapter.chapterId}
               className="mb-4 bg-gradient-to-r from-[#b2f2bb]/80 to-[#a7ffeb]/80 text-gray-800 rounded-xl overflow-hidden shadow"
             >
               <div className="flex justify-between items-center p-4 font-semibold">
@@ -248,7 +263,7 @@ const AddCourse = () => {
                       chapter.collapsed && "-rotate-90"
                     }`}
                   />
-                  {chapterIndex + 1}. {chapter.chapterTitle}
+                  {index + 1}. {chapter.chapterTitle}
                 </div>
                 <div className="flex items-center gap-3">
                   <span>{chapter.chapterContent.length} Lectures</span>
@@ -264,7 +279,7 @@ const AddCourse = () => {
                 <div className="p-4 bg-white/70 rounded-b-xl">
                   {chapter.chapterContent.map((lecture, i) => (
                     <div
-                      key={i}
+                      key={lecture.lectureId}
                       className="flex justify-between items-center bg-white/90 text-gray-700 rounded-md px-3 py-2 mb-2 shadow-sm"
                     >
                       <span>
@@ -288,6 +303,7 @@ const AddCourse = () => {
                       />
                     </div>
                   ))}
+
                   <div
                     className="bg-gradient-to-r from-[#80deea] to-[#a7ffeb] text-gray-800 py-2 px-4 rounded-lg shadow-md hover:scale-105 cursor-pointer transition"
                     onClick={() => handleLecture("add", chapter.chapterId)}
@@ -315,6 +331,87 @@ const AddCourse = () => {
           ✅ Add Project
         </button>
       </form>
+
+      {/* Popup for adding lecture */}
+      {showPopup && (
+        <div className="fixed inset-0 bg-black/40 flex justify-center items-center">
+          <div className="bg-white rounded-xl p-6 shadow-lg w-[90%] md:w-[400px]">
+            <h3 className="text-xl font-bold mb-4 text-gray-800">
+              Add Lecture
+            </h3>
+
+            <input
+              type="text"
+              placeholder="Lecture Title"
+              value={lectureDetails.lectureTitle}
+              onChange={(e) =>
+                setLectureDetails({
+                  ...lectureDetails,
+                  lectureTitle: e.target.value,
+                })
+              }
+              className="w-full border border-gray-300 rounded-md px-3 py-2 mb-3"
+            />
+
+            <input
+              type="text"
+              placeholder="Duration (in mins)"
+              value={lectureDetails.lectureDuration}
+              onChange={(e) =>
+                setLectureDetails({
+                  ...lectureDetails,
+                  lectureDuration: e.target.value,
+                })
+              }
+              className="w-full border border-gray-300 rounded-md px-3 py-2 mb-3"
+            />
+
+            <input
+              type="text"
+              placeholder="Video URL"
+              value={lectureDetails.lectureUrl}
+              onChange={(e) =>
+                setLectureDetails({
+                  ...lectureDetails,
+                  lectureUrl: e.target.value,
+                })
+              }
+              className="w-full border border-gray-300 rounded-md px-3 py-2 mb-3"
+            />
+
+            <label className="flex items-center gap-2 mb-4">
+              <input
+                type="checkbox"
+                checked={lectureDetails.isPreviewFree}
+                onChange={(e) =>
+                  setLectureDetails({
+                    ...lectureDetails,
+                    isPreviewFree: e.target.checked,
+                  })
+                }
+              />
+              Free Preview
+            </label>
+
+            <div className="flex justify-between">
+              <button
+                type="button"
+                className="bg-gray-300 px-4 py-2 rounded-md"
+                onClick={() => setShowPopup(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="bg-gradient-to-r from-[#80deea] to-[#81d4fa] text-white px-4 py-2 rounded-md"
+                onClick={addLecture}
+              >
+                Add
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

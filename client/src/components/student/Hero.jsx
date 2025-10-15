@@ -2,6 +2,7 @@ import React from "react";
 import { motion } from "framer-motion";
 import { assets } from "../../assets/assets";
 import SearchBar from "../../components/student/SearchBar";
+import { Link } from "react-router-dom";
 
 const Hero = () => {
   return (
@@ -45,14 +46,18 @@ const Hero = () => {
             transition={{ delay: 0.4 }}
             className="flex flex-wrap gap-4 mt-8"
           >
-            <button className="bg-cyan-600 hover:bg-cyan-700 text-white px-6 sm:px-8 py-3 rounded-md font-medium shadow-md transition-all duration-300">
-              Start Learning Today
-            </button>
-            <button className="border border-cyan-500 text-cyan-600 hover:bg-cyan-50 px-6 sm:px-8 py-3 rounded-md font-medium transition-all duration-300">
-              Free Resources
-            </button>
-          </motion.div>
+            <Link to="/course-list">
+              <button className="bg-cyan-600 hover:bg-cyan-700 text-white px-6 sm:px-8 py-3 rounded-md font-medium shadow-md transition-all duration-300">
+                Start Learning Today
+              </button>
+            </Link>
 
+            <Link to="/course-list">
+              <button className="border border-cyan-500 text-cyan-600 hover:bg-cyan-50 px-6 sm:px-8 py-3 rounded-md font-medium transition-all duration-300">
+                Free Resources
+              </button>
+            </Link>
+          </motion.div>
           {/* FEATURES */}
           <div className="flex items-center gap-6 mt-6 text-sm text-gray-600">
             <div className="flex items-center gap-2">
