@@ -24,18 +24,6 @@ const chapterSchema = new mongoose.Schema(
   { _id: false }
 );
 
-// ---------- PDF Schema ----------
-const pdfSchema = new mongoose.Schema(
-  {
-    pdfId: { type: String, required: true },
-    pdfTitle: { type: String, required: true },
-    pdfDescription: { type: String },
-    pdfUrl: { type: String, required: true }, // ✅ direct link or MongoDB stored file URL
-    allowDownload: { type: Boolean, default: true }, // ✅ allows download
-  },
-  { _id: false }
-);
-
 // ---------- Course Schema ----------
 const courseSchema = new mongoose.Schema(
   {
@@ -46,8 +34,8 @@ const courseSchema = new mongoose.Schema(
     isPublished: { type: Boolean, default: true },
     discount: { type: Number, required: true, min: 0, max: 100 },
 
-    // ✅ PDF Resources (MongoDB-stored or manually linked PDFs)
-    pdfResources: [pdfSchema],
+    // ✅ Single PDF Link (optional)
+    pdfLink: { type: String }, // ← this stores the uploaded/viewable PDF URL
 
     // ✅ Course Content (Chapters + Lectures)
     courseContent: [chapterSchema],

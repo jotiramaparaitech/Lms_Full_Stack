@@ -18,6 +18,8 @@ export const getAllCourse = async (req, res) => {
 // ------------------------- Get Course by ID -------------------------
 export const getCourseId = async (req, res) => {
   const { id } = req.params;
+  const userId = req.user?._id; // ✅ available if user logged in via protect middleware
+
   try {
     const courseData = await Course.findById(id).populate({
       path: "educator",
@@ -36,6 +38,22 @@ export const getCourseId = async (req, res) => {
         if (!lecture.isPreviewFree) lecture.lectureUrl = "";
       });
     });
+
+    // ✅ Allow full PDF access only to enrolled students or educator
+    const isEducator =
+      courseData.educator?._id?.toString() === userId?.toString();
+    const isEnrolled = courseData.enrolledStudents?.includes(userId);
+
+    if (!isEducator && !isEnrolled) {
+      // Hide actual pdfUrl for unauthorized users
+      courseData.pdfResources = courseData.pdfResources.map((pdf) => ({
+        pdfId: pdf.pdfId,
+        pdfTitle: pdf.pdfTitle,
+        pdfDescription: pdf.pdfDescription,
+        allowDownload: false,
+        pdfUrl: "", // 🚫 Hide the real link
+      }));
+    }
 
     res.json({ success: true, courseData });
   } catch (error) {

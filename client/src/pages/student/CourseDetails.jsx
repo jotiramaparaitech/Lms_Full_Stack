@@ -9,7 +9,6 @@ import humanizeDuration from "humanize-duration";
 import YouTube from "react-youtube";
 import { useAuth } from "@clerk/clerk-react";
 import Loading from "../../components/student/Loading";
-import AddPdfForm from "../educator/AddPdfForm";
 
 const CourseDetails = () => {
   const { id } = useParams();
@@ -214,50 +213,28 @@ const CourseDetails = () => {
             </div>
           </div>
 
-          {/* ---------- PDF RESOURCES SECTION ---------- */}
-          <div className="mt-10 mb-20">
-            <h2 className="text-2xl font-semibold text-gray-800 mb-4">
-              📘 Course PDFs
-            </h2>
-
-            {courseData.pdfResources && courseData.pdfResources.length > 0 ? (
+          {/* ---------- PDF RESOURCES (Visible Only for Enrolled Students) ---------- */}
+          {isAlreadyEnrolled && courseData.pdfResources?.length > 0 && (
+            <div className="mt-10 mb-10">
+              <h2 className="text-2xl font-semibold text-gray-800 mb-4">
+                📘 Course PDFs
+              </h2>
               <ul className="space-y-3">
                 {courseData.pdfResources.map((pdf) => (
-                  <li
-                    key={pdf.pdfId}
-                    className="p-4 border rounded bg-gray-100 flex justify-between items-center"
-                  >
-                    <div>
-                      <p className="font-medium">{pdf.pdfTitle}</p>
-                      <p className="text-sm text-gray-600">
-                        {pdf.pdfDescription}
-                      </p>
-                    </div>
+                  <li key={pdf.pdfId}>
                     <a
                       href={pdf.pdfUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline"
-                      download={pdf.allowDownload}
+                      className="text-blue-600 underline hover:text-blue-800 text-sm md:text-base"
                     >
-                      {pdf.allowDownload ? "Download" : "View"}
+                      {pdf.pdfTitle || "View PDF"}
                     </a>
                   </li>
                 ))}
               </ul>
-            ) : (
-              <p className="text-gray-500">
-                No PDFs available for this course.
-              </p>
-            )}
-
-            {/* ---------- Add PDF Form (only for Educators) ---------- */}
-            {userData?.role === "educator" && (
-              <div className="mt-6">
-                <AddPdfForm courseId={courseData._id} backendUrl={backendUrl} />
-              </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* ---------- Course Description ---------- */}
           <div className="py-10 text-sm md:text-default">

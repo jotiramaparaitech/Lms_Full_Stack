@@ -2,7 +2,7 @@ import express from "express";
 import {
   getAllCourse,
   getCourseId,
-  uploadCoursePdf, // handles saving PDF links to MongoDB
+  uploadCoursePdf, // ✅ handles saving PDF link to MongoDB
 } from "../controllers/courseController.js";
 import { protect, isEducator } from "../middlewares/authMiddleware.js";
 
@@ -14,8 +14,8 @@ courseRouter.get("/all", getAllCourse);
 // -------------------- Get Course by ID --------------------
 courseRouter.get("/:id", getCourseId);
 
-// -------------------- Add Course PDF (via direct link) --------------------
-// ✅ No multer, no Cloudinary — saves directly in MongoDB
+// -------------------- Add / Update Course PDF Link --------------------
+// ✅ Educators only — saves or updates `pdfLink` field in the Course document
 courseRouter.post("/:courseId/add-pdf", protect, isEducator, uploadCoursePdf);
 
 export default courseRouter;
