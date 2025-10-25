@@ -17,18 +17,39 @@ const app = express();
 await connectDB();
 await connectCloudinary();
 
-// Middlewares
+// ✅ Global CORS Configuration (Fix)
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://lms-full-stack-client.vercel.app",
+];
+
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "https://lms-full-stack-client.vercel.app",
-    ], // whitelist your frontend
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
   })
 );
+
+// ✅ Handle preflight requests explicitly
+app.options("*", (req, res) => {
+  res.header("Access-Control-Allow-Origin", req.headers.origin);
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, X-Requested-With"
+  );
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.sendStatus(200);
+});
+
+// Clerk middleware (after CORS)
 app.use(clerkMiddleware());
 
 // Routes
@@ -39,13 +60,13 @@ app.use("/api/educator", express.json(), educatorRouter);
 app.use("/api/course", express.json(), courseRouter);
 app.use("/api/user", express.json(), userRouter);
 
-// Port
-const PORT = process.env.PORT || 5000;
-
+// Debug route (optional)
 app.get("/api/network", (req, res) => {
   res.json(os.networkInterfaces());
 });
 
+// Start server
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`✅ Server is running on port ${PORT}`);
 });
