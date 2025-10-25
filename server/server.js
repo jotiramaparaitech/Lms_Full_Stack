@@ -17,20 +17,24 @@ const app = express();
 await connectDB();
 await connectCloudinary();
 
-// ✅ Global CORS Configuration (Fix)
-const allowedOrigins = [
-  "http://localhost:5173",
-  "https://lms-full-stack-beta-nine.vercel.app",
-];
+// ✅ Global CORS Configuration (env-driven)
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
+  : [
+      "http://localhost:5173",
+      // add known deployed domains here; you can also set ALLOWED_ORIGINS in Vercel env
+      "https://lms-full-stack-beta-nine.vercel.app",
+      "https://lms-full-stack-server-ten-navy.vercel.app",
+    ];
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
-      }
+      // allow non-browser tools (no origin) and allow in non-production for dev ease
+      if (!origin) return callback(null, true);
+      if (process.env.NODE_ENV !== "production") return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error("Not allowed by CORS"));
     },
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
