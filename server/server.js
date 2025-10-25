@@ -20,7 +20,7 @@ await connectCloudinary();
 // ✅ Global CORS Configuration (Fix)
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://lms-full-stack-client.vercel.app",
+  "https://lms-full-stack-beta-nine.vercel.app",
 ];
 
 app.use(
