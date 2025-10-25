@@ -9,13 +9,14 @@ import humanizeDuration from "humanize-duration";
 import YouTube from "react-youtube";
 import { useAuth } from "@clerk/clerk-react";
 import Loading from "../../components/student/Loading";
+import AddPdfForm from "../educator/AddPdfForm";
 
 const CourseDetails = () => {
   const { id } = useParams();
-
   const [courseData, setCourseData] = useState(null);
   const [playerData, setPlayerData] = useState(null);
   const [isAlreadyEnrolled, setIsAlreadyEnrolled] = useState(false);
+  const [openSections, setOpenSections] = useState({});
 
   const {
     backendUrl,
@@ -28,10 +29,10 @@ const CourseDetails = () => {
   } = useContext(AppContext);
   const { getToken } = useAuth();
 
+  // ---------------- Fetch Course ----------------
   const fetchCourseData = async () => {
     try {
-      const { data } = await axios.get(backendUrl + "/api/course/" + id);
-
+      const { data } = await axios.get(`${backendUrl}/api/course/${id}`);
       if (data.success) {
         setCourseData(data.courseData);
       } else {
@@ -42,8 +43,7 @@ const CourseDetails = () => {
     }
   };
 
-  const [openSections, setOpenSections] = useState({});
-
+  // ---------------- Toggle Section ----------------
   const toggleSection = (index) => {
     setOpenSections((prev) => ({
       ...prev,
@@ -51,27 +51,21 @@ const CourseDetails = () => {
     }));
   };
 
+  // ---------------- Enroll Course ----------------
   const enrollCourse = async () => {
     try {
-      if (!userData) {
-        return toast.warn("Login to Enroll");
-      }
-
-      if (isAlreadyEnrolled) {
-        return toast.warn("Already Enrolled");
-      }
+      if (!userData) return toast.warn("Login to Enroll");
+      if (isAlreadyEnrolled) return toast.warn("Already Enrolled");
 
       const token = await getToken();
-
       const { data } = await axios.post(
-        backendUrl + "/api/user/purchase",
+        `${backendUrl}/api/user/purchase`,
         { courseId: courseData._id },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
       if (data.success) {
-        const { session_url } = data;
-        window.location.replace(session_url);
+        window.location.replace(data.session_url);
       } else {
         toast.error(data.message);
       }
@@ -90,11 +84,13 @@ const CourseDetails = () => {
     }
   }, [userData, courseData]);
 
+  // ---------------- Main Render ----------------
   return courseData ? (
     <>
       <div className="flex md:flex-row flex-col-reverse gap-10 relative items-start justify-between md:px-36 px-8 md:pt-20 pt-10 text-left">
         <div className="absolute top-0 left-0 w-full h-section-height -z-1 bg-gradient-to-b from-cyan-100/70"></div>
 
+        {/* ---------- LEFT SIDE: Course Content ---------- */}
         <div className="max-w-xl z-10 text-gray-500">
           <h1 className="md:text-course-deatails-heading-large text-course-deatails-heading-small font-semibold text-gray-800">
             {courseData.courseTitle}
@@ -140,6 +136,7 @@ const CourseDetails = () => {
             </span>
           </p>
 
+          {/* ---------- Course Structure ---------- */}
           <div className="pt-8 text-gray-800">
             <h2 className="text-xl font-semibold">Course Structure</h2>
             <div className="pt-5">
@@ -217,7 +214,53 @@ const CourseDetails = () => {
             </div>
           </div>
 
-          <div className="py-20 text-sm md:text-default">
+          {/* ---------- PDF RESOURCES SECTION ---------- */}
+          <div className="mt-10 mb-20">
+            <h2 className="text-2xl font-semibold text-gray-800 mb-4">
+              📘 Course PDFs
+            </h2>
+
+            {courseData.pdfResources && courseData.pdfResources.length > 0 ? (
+              <ul className="space-y-3">
+                {courseData.pdfResources.map((pdf) => (
+                  <li
+                    key={pdf.pdfId}
+                    className="p-4 border rounded bg-gray-100 flex justify-between items-center"
+                  >
+                    <div>
+                      <p className="font-medium">{pdf.pdfTitle}</p>
+                      <p className="text-sm text-gray-600">
+                        {pdf.pdfDescription}
+                      </p>
+                    </div>
+                    <a
+                      href={pdf.pdfUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline"
+                      download={pdf.allowDownload}
+                    >
+                      {pdf.allowDownload ? "Download" : "View"}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-gray-500">
+                No PDFs available for this course.
+              </p>
+            )}
+
+            {/* ---------- Add PDF Form (only for Educators) ---------- */}
+            {userData?.role === "educator" && (
+              <div className="mt-6">
+                <AddPdfForm courseId={courseData._id} backendUrl={backendUrl} />
+              </div>
+            )}
+          </div>
+
+          {/* ---------- Course Description ---------- */}
+          <div className="py-10 text-sm md:text-default">
             <h3 className="text-xl font-semibold text-gray-800">
               Course Description
             </h3>
@@ -228,6 +271,7 @@ const CourseDetails = () => {
           </div>
         </div>
 
+        {/* ---------- RIGHT SIDE: Card & Player ---------- */}
         <div className="max-w-course-card z-10 shadow-custom-card rounded-t md:rounded-none overflow-hidden bg-white min-w-[300px] sm:min-w-[420px]">
           {playerData ? (
             <YouTube
@@ -277,7 +321,7 @@ const CourseDetails = () => {
               </div>
               <div className="h-4 w-px bg-gray-500/40"></div>
               <div className="flex items-center gap-1">
-                <img src={assets.lesson_icon} alt="clock icon" />
+                <img src={assets.lesson_icon} alt="lesson icon" />
                 <p>{calculateNoOfLectures(courseData)} lessons</p>
               </div>
             </div>
@@ -287,21 +331,10 @@ const CourseDetails = () => {
             >
               {isAlreadyEnrolled ? "Already Enrolled" : "Enroll Now"}
             </button>
-            <div className="pt-6">
-              <p className="md:text-xl text-lg font-medium text-gray-800">
-                What's in the course?
-              </p>
-              <ul className="ml-4 pt-2 text-sm md:text-default list-disc text-gray-500">
-                <li>Lifetime access with free updates.</li>
-                <li>Step-by-step, hands-on project guidance.</li>
-                <li>Downloadable resources and source code.</li>
-                <li>Quizzes to test your knowledge.</li>
-                <li>Certificate of completion.</li>
-              </ul>
-            </div>
           </div>
         </div>
       </div>
+
       <Footer />
     </>
   ) : (

@@ -25,6 +25,15 @@ const AddCourse = () => {
     isPreviewFree: false,
   });
 
+  // ---------------------- PDF States ----------------------
+  const [pdfs, setPdfs] = useState([]);
+  const [showPdfPopup, setShowPdfPopup] = useState(false);
+  const [pdfDetails, setPdfDetails] = useState({
+    pdfTitle: "",
+    pdfDescription: "",
+    pdfUrl: "",
+  });
+
   // ---------------------- Chapter Handling ----------------------
   const handleChapter = (action, chapterId) => {
     if (action === "add") {
@@ -96,13 +105,41 @@ const AddCourse = () => {
       })
     );
 
-    // Reset lecture modal
     setShowPopup(false);
     setLectureDetails({
       lectureTitle: "",
       lectureDuration: "",
       lectureUrl: "",
       isPreviewFree: false,
+    });
+  };
+
+  // ---------------------- PDF Handling ----------------------
+  const handlePdf = (action, pdfId) => {
+    if (action === "add") {
+      setShowPdfPopup(true);
+    } else if (action === "remove") {
+      setPdfs(pdfs.filter((pdf) => pdf.pdfId !== pdfId));
+    }
+  };
+
+  const addPdf = () => {
+    if (!pdfDetails.pdfTitle || !pdfDetails.pdfUrl) {
+      toast.error("Please fill all PDF fields.");
+      return;
+    }
+
+    const newPdf = {
+      ...pdfDetails,
+      pdfId: uniqid(),
+    };
+    setPdfs([...pdfs, newPdf]);
+
+    setShowPdfPopup(false);
+    setPdfDetails({
+      pdfTitle: "",
+      pdfDescription: "",
+      pdfUrl: "",
     });
   };
 
@@ -119,6 +156,7 @@ const AddCourse = () => {
         coursePrice: Number(coursePrice),
         discount: Number(discount),
         courseContent: chapters,
+        pdfResources: pdfs,
       };
 
       const formData = new FormData();
@@ -140,6 +178,7 @@ const AddCourse = () => {
         setDiscount(0);
         setImage(null);
         setChapters([]);
+        setPdfs([]);
         if (quillRef.current) quillRef.current.root.innerHTML = "";
       } else {
         toast.error(data.message || "Failed to add course");
@@ -323,6 +362,67 @@ const AddCourse = () => {
           </div>
         </div>
 
+        {/* PDFs Section */}
+        <div className="bg-white/80 border border-gray-200 rounded-2xl p-4 mb-6 shadow-md">
+          <h3 className="text-xl font-bold text-gray-800 mb-3">
+            PDF Resources
+          </h3>
+          {pdfs.length > 0 ? (
+            pdfs.map((pdf, index) => (
+              <div
+                key={pdf.pdfId}
+                className="flex justify-between items-start bg-gradient-to-r from-[#b2dfdb]/80 to-[#b2ebf2]/80 text-gray-800 rounded-xl p-3 mb-3 shadow"
+              >
+                <div className="flex flex-col w-full">
+                  <h4 className="font-semibold">
+                    {index + 1}. {pdf.pdfTitle}
+                  </h4>
+                  {pdf.pdfDescription && (
+                    <p className="text-sm mb-2">{pdf.pdfDescription}</p>
+                  )}
+
+                  <div className="flex flex-wrap gap-3">
+                    {/* View Online */}
+                    <a
+                      href={pdf.pdfUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-blue-500 text-white px-3 py-1 rounded-lg shadow hover:bg-blue-600 transition"
+                    >
+                      View Online
+                    </a>
+
+                    {/* Always Allow Download */}
+                    <a
+                      href={pdf.pdfUrl}
+                      download
+                      className="bg-green-500 text-white px-3 py-1 rounded-lg shadow hover:bg-green-600 transition"
+                    >
+                      Download PDF
+                    </a>
+                  </div>
+                </div>
+
+                <img
+                  src={assets.cross_icon}
+                  alt="remove"
+                  className="cursor-pointer w-5 h-5"
+                  onClick={() => handlePdf("remove", pdf.pdfId)}
+                />
+              </div>
+            ))
+          ) : (
+            <p className="text-gray-500  mb-3">No PDFs added yet.</p>
+          )}
+
+          <div
+            className="flex justify-center bg-gradient-to-r from-[#80deea] to-[#a7ffeb] text-gray-800 py-2 rounded-xl cursor-pointer shadow-md hover:scale-105 transition"
+            onClick={() => handlePdf("add")}
+          >
+            + Add PDF
+          </div>
+        </div>
+
         {/* Submit */}
         <button
           type="submit"
@@ -334,7 +434,7 @@ const AddCourse = () => {
 
       {/* Popup for adding lecture */}
       {showPopup && (
-        <div className="fixed inset-0 bg-black/40 flex justify-center items-center">
+        <div className="fixed inset-0 bg-black/40 flex justify-center items-center z-50">
           <div className="bg-white rounded-xl p-6 shadow-lg w-[90%] md:w-[400px]">
             <h3 className="text-xl font-bold mb-4 text-gray-800">
               Add Lecture
@@ -405,6 +505,69 @@ const AddCourse = () => {
                 type="button"
                 className="bg-gradient-to-r from-[#80deea] to-[#81d4fa] text-white px-4 py-2 rounded-md"
                 onClick={addLecture}
+              >
+                Add
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Popup for adding PDF */}
+      {showPdfPopup && (
+        <div className="fixed inset-0 bg-black/40 flex justify-center items-center z-50">
+          <div className="bg-white rounded-xl p-6 shadow-lg w-[90%] md:w-[400px]">
+            <h3 className="text-xl font-bold mb-4 text-gray-800">Add PDF</h3>
+
+            <input
+              type="text"
+              placeholder="PDF Title"
+              value={pdfDetails.pdfTitle}
+              onChange={(e) =>
+                setPdfDetails({ ...pdfDetails, pdfTitle: e.target.value })
+              }
+              className="w-full border border-gray-300 rounded-md px-3 py-2 mb-3"
+            />
+
+            <textarea
+              placeholder="Description"
+              value={pdfDetails.pdfDescription}
+              onChange={(e) =>
+                setPdfDetails({
+                  ...pdfDetails,
+                  pdfDescription: e.target.value,
+                })
+              }
+              className="w-full border border-gray-300 rounded-md px-3 py-2 mb-3"
+            />
+
+            <input
+              type="text"
+              placeholder="PDF URL"
+              value={pdfDetails.pdfUrl}
+              onChange={(e) =>
+                setPdfDetails({ ...pdfDetails, pdfUrl: e.target.value })
+              }
+              className="w-full border border-gray-300 rounded-md px-3 py-2 mb-3"
+            />
+
+            {/* Upload option removed
+            <p className="text-sm text-gray-500 mb-4">
+              Enter the direct PDF link above. Upload option has been disabled.
+            </p> */}
+
+            <div className="flex justify-between">
+              <button
+                type="button"
+                className="bg-gray-300 px-4 py-2 rounded-md"
+                onClick={() => setShowPdfPopup(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="bg-gradient-to-r from-[#80deea] to-[#81d4fa] text-white px-4 py-2 rounded-md"
+                onClick={addPdf}
               >
                 Add
               </button>

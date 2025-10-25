@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { assets } from "../../assets/assets";
 import {
@@ -8,9 +8,12 @@ import {
   FaTwitter,
   FaYoutube,
 } from "react-icons/fa";
+import emailjs from "@emailjs/browser";
 
 const Footer = () => {
   const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [message, setMessage] = useState("");
 
   // Smooth scroll to a section on the same page
   const handleScroll = (targetId) => {
@@ -23,11 +26,10 @@ const Footer = () => {
   // Handle footer link clicks
   const handleLinkClick = (link) => {
     if (link.id === "hero") {
-      // Scroll to hero section if on home page
       if (window.location.pathname === "/") {
         handleScroll("hero");
       } else {
-        navigate("/"); // Go to home first, then scroll after small delay
+        navigate("/");
         setTimeout(() => handleScroll("hero"), 300);
       }
     } else if (link.id === "contact-section") {
@@ -35,6 +37,41 @@ const Footer = () => {
     } else if (link.route) {
       navigate(link.route);
     }
+  };
+
+  // Handle subscription
+  const handleSubscribe = (e) => {
+    e.preventDefault();
+
+    if (!email) {
+      setMessage("Please enter a valid email.");
+      return;
+    }
+
+    setMessage("Processing..."); // show immediately
+
+    const templateParams = {
+      to_email: email,
+      from_name: "Aparaitech",
+      message: "Thank you for subscribing to our newsletter!",
+    };
+
+    emailjs
+      .send(
+        "service_wdj15jn",
+        "template_xtmll8h",
+        templateParams,
+        "gpm7Cf-quPRpX09xI"
+      )
+      .then(
+        (response) => {
+          setMessage("Subscription successful! Check your inbox.");
+          setEmail(""); // clear input immediately
+        },
+        (error) => {
+          setMessage("Failed to subscribe. Please try again.");
+        }
+      );
   };
 
   return (
@@ -124,17 +161,38 @@ const Footer = () => {
             tutorials, and exclusive updates directly to your inbox.
           </p>
 
-          <div className="flex items-center gap-2 mt-5 w-full max-w-md">
-            <input
-              type="email"
-              placeholder="Enter your email"
-              className="flex-1 bg-gray-800/70 border border-gray-700 text-gray-300 rounded-lg px-3 py-2 outline-none text-sm transition-all duration-300 
-              focus:border-blue-500 focus:ring-2 focus:ring-blue-400 
-              hover:border-cyan-400 hover:bg-gray-800 hover:shadow-[0_0_10px_1px_rgba(56,189,248,0.3)]"
-            />
-            <button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:opacity-90 text-white px-5 py-2 rounded-lg text-sm font-medium shadow-lg transition-all duration-300">
-              Subscribe
-            </button>
+          <div className="flex flex-col gap-2 mt-5 w-full max-w-md">
+            <div className="flex items-center gap-2">
+              <input
+                type="email"
+                placeholder="Enter your email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="flex-1 bg-gray-800/70 border border-gray-700 text-gray-300 rounded-lg px-3 py-2 outline-none text-sm transition-all duration-300 
+        focus:border-blue-500 focus:ring-2 focus:ring-blue-400 
+        hover:border-cyan-400 hover:bg-gray-800 hover:shadow-[0_0_10px_1px_rgba(56,189,248,0.3)]"
+              />
+              <button
+                onClick={handleSubscribe}
+                className={`bg-gradient-to-r from-blue-600 to-purple-600 text-white px-5 py-2 rounded-lg text-sm font-medium shadow-lg transition-all duration-300 ${
+                  message.includes("successful") ? "opacity-90" : ""
+                }`}
+              >
+                {message.includes("Processing") ? "Processing..." : "Subscribe"}
+              </button>
+            </div>
+
+            {message && (
+              <p
+                className={`text-sm ${
+                  message.includes("successful")
+                    ? "text-green-400"
+                    : "text-red-400"
+                }`}
+              >
+                {message}
+              </p>
+            )}
           </div>
         </div>
       </div>
