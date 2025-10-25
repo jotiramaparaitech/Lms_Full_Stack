@@ -11,7 +11,6 @@ const MyCourses = () => {
   const [courses, setCourses] = useState(null);
   const navigate = useNavigate();
 
-  // Fetch educator courses
   const fetchEducatorCourses = async () => {
     try {
       const token = await getToken();
@@ -24,7 +23,6 @@ const MyCourses = () => {
     }
   };
 
-  // Remove course
   const handleRemoveCourse = async (courseId) => {
     if (!window.confirm("Are you sure you want to delete this project?"))
       return;
@@ -45,7 +43,6 @@ const MyCourses = () => {
     }
   };
 
-  // Navigate to edit page
   const handleEditCourse = (courseId) => {
     navigate(`/educator/edit-course/${courseId}`);
   };
@@ -57,17 +54,17 @@ const MyCourses = () => {
   if (!courses) return <Loading />;
 
   return (
-    <div className="min-h-screen flex flex-col items-center md:p-12 p-6 bg-gradient-to-br from-sky-50 via-white to-blue-50 relative overflow-hidden">
+    <div className="min-h-screen flex flex-col items-center md:p-12 p-4 bg-gradient-to-br from-sky-50 via-white to-blue-50 relative overflow-hidden">
       {/* Background glow blobs */}
       <div className="absolute top-[-120px] left-[-50px] w-80 h-80 bg-blue-300/30 blur-3xl rounded-full animate-pulse -z-10"></div>
       <div className="absolute bottom-[-120px] right-[-50px] w-96 h-96 bg-cyan-400/30 blur-3xl rounded-full animate-pulse -z-10"></div>
 
-      {/* Table Container */}
+      {/* TABLE VIEW (Visible on md and above) */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8 }}
-        className="w-full max-w-6xl overflow-hidden rounded-3xl bg-white/80 backdrop-blur-none border border-gray-200 shadow-[0_10px_40px_rgba(56,189,248,0.25)] hover:shadow-[0_20px_60px_rgba(56,189,248,0.35)] transition-all"
+        className="hidden md:block w-full max-w-6xl overflow-x-auto rounded-3xl bg-white/80 border border-gray-200 shadow-[0_10px_40px_rgba(56,189,248,0.25)] hover:shadow-[0_20px_60px_rgba(56,189,248,0.35)] transition-all"
       >
         <table className="w-full text-sm text-left border-collapse">
           <thead className="text-gray-800 bg-gradient-to-r from-sky-100 to-blue-100 border-b border-gray-200">
@@ -91,7 +88,6 @@ const MyCourses = () => {
                 transition={{ type: "spring", stiffness: 200 }}
                 className="border-b border-gray-200 cursor-pointer"
               >
-                {/* Project */}
                 <td className="px-4 py-3 flex items-center gap-3 truncate">
                   <img
                     src={course.courseThumbnail}
@@ -103,8 +99,7 @@ const MyCourses = () => {
                   </span>
                 </td>
 
-                {/* Earnings */}
-                <td className="px-4 py-3 font-semibold text-blue-600">
+                <td className="px-4 py-3 font-semibold text-blue-600 whitespace-nowrap">
                   {currency}{" "}
                   {Math.floor(
                     course.enrolledStudents.length *
@@ -113,17 +108,14 @@ const MyCourses = () => {
                   )}
                 </td>
 
-                {/* Students */}
                 <td className="px-4 py-3 text-center font-medium text-gray-800">
                   {course.enrolledStudents.length}
                 </td>
 
-                {/* Published On */}
-                <td className="px-4 py-3 text-gray-700">
+                <td className="px-4 py-3 text-gray-700 whitespace-nowrap">
                   {new Date(course.createdAt).toLocaleDateString()}
                 </td>
 
-                {/* Actions */}
                 <td className="px-4 py-3 flex justify-center gap-2">
                   <motion.button
                     whileHover={{ scale: 1.1 }}
@@ -148,6 +140,63 @@ const MyCourses = () => {
           </tbody>
         </table>
       </motion.div>
+
+      {/* MOBILE CARD VIEW (Visible below md) */}
+      <div className="block md:hidden w-full max-w-md mt-4 space-y-4">
+        {courses.map((course) => (
+          <motion.div
+            key={course._id}
+            whileHover={{ scale: 1.02 }}
+            transition={{ type: "spring", stiffness: 200 }}
+            className="bg-white/80 border border-gray-200 rounded-2xl shadow-md p-4 backdrop-blur-sm"
+          >
+            <div className="flex items-center gap-4">
+              <img
+                src={course.courseThumbnail}
+                alt="Course"
+                className="w-20 h-16 object-cover rounded-lg shadow-sm"
+              />
+              <div className="flex-1">
+                <h3 className="font-semibold text-gray-800 truncate">
+                  {course.courseTitle}
+                </h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  {currency}{" "}
+                  {Math.floor(
+                    course.enrolledStudents.length *
+                      (course.coursePrice -
+                        (course.discount * course.coursePrice) / 100)
+                  )}{" "}
+                  • {course.enrolledStudents.length} Students
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {new Date(course.createdAt).toLocaleDateString()}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 mt-3">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => handleEditCourse(course._id)}
+                className="px-3 py-1 text-xs font-semibold bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-md shadow-sm"
+              >
+                Edit
+              </motion.button>
+
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => handleRemoveCourse(course._id)}
+                className="px-3 py-1 text-xs font-semibold bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-md shadow-sm"
+              >
+                Remove
+              </motion.button>
+            </div>
+          </motion.div>
+        ))}
+      </div>
     </div>
   );
 };

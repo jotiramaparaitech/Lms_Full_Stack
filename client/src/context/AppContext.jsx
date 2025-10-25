@@ -24,7 +24,7 @@ export const AppContextProvider = (props) => {
   // ✅ Fetch all courses
   const fetchAllCourses = async () => {
     try {
-      const { data } = await axios.get(backendUrl + "/api/course/all");
+      const { data } = await axios.get(`${backendUrl}/api/course/all`);
       if (data.success) setAllCourses(data.courses);
       else toast.error(data.message);
     } catch (error) {
@@ -37,7 +37,7 @@ export const AppContextProvider = (props) => {
     try {
       if (!user) return;
       const token = await getToken();
-      const { data } = await axios.get(backendUrl + "/api/user/data", {
+      const { data } = await axios.get(`${backendUrl}/api/user/data`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -46,11 +46,7 @@ export const AppContextProvider = (props) => {
 
         // Clerk role check
         const role = user?.publicMetadata?.role || "student";
-        if (role === "educator" || role === "admin") {
-          setIsEducator(true);
-        } else {
-          setIsEducator(false);
-        }
+        setIsEducator(role === "educator" || role === "admin");
       } else toast.error(data.message);
     } catch (error) {
       toast.error(error.message);
@@ -62,7 +58,7 @@ export const AppContextProvider = (props) => {
     try {
       const token = await getToken();
       const { data } = await axios.get(
-        backendUrl + "/api/user/enrolled-courses",
+        `${backendUrl}/api/user/enrolled-courses`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (data.success) setEnrolledCourses(data.enrolledCourses.reverse());
@@ -72,36 +68,53 @@ export const AppContextProvider = (props) => {
     }
   };
 
+  // ✅ Fetch single course by ID (includes PDFs)
+  const fetchCourseById = async (courseId) => {
+    try {
+      const { data } = await axios.get(`${backendUrl}/api/course/${courseId}`);
+      if (data.success) return data.courseData; // includes pdfResources
+      else {
+        toast.error(data.message);
+        return null;
+      }
+    } catch (error) {
+      toast.error(error.message);
+      return null;
+    }
+  };
+
   // ⏱ Calculate durations, ratings, etc.
   const calculateChapterTime = (chapter) => {
     let time = 0;
-    chapter.chapterContent.map((lecture) => (time += lecture.lectureDuration));
+    chapter.chapterContent.forEach(
+      (lecture) => (time += lecture.lectureDuration)
+    );
     return humanizeDuration(time * 60 * 1000, { units: ["h", "m"] });
   };
 
   const calculateCourseDuration = (course) => {
     let time = 0;
-    course.courseContent.map((chapter) =>
-      chapter.chapterContent.map((lecture) => (time += lecture.lectureDuration))
+    course.courseContent.forEach((chapter) =>
+      chapter.chapterContent.forEach(
+        (lecture) => (time += lecture.lectureDuration)
+      )
     );
     return humanizeDuration(time * 60 * 1000, { units: ["h", "m"] });
   };
 
   const calculateRating = (course) => {
     if (course.courseRatings.length === 0) return 0;
-    let total = 0;
-    course.courseRatings.forEach((r) => (total += r.rating));
+    const total = course.courseRatings.reduce((acc, r) => acc + r.rating, 0);
     return Math.floor(total / course.courseRatings.length);
   };
 
   const calculateNoOfLectures = (course) => {
-    let total = 0;
-    course.courseContent.forEach((chapter) => {
+    return course.courseContent.reduce((total, chapter) => {
       if (Array.isArray(chapter.chapterContent)) {
         total += chapter.chapterContent.length;
       }
-    });
-    return total;
+      return total;
+    }, 0);
   };
 
   // ✅ Redirect users based on their role
@@ -111,11 +124,8 @@ export const AppContextProvider = (props) => {
       fetchUserData();
       fetchUserEnrolledCourses();
 
-      if (role === "educator" || role === "admin") {
-        navigate("/educator");
-      } else {
-        navigate("/");
-      }
+      if (role === "educator" || role === "admin") navigate("/educator");
+      else navigate("/");
     }
   }, [user, isLoaded]);
 
@@ -136,6 +146,7 @@ export const AppContextProvider = (props) => {
     fetchAllCourses,
     enrolledCourses,
     fetchUserEnrolledCourses,
+    fetchCourseById, // ✅ Added for PDF support
     calculateChapterTime,
     calculateCourseDuration,
     calculateRating,
