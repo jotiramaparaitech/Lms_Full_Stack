@@ -133,6 +133,7 @@ const AddCourse = () => {
       ...pdfDetails,
       pdfId: uniqid(),
     };
+
     setPdfs([...pdfs, newPdf]);
 
     setShowPdfPopup(false);
@@ -141,6 +142,8 @@ const AddCourse = () => {
       pdfDescription: "",
       pdfUrl: "",
     });
+
+    toast.success("PDF added locally. It will be saved on course submit.");
   };
 
   // ---------------------- Submit Handler ----------------------
@@ -150,25 +153,32 @@ const AddCourse = () => {
       if (!image) return toast.error("Thumbnail Not Selected");
       if (!courseTitle) return toast.error("Please enter course title");
 
+      const token = await getToken();
+
+      const formData = new FormData();
+
+      // Server expects a single `courseData` JSON field plus `image`
       const courseData = {
         courseTitle,
-        courseDescription: quillRef.current.root.innerHTML,
+        courseDescription: quillRef.current?.root?.innerHTML || "",
         coursePrice: Number(coursePrice),
         discount: Number(discount),
         courseContent: chapters,
         pdfResources: pdfs,
       };
 
-      const formData = new FormData();
       formData.append("courseData", JSON.stringify(courseData));
       formData.append("image", image);
-
-      const token = await getToken();
 
       const { data } = await axios.post(
         `${backendUrl}/api/educator/add-course`,
         formData,
-        { headers: { Authorization: `Bearer ${token}` } }
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data",
+          },
+        }
       );
 
       if (data.success) {
@@ -382,7 +392,6 @@ const AddCourse = () => {
                   )}
 
                   <div className="flex flex-wrap gap-3">
-                    {/* View Online */}
                     <a
                       href={pdf.pdfUrl}
                       target="_blank"
@@ -391,8 +400,6 @@ const AddCourse = () => {
                     >
                       View Online
                     </a>
-
-                    {/* Always Allow Download */}
                     <a
                       href={pdf.pdfUrl}
                       download
@@ -412,7 +419,7 @@ const AddCourse = () => {
               </div>
             ))
           ) : (
-            <p className="text-gray-500  mb-3">No PDFs added yet.</p>
+            <p className="text-gray-500 mb-3">No PDFs added yet.</p>
           )}
 
           <div
@@ -550,11 +557,6 @@ const AddCourse = () => {
               }
               className="w-full border border-gray-300 rounded-md px-3 py-2 mb-3"
             />
-
-            {/* Upload option removed
-            <p className="text-sm text-gray-500 mb-4">
-              Enter the direct PDF link above. Upload option has been disabled.
-            </p> */}
 
             <div className="flex justify-between">
               <button

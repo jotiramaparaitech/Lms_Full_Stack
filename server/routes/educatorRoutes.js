@@ -24,7 +24,11 @@ educatorRouter.get("/update-role", updateRoleToEducator);
 educatorRouter.post(
   "/add-course",
   protectEducator,
-  upload.single("image"),
+  // accept one image file (thumbnail) and multiple pdf files (field name: 'pdfs')
+  upload.fields([
+    { name: "image", maxCount: 1 },
+    { name: "pdfs", maxCount: 10 },
+  ]),
   addCourse
 );
 
@@ -39,7 +43,11 @@ educatorRouter.get("/courses", protectEducator, getEducatorCourses);
 educatorRouter.put(
   "/course/:id",
   protectEducator,
-  upload.single("image"),
+  // allow updating thumbnail and PDF uploads
+  upload.fields([
+    { name: "image", maxCount: 1 },
+    { name: "pdfs", maxCount: 10 },
+  ]),
   updateCourse
 );
 

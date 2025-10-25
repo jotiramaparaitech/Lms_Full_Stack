@@ -1,4 +1,5 @@
 import { v2 as cloudinary } from "cloudinary";
+import streamifier from "streamifier";
 import Course from "../models/Course.js";
 import { Purchase } from "../models/Purchase.js";
 import User from "../models/User.js";
@@ -27,7 +28,9 @@ export const updateRoleToEducator = async (req, res) => {
 export const addCourse = async (req, res) => {
   try {
     const { courseData } = req.body;
-    const imageFile = req.file;
+    // files come from upload.fields -> req.files
+    const imageFile = req.files?.image?.[0];
+    const pdfFiles = req.files?.pdfs || [];
     const educatorId = req.auth.userId;
 
     if (!imageFile) {
@@ -36,11 +39,73 @@ export const addCourse = async (req, res) => {
 
     const parsedCourseData = JSON.parse(courseData);
     parsedCourseData.educator = educatorId;
+    // prepare pdfResources array: merge any provided metadata with uploaded files
+    let pdfResources = [];
+    if (
+      parsedCourseData.pdfResources &&
+      Array.isArray(parsedCourseData.pdfResources)
+    ) {
+      pdfResources = parsedCourseData.pdfResources.map((p) => ({ ...p }));
+    }
 
     const newCourse = await Course.create(parsedCourseData);
-    const imageUpload = await cloudinary.uploader.upload(imageFile.path);
 
-    newCourse.courseThumbnail = imageUpload.secure_url;
+    // Support both disk-storage (file.path) and memory-storage (file.buffer) for thumbnail
+    if (imageFile.buffer) {
+      // upload from buffer using upload_stream
+      const uploadFromBuffer = (buffer) =>
+        new Promise((resolve, reject) => {
+          const stream = cloudinary.uploader.upload_stream(
+            { folder: "courses" },
+            (error, result) => {
+              if (error) return reject(error);
+              resolve(result);
+            }
+          );
+          streamifier.createReadStream(buffer).pipe(stream);
+        });
+
+      const imageUpload = await uploadFromBuffer(imageFile.buffer);
+      newCourse.courseThumbnail = imageUpload.secure_url;
+    } else if (imageFile.path) {
+      const imageUpload = await cloudinary.uploader.upload(imageFile.path);
+      newCourse.courseThumbnail = imageUpload.secure_url;
+    }
+
+    // Upload any pdf files (Cloudinary raw uploads)
+    if (pdfFiles.length > 0) {
+      for (const file of pdfFiles) {
+        // upload buffer or path
+        let uploadResult;
+        if (file.buffer) {
+          uploadResult = await new Promise((resolve, reject) => {
+            const stream = cloudinary.uploader.upload_stream(
+              { resource_type: "raw", folder: "course_pdfs" },
+              (err, result) => (err ? reject(err) : resolve(result))
+            );
+            streamifier.createReadStream(file.buffer).pipe(stream);
+          });
+        } else if (file.path) {
+          uploadResult = await cloudinary.uploader.upload(file.path, {
+            resource_type: "raw",
+            folder: "course_pdfs",
+          });
+        }
+
+        if (uploadResult) {
+          pdfResources.push({
+            pdfId: file.originalname || file.filename,
+            pdfTitle: file.originalname || file.filename,
+            pdfDescription: "",
+            pdfUrl: uploadResult.secure_url,
+          });
+        }
+      }
+    }
+
+    // attach pdfResources if any
+    if (pdfResources.length > 0) newCourse.pdfResources = pdfResources;
+
     await newCourse.save();
 
     res.json({ success: true, message: "Course Added", course: newCourse });
@@ -83,12 +148,66 @@ export const updateCourse = async (req, res) => {
       const parsedCourseData = JSON.parse(req.body.courseData);
       Object.assign(course, parsedCourseData);
     }
+    // handle uploaded files (from upload.fields)
+    const imageFile = req.files?.image?.[0];
+    const pdfFiles = req.files?.pdfs || [];
 
-    if (req.file) {
-      const imageUpload = await cloudinary.uploader.upload(req.file.path);
-      course.courseThumbnail = imageUpload.secure_url;
+    if (imageFile) {
+      // handle buffer (memoryStorage) or path (disk)
+      if (imageFile.buffer) {
+        const uploadFromBuffer = (buffer) =>
+          new Promise((resolve, reject) => {
+            const stream = cloudinary.uploader.upload_stream(
+              { folder: "courses" },
+              (error, result) => {
+                if (error) return reject(error);
+                resolve(result);
+              }
+            );
+            streamifier.createReadStream(buffer).pipe(stream);
+          });
+
+        const imageUpload = await uploadFromBuffer(imageFile.buffer);
+        course.courseThumbnail = imageUpload.secure_url;
+      } else if (imageFile.path) {
+        const imageUpload = await cloudinary.uploader.upload(imageFile.path);
+        course.courseThumbnail = imageUpload.secure_url;
+      }
     }
+    // handle uploaded pdf files (merge into course.pdfResources)
+    if (pdfFiles.length > 0) {
+      const pdfResources = Array.isArray(course.pdfResources)
+        ? course.pdfResources
+        : [];
+      for (const file of pdfFiles) {
+        let uploadResult;
+        if (file.buffer) {
+          uploadResult = await new Promise((resolve, reject) => {
+            const stream = cloudinary.uploader.upload_stream(
+              { resource_type: "raw", folder: "course_pdfs" },
+              (err, result) => (err ? reject(err) : resolve(result))
+            );
+            streamifier.createReadStream(file.buffer).pipe(stream);
+          });
+        } else if (file.path) {
+          uploadResult = await cloudinary.uploader.upload(file.path, {
+            resource_type: "raw",
+            folder: "course_pdfs",
+          });
+        }
 
+        if (uploadResult) {
+          pdfResources.push({
+            pdfId: file.originalname || file.filename,
+            pdfTitle: file.originalname || file.filename,
+            pdfDescription: "",
+            pdfUrl: uploadResult.secure_url,
+          });
+        }
+      }
+
+      course.pdfResources = pdfResources;
+    }
     await course.save();
     res.json({ success: true, message: "Course updated successfully", course });
   } catch (error) {

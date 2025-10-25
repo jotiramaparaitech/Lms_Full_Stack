@@ -34,8 +34,15 @@ const courseSchema = new mongoose.Schema(
     isPublished: { type: Boolean, default: true },
     discount: { type: Number, required: true, min: 0, max: 100 },
 
-    // ✅ Single PDF Link (optional)
-    pdfLink: { type: String }, // ← this stores the uploaded/viewable PDF URL
+    // ✅ PDF Resources (array) — supports multiple PDFs per course
+    pdfResources: [
+      {
+        pdfId: { type: String },
+        pdfTitle: { type: String },
+        pdfDescription: { type: String },
+        pdfUrl: { type: String },
+      },
+    ],
 
     // ✅ Course Content (Chapters + Lectures)
     courseContent: [chapterSchema],
