@@ -34,6 +34,13 @@ const courseSchema = new mongoose.Schema(
     isPublished: { type: Boolean, default: true },
     discount: { type: Number, required: true, min: 0, max: 100 },
 
+    // ✅ Custom Domain (required)
+    customDomain: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
     // ✅ PDF Resources (array) — supports multiple PDFs per course
     pdfResources: [
       {

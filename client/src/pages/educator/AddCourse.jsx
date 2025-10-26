@@ -12,6 +12,7 @@ const AddCourse = () => {
   const { backendUrl, getToken } = useContext(AppContext);
 
   const [courseTitle, setCourseTitle] = useState("");
+  const [customDomain, setCustomDomain] = useState("");
   const [coursePrice, setCoursePrice] = useState(0);
   const [discount, setDiscount] = useState(0);
   const [image, setImage] = useState(null);
@@ -165,6 +166,7 @@ const AddCourse = () => {
         discount: Number(discount),
         courseContent: chapters,
         pdfResources: pdfs,
+        customDomain,
       };
 
       formData.append("courseData", JSON.stringify(courseData));
@@ -227,6 +229,19 @@ const AddCourse = () => {
             placeholder="Enter course title..."
             className="mt-2 bg-white/80 text-gray-800 border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#80deea] shadow-inner"
             required
+          />
+        </div>
+
+        {/* Custom Domain */}
+        <div className="flex flex-col mb-5">
+          <label className="text-gray-700 font-semibold">Custom Domain</label>
+          <input
+            type="text"
+            value={customDomain}
+            onChange={(e) => setCustomDomain(e.target.value)}
+            placeholder="e.g.,Computer/AI/Sales Cloud Projects/Developer / Admin / Einstein Projects"
+            required
+            className="mt-2 bg-white/80 text-gray-800 border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#80deea] shadow-inner"
           />
         </div>
 
