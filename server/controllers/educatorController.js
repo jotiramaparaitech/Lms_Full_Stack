@@ -1,5 +1,5 @@
 import { v2 as cloudinary } from "cloudinary";
-import streamifier from "streamifier";
+import { Readable } from "stream";
 import Course from "../models/Course.js";
 import { Purchase } from "../models/Purchase.js";
 import User from "../models/User.js";
@@ -62,7 +62,7 @@ export const addCourse = async (req, res) => {
               resolve(result);
             }
           );
-          streamifier.createReadStream(buffer).pipe(stream);
+          Readable.from(buffer).pipe(stream);
         });
 
       const imageUpload = await uploadFromBuffer(imageFile.buffer);
@@ -83,7 +83,7 @@ export const addCourse = async (req, res) => {
               { resource_type: "raw", folder: "course_pdfs" },
               (err, result) => (err ? reject(err) : resolve(result))
             );
-            streamifier.createReadStream(file.buffer).pipe(stream);
+            Readable.from(file.buffer).pipe(stream);
           });
         } else if (file.path) {
           uploadResult = await cloudinary.uploader.upload(file.path, {
@@ -164,7 +164,7 @@ export const updateCourse = async (req, res) => {
                 resolve(result);
               }
             );
-            streamifier.createReadStream(buffer).pipe(stream);
+            Readable.from(buffer).pipe(stream);
           });
 
         const imageUpload = await uploadFromBuffer(imageFile.buffer);
@@ -187,7 +187,7 @@ export const updateCourse = async (req, res) => {
               { resource_type: "raw", folder: "course_pdfs" },
               (err, result) => (err ? reject(err) : resolve(result))
             );
-            streamifier.createReadStream(file.buffer).pipe(stream);
+            Readable.from(file.buffer).pipe(stream);
           });
         } else if (file.path) {
           uploadResult = await cloudinary.uploader.upload(file.path, {
