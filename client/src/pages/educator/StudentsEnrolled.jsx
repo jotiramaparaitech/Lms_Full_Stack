@@ -63,44 +63,48 @@ const StudentsEnrolled = () => {
           </thead>
 
           <tbody className="text-gray-700">
-            {enrolledStudents.map((item, index) => (
-              <motion.tr
-                key={index}
-                whileHover={{
-                  scale: 1.02,
-                  backgroundColor: "rgba(224, 242, 254, 0.5)",
-                }}
-                transition={{ type: "spring", stiffness: 200 }}
-                className="border-b border-gray-200 cursor-pointer"
-              >
-                {/* Index */}
-                <td className="px-4 py-3 text-center hidden sm:table-cell">
-                  {index + 1}
-                </td>
+            {enrolledStudents
+              ?.filter((item) => item && item.student)
+              .map((item, index) => (
+                <motion.tr
+                  key={index}
+                  whileHover={{
+                    scale: 1.02,
+                    backgroundColor: "rgba(224, 242, 254, 0.5)",
+                  }}
+                  transition={{ type: "spring", stiffness: 200 }}
+                  className="border-b border-gray-200 cursor-pointer"
+                >
+                  {/* Index */}
+                  <td className="px-4 py-3 text-center hidden sm:table-cell">
+                    {index + 1}
+                  </td>
 
-                {/* Student Name */}
-                <td className="px-4 py-3 flex items-center gap-3">
-                  <img
-                    src={item.student.imageUrl}
-                    alt="Profile"
-                    className="w-10 h-10 rounded-full shadow-md object-cover"
-                  />
-                  <span className="truncate font-medium text-gray-800">
-                    {item.student.name}
-                  </span>
-                </td>
+                  {/* Student Name */}
+                  <td className="px-4 py-3 flex items-center gap-3">
+                    <img
+                      src={item.student?.imageUrl || "/default-avatar.png"}
+                      alt="Profile"
+                      className="w-10 h-10 rounded-full shadow-md object-cover"
+                    />
+                    <span className="truncate font-medium text-gray-800">
+                      {item.student?.name || "Unknown Student"}
+                    </span>
+                  </td>
 
-                {/* Project Title */}
-                <td className="px-4 py-3 truncate font-medium text-gray-700">
-                  {item.courseTitle}
-                </td>
+                  {/* Project Title */}
+                  <td className="px-4 py-3 truncate font-medium text-gray-700">
+                    {item.courseTitle || "Untitled Course"}
+                  </td>
 
-                {/* Date */}
-                <td className="px-4 py-3 hidden sm:table-cell text-gray-600">
-                  {new Date(item.purchaseDate).toLocaleDateString()}
-                </td>
-              </motion.tr>
-            ))}
+                  {/* Date */}
+                  <td className="px-4 py-3 hidden sm:table-cell text-gray-600">
+                    {item.purchaseDate
+                      ? new Date(item.purchaseDate).toLocaleDateString()
+                      : "—"}
+                  </td>
+                </motion.tr>
+              ))}
           </tbody>
         </table>
       </motion.div>
