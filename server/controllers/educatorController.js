@@ -28,7 +28,6 @@ export const updateRoleToEducator = async (req, res) => {
 export const addCourse = async (req, res) => {
   try {
     const { courseData } = req.body;
-    // files come from upload.fields -> req.files
     const imageFile = req.files?.image?.[0];
     const pdfFiles = req.files?.pdfs || [];
     const educatorId = req.auth.userId;
@@ -39,7 +38,7 @@ export const addCourse = async (req, res) => {
 
     const parsedCourseData = JSON.parse(courseData);
     parsedCourseData.educator = educatorId;
-    // prepare pdfResources array: merge any provided metadata with uploaded files
+
     let pdfResources = [];
     if (
       parsedCourseData.pdfResources &&
@@ -50,9 +49,7 @@ export const addCourse = async (req, res) => {
 
     const newCourse = await Course.create(parsedCourseData);
 
-    // Support both disk-storage (file.path) and memory-storage (file.buffer) for thumbnail
     if (imageFile.buffer) {
-      // upload from buffer using upload_stream
       const uploadFromBuffer = (buffer) =>
         new Promise((resolve, reject) => {
           const stream = cloudinary.uploader.upload_stream(
@@ -72,10 +69,8 @@ export const addCourse = async (req, res) => {
       newCourse.courseThumbnail = imageUpload.secure_url;
     }
 
-    // Upload any pdf files (Cloudinary raw uploads)
     if (pdfFiles.length > 0) {
       for (const file of pdfFiles) {
-        // upload buffer or path
         let uploadResult;
         if (file.buffer) {
           uploadResult = await new Promise((resolve, reject) => {
@@ -103,9 +98,7 @@ export const addCourse = async (req, res) => {
       }
     }
 
-    // attach pdfResources if any
     if (pdfResources.length > 0) newCourse.pdfResources = pdfResources;
-
     await newCourse.save();
 
     res.json({ success: true, message: "Course Added", course: newCourse });
@@ -148,12 +141,11 @@ export const updateCourse = async (req, res) => {
       const parsedCourseData = JSON.parse(req.body.courseData);
       Object.assign(course, parsedCourseData);
     }
-    // handle uploaded files (from upload.fields)
+
     const imageFile = req.files?.image?.[0];
     const pdfFiles = req.files?.pdfs || [];
 
     if (imageFile) {
-      // handle buffer (memoryStorage) or path (disk)
       if (imageFile.buffer) {
         const uploadFromBuffer = (buffer) =>
           new Promise((resolve, reject) => {
@@ -174,7 +166,7 @@ export const updateCourse = async (req, res) => {
         course.courseThumbnail = imageUpload.secure_url;
       }
     }
-    // handle uploaded pdf files (merge into course.pdfResources)
+
     if (pdfFiles.length > 0) {
       const pdfResources = Array.isArray(course.pdfResources)
         ? course.pdfResources
@@ -208,6 +200,7 @@ export const updateCourse = async (req, res) => {
 
       course.pdfResources = pdfResources;
     }
+
     await course.save();
     res.json({ success: true, message: "Course updated successfully", course });
   } catch (error) {
@@ -280,7 +273,7 @@ export const educatorDashboardData = async (req, res) => {
 };
 
 // -----------------------------
-// Get Enrolled Students with Purchase Data
+// Get Enrolled Students Data
 // -----------------------------
 export const getEnrolledStudentsData = async (req, res) => {
   try {
@@ -304,5 +297,44 @@ export const getEnrolledStudentsData = async (req, res) => {
     res.json({ success: true, enrolledStudents });
   } catch (error) {
     res.json({ success: false, message: error.message });
+  }
+};
+
+// -----------------------------
+// ✅ Remove Student Access from Course
+// -----------------------------
+export const removeStudentAccess = async (req, res) => {
+  try {
+    const { courseId, studentId } = req.params;
+    const educatorId = req.auth.userId;
+
+    // Validate that the course belongs to this educator
+    const course = await Course.findOne({
+      _id: courseId,
+      educator: educatorId,
+    });
+    if (!course) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Course not found or unauthorized" });
+    }
+
+    // Remove student from course's enrolled list
+    course.enrolledStudents = course.enrolledStudents.filter(
+      (id) => id.toString() !== studentId
+    );
+    await course.save();
+
+    // Delete purchase record
+    await Purchase.deleteOne({ courseId, userId: studentId });
+
+    res.json({
+      success: true,
+      message: "Student access removed successfully",
+    });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ success: false, message: error.message || "Server error" });
   }
 };

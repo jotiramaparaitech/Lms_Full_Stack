@@ -29,6 +29,34 @@ const StudentsEnrolled = () => {
     }
   };
 
+  const handleRemoveAccess = async (courseId, studentId) => {
+    if (
+      !window.confirm("Are you sure you want to remove this student's access?")
+    )
+      return;
+
+    try {
+      const token = await getToken();
+      const { data } = await axios.delete(
+        `${backendUrl}/api/educator/remove-student/${courseId}/${studentId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (data.success) {
+        toast.success("Student access removed successfully");
+        setEnrolledStudents((prev) =>
+          prev.filter((item) => item.student._id !== studentId)
+        );
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      toast.error("Failed to remove access");
+    }
+  };
+
   useEffect(() => {
     if (isEducator) fetchEnrolledStudents();
   }, [isEducator]);
@@ -59,6 +87,7 @@ const StudentsEnrolled = () => {
               <th className="px-4 py-3 font-semibold hidden sm:table-cell">
                 Date
               </th>
+              <th className="px-4 py-3 font-semibold text-center">Action</th>
             </tr>
           </thead>
 
@@ -102,6 +131,21 @@ const StudentsEnrolled = () => {
                     {item.purchaseDate
                       ? new Date(item.purchaseDate).toLocaleDateString()
                       : "—"}
+                  </td>
+
+                  {/* Remove Access Button */}
+                  <td className="px-4 py-3 text-center">
+                    <button
+                      onClick={() =>
+                        handleRemoveAccess(
+                          item.courseId?._id,
+                          item.student?._id
+                        )
+                      }
+                      className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-xs font-semibold transition-all shadow-md hover:shadow-lg"
+                    >
+                      Remove Access
+                    </button>
                   </td>
                 </motion.tr>
               ))}

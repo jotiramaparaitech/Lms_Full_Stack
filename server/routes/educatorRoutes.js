@@ -7,6 +7,7 @@ import {
   getEducatorCourses,
   getEnrolledStudentsData,
   updateRoleToEducator,
+  removeStudentAccess, // ✅ new import
 } from "../controllers/educatorController.js";
 import upload from "../configs/multer.js";
 import { protectEducator } from "../middlewares/authMiddleware.js";
@@ -68,6 +69,15 @@ educatorRouter.get(
   "/enrolled-students",
   protectEducator,
   getEnrolledStudentsData
+);
+
+// -----------------------------
+// Remove Student Access from Course ✅
+// -----------------------------
+educatorRouter.delete(
+  "/remove-student/:courseId/:studentId",
+  protectEducator,
+  removeStudentAccess
 );
 
 export default educatorRouter;
