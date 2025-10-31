@@ -9,6 +9,9 @@ const StudentsEnrolled = () => {
   const { backendUrl, getToken, isEducator } = useContext(AppContext);
   const [enrolledStudents, setEnrolledStudents] = useState(null);
 
+  // -----------------------------
+  // Fetch Enrolled Students
+  // -----------------------------
   const fetchEnrolledStudents = async () => {
     try {
       const token = await getToken();
@@ -22,18 +25,26 @@ const StudentsEnrolled = () => {
       if (data.success) {
         setEnrolledStudents(data.enrolledStudents.reverse());
       } else {
-        toast.success(data.message);
+        toast.error(data.message);
       }
     } catch (error) {
       toast.error(error.message);
     }
   };
 
+  // -----------------------------
+  // Remove Student Access
+  // -----------------------------
   const handleRemoveAccess = async (courseId, studentId) => {
-    if (
-      !window.confirm("Are you sure you want to remove this student's access?")
-    )
+    if (!courseId || !studentId) {
+      toast.error("Missing course or student ID");
       return;
+    }
+
+    const confirm = window.confirm(
+      "Are you sure you want to remove this student's access?"
+    );
+    if (!confirm) return;
 
     try {
       const token = await getToken();
@@ -47,7 +58,10 @@ const StudentsEnrolled = () => {
       if (data.success) {
         toast.success("Student access removed successfully");
         setEnrolledStudents((prev) =>
-          prev.filter((item) => item.student._id !== studentId)
+          prev.filter(
+            (item) =>
+              !(item.courseId === courseId && item.student?._id === studentId)
+          )
         );
       } else {
         toast.error(data.message);
@@ -57,12 +71,18 @@ const StudentsEnrolled = () => {
     }
   };
 
+  // -----------------------------
+  // Fetch on mount (if educator)
+  // -----------------------------
   useEffect(() => {
     if (isEducator) fetchEnrolledStudents();
   }, [isEducator]);
 
   if (!enrolledStudents) return <Loading />;
 
+  // -----------------------------
+  // UI
+  // -----------------------------
   return (
     <div className="min-h-screen flex flex-col items-center md:p-12 p-6 bg-gradient-to-br from-sky-50 via-white to-blue-50 relative overflow-hidden">
       {/* Background glow blobs */}
@@ -83,7 +103,7 @@ const StudentsEnrolled = () => {
                 #
               </th>
               <th className="px-4 py-3 font-semibold">Student Name</th>
-              <th className="px-4 py-3 font-semibold">Project Title</th>
+              <th className="px-4 py-3 font-semibold">Course Title</th>
               <th className="px-4 py-3 font-semibold hidden sm:table-cell">
                 Date
               </th>
@@ -96,7 +116,7 @@ const StudentsEnrolled = () => {
               ?.filter((item) => item && item.student)
               .map((item, index) => (
                 <motion.tr
-                  key={index}
+                  key={`${item.student?._id}-${item.courseId}`}
                   whileHover={{
                     scale: 1.02,
                     backgroundColor: "rgba(224, 242, 254, 0.5)",
@@ -121,7 +141,7 @@ const StudentsEnrolled = () => {
                     </span>
                   </td>
 
-                  {/* Project Title */}
+                  {/* Course Title */}
                   <td className="px-4 py-3 truncate font-medium text-gray-700">
                     {item.courseTitle || "Untitled Course"}
                   </td>
@@ -137,10 +157,7 @@ const StudentsEnrolled = () => {
                   <td className="px-4 py-3 text-center">
                     <button
                       onClick={() =>
-                        handleRemoveAccess(
-                          item.courseId?._id,
-                          item.student?._id
-                        )
+                        handleRemoveAccess(item.courseId, item.student?._id)
                       }
                       className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-xs font-semibold transition-all shadow-md hover:shadow-lg"
                     >

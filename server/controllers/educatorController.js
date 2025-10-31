@@ -49,52 +49,48 @@ export const addCourse = async (req, res) => {
 
     const newCourse = await Course.create(parsedCourseData);
 
-    if (imageFile.buffer) {
-      const uploadFromBuffer = (buffer) =>
-        new Promise((resolve, reject) => {
-          const stream = cloudinary.uploader.upload_stream(
-            { folder: "courses" },
-            (error, result) => {
-              if (error) return reject(error);
-              resolve(result);
-            }
-          );
-          Readable.from(buffer).pipe(stream);
-        });
+    // Upload image to Cloudinary
+    const uploadFromBuffer = (buffer, folder = "courses") =>
+      new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { folder },
+          (error, result) => {
+            if (error) return reject(error);
+            resolve(result);
+          }
+        );
+        Readable.from(buffer).pipe(stream);
+      });
 
+    if (imageFile.buffer) {
       const imageUpload = await uploadFromBuffer(imageFile.buffer);
       newCourse.courseThumbnail = imageUpload.secure_url;
     } else if (imageFile.path) {
-      const imageUpload = await cloudinary.uploader.upload(imageFile.path);
+      const imageUpload = await cloudinary.uploader.upload(imageFile.path, {
+        folder: "courses",
+      });
       newCourse.courseThumbnail = imageUpload.secure_url;
     }
 
-    if (pdfFiles.length > 0) {
-      for (const file of pdfFiles) {
-        let uploadResult;
-        if (file.buffer) {
-          uploadResult = await new Promise((resolve, reject) => {
-            const stream = cloudinary.uploader.upload_stream(
-              { resource_type: "raw", folder: "course_pdfs" },
-              (err, result) => (err ? reject(err) : resolve(result))
-            );
-            Readable.from(file.buffer).pipe(stream);
-          });
-        } else if (file.path) {
-          uploadResult = await cloudinary.uploader.upload(file.path, {
-            resource_type: "raw",
-            folder: "course_pdfs",
-          });
-        }
+    // Upload PDFs
+    for (const file of pdfFiles) {
+      let uploadResult;
+      if (file.buffer) {
+        uploadResult = await uploadFromBuffer(file.buffer, "course_pdfs");
+      } else if (file.path) {
+        uploadResult = await cloudinary.uploader.upload(file.path, {
+          resource_type: "raw",
+          folder: "course_pdfs",
+        });
+      }
 
-        if (uploadResult) {
-          pdfResources.push({
-            pdfId: file.originalname || file.filename,
-            pdfTitle: file.originalname || file.filename,
-            pdfDescription: "",
-            pdfUrl: uploadResult.secure_url,
-          });
-        }
+      if (uploadResult) {
+        pdfResources.push({
+          pdfId: file.originalname || file.filename,
+          pdfTitle: file.originalname || file.filename,
+          pdfDescription: "",
+          pdfUrl: uploadResult.secure_url,
+        });
       }
     }
 
@@ -145,28 +141,29 @@ export const updateCourse = async (req, res) => {
     const imageFile = req.files?.image?.[0];
     const pdfFiles = req.files?.pdfs || [];
 
-    if (imageFile) {
-      if (imageFile.buffer) {
-        const uploadFromBuffer = (buffer) =>
-          new Promise((resolve, reject) => {
-            const stream = cloudinary.uploader.upload_stream(
-              { folder: "courses" },
-              (error, result) => {
-                if (error) return reject(error);
-                resolve(result);
-              }
-            );
-            Readable.from(buffer).pipe(stream);
-          });
+    const uploadFromBuffer = (buffer, folder = "courses") =>
+      new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { folder },
+          (error, result) => {
+            if (error) return reject(error);
+            resolve(result);
+          }
+        );
+        Readable.from(buffer).pipe(stream);
+      });
 
-        const imageUpload = await uploadFromBuffer(imageFile.buffer);
-        course.courseThumbnail = imageUpload.secure_url;
-      } else if (imageFile.path) {
-        const imageUpload = await cloudinary.uploader.upload(imageFile.path);
-        course.courseThumbnail = imageUpload.secure_url;
-      }
+    // Upload new image if provided
+    if (imageFile) {
+      const imageUpload = imageFile.buffer
+        ? await uploadFromBuffer(imageFile.buffer)
+        : await cloudinary.uploader.upload(imageFile.path, {
+            folder: "courses",
+          });
+      course.courseThumbnail = imageUpload.secure_url;
     }
 
+    // Upload new PDFs if provided
     if (pdfFiles.length > 0) {
       const pdfResources = Array.isArray(course.pdfResources)
         ? course.pdfResources
@@ -174,13 +171,7 @@ export const updateCourse = async (req, res) => {
       for (const file of pdfFiles) {
         let uploadResult;
         if (file.buffer) {
-          uploadResult = await new Promise((resolve, reject) => {
-            const stream = cloudinary.uploader.upload_stream(
-              { resource_type: "raw", folder: "course_pdfs" },
-              (err, result) => (err ? reject(err) : resolve(result))
-            );
-            Readable.from(file.buffer).pipe(stream);
-          });
+          uploadResult = await uploadFromBuffer(file.buffer, "course_pdfs");
         } else if (file.path) {
           uploadResult = await cloudinary.uploader.upload(file.path, {
             resource_type: "raw",
@@ -290,7 +281,8 @@ export const getEnrolledStudentsData = async (req, res) => {
 
     const enrolledStudents = purchases.map((purchase) => ({
       student: purchase.userId,
-      courseTitle: purchase.courseId.courseTitle,
+      courseTitle: purchase.courseId?.courseTitle,
+      courseId: purchase.courseId?._id, // ✅ added so frontend gets correct ID
       purchaseDate: purchase.createdAt,
     }));
 
@@ -308,7 +300,7 @@ export const removeStudentAccess = async (req, res) => {
     const { courseId, studentId } = req.params;
     const educatorId = req.auth.userId;
 
-    // Validate that the course belongs to this educator
+    // Validate ownership
     const course = await Course.findOne({
       _id: courseId,
       educator: educatorId,
@@ -319,7 +311,7 @@ export const removeStudentAccess = async (req, res) => {
         .json({ success: false, message: "Course not found or unauthorized" });
     }
 
-    // Remove student from course's enrolled list
+    // Remove student from enrolled list
     course.enrolledStudents = course.enrolledStudents.filter(
       (id) => id.toString() !== studentId
     );

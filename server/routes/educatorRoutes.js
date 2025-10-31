@@ -1,83 +1,323 @@
-import express from "express";
-import {
-  addCourse,
-  updateCourse,
-  deleteCourse,
-  educatorDashboardData,
-  getEducatorCourses,
-  getEnrolledStudentsData,
-  updateRoleToEducator,
-  removeStudentAccess, // ✅ new import
-} from "../controllers/educatorController.js";
-import upload from "../configs/multer.js";
-import { protectEducator } from "../middlewares/authMiddleware.js";
-
-const educatorRouter = express.Router();
+import { v2 as cloudinary } from "cloudinary";
+import { Readable } from "stream";
+import Course from "../models/Course.js";
+import { Purchase } from "../models/Purchase.js";
+import User from "../models/User.js";
+import { clerkClient } from "@clerk/express";
 
 // -----------------------------
-// Add Educator Role
+// Update Role to Educator
 // -----------------------------
-educatorRouter.get("/update-role", updateRoleToEducator);
+export const updateRoleToEducator = async (req, res) => {
+  try {
+    const userId = req.auth.userId;
+    await clerkClient.users.updateUserMetadata(userId, {
+      publicMetadata: { role: "educator" },
+    });
+    res.json({ success: true, message: "You can publish a course now" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 
 // -----------------------------
-// Add Course
+// Add New Course
 // -----------------------------
-educatorRouter.post(
-  "/add-course",
-  protectEducator,
-  // accept one image file (thumbnail) and multiple pdf files (field name: 'pdfs')
-  upload.fields([
-    { name: "image", maxCount: 1 },
-    { name: "pdfs", maxCount: 10 },
-  ]),
-  addCourse
-);
+export const addCourse = async (req, res) => {
+  try {
+    const { courseData } = req.body;
+    const imageFile = req.files?.image?.[0];
+    const pdfFiles = req.files?.pdfs || [];
+    const educatorId = req.auth.userId;
+
+    if (!imageFile) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Thumbnail Not Attached" });
+    }
+
+    const parsedCourseData = JSON.parse(courseData);
+    parsedCourseData.educator = educatorId;
+
+    let pdfResources = Array.isArray(parsedCourseData.pdfResources)
+      ? parsedCourseData.pdfResources.map((p) => ({ ...p }))
+      : [];
+
+    const newCourse = await Course.create(parsedCourseData);
+
+    // Helper to upload buffer files
+    const uploadFromBuffer = (
+      buffer,
+      folder = "courses",
+      resource_type = "image"
+    ) =>
+      new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { folder, resource_type },
+          (error, result) => {
+            if (error) return reject(error);
+            resolve(result);
+          }
+        );
+        Readable.from(buffer).pipe(stream);
+      });
+
+    // Upload image
+    const imageUpload = imageFile.buffer
+      ? await uploadFromBuffer(imageFile.buffer, "courses", "image")
+      : await cloudinary.uploader.upload(imageFile.path, { folder: "courses" });
+    newCourse.courseThumbnail = imageUpload.secure_url;
+
+    // Upload PDFs
+    for (const file of pdfFiles) {
+      const uploadResult = file.buffer
+        ? await uploadFromBuffer(file.buffer, "course_pdfs", "raw")
+        : await cloudinary.uploader.upload(file.path, {
+            resource_type: "raw",
+            folder: "course_pdfs",
+          });
+
+      if (uploadResult) {
+        pdfResources.push({
+          pdfId: file.originalname || file.filename,
+          pdfTitle: file.originalname || file.filename,
+          pdfDescription: "",
+          pdfUrl: uploadResult.secure_url,
+        });
+      }
+    }
+
+    if (pdfResources.length > 0) newCourse.pdfResources = pdfResources;
+    await newCourse.save();
+
+    res.json({
+      success: true,
+      message: "Course Added Successfully",
+      course: newCourse,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 
 // -----------------------------
 // Get Educator Courses
 // -----------------------------
-educatorRouter.get("/courses", protectEducator, getEducatorCourses);
+export const getEducatorCourses = async (req, res) => {
+  try {
+    const educator = req.auth.userId;
+    const courses = await Course.find({ educator });
+    res.json({ success: true, courses });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 
 // -----------------------------
 // Update Course
 // -----------------------------
-educatorRouter.put(
-  "/course/:id",
-  protectEducator,
-  // allow updating thumbnail and PDF uploads
-  upload.fields([
-    { name: "image", maxCount: 1 },
-    { name: "pdfs", maxCount: 10 },
-  ]),
-  updateCourse
-);
+export const updateCourse = async (req, res) => {
+  try {
+    const courseId = req.params.id;
+    const educatorId = req.auth.userId;
+
+    const course = await Course.findOne({
+      _id: courseId,
+      educator: educatorId,
+    });
+    if (!course)
+      return res
+        .status(404)
+        .json({ success: false, message: "Course not found" });
+
+    if (req.body.courseData) {
+      const parsedCourseData = JSON.parse(req.body.courseData);
+      Object.assign(course, parsedCourseData);
+    }
+
+    const imageFile = req.files?.image?.[0];
+    const pdfFiles = req.files?.pdfs || [];
+
+    const uploadFromBuffer = (
+      buffer,
+      folder = "courses",
+      resource_type = "image"
+    ) =>
+      new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { folder, resource_type },
+          (error, result) => {
+            if (error) return reject(error);
+            resolve(result);
+          }
+        );
+        Readable.from(buffer).pipe(stream);
+      });
+
+    // Upload new image
+    if (imageFile) {
+      const imageUpload = imageFile.buffer
+        ? await uploadFromBuffer(imageFile.buffer, "courses", "image")
+        : await cloudinary.uploader.upload(imageFile.path, {
+            folder: "courses",
+          });
+      course.courseThumbnail = imageUpload.secure_url;
+    }
+
+    // Upload new PDFs
+    if (pdfFiles.length > 0) {
+      const pdfResources = Array.isArray(course.pdfResources)
+        ? course.pdfResources
+        : [];
+      for (const file of pdfFiles) {
+        const uploadResult = file.buffer
+          ? await uploadFromBuffer(file.buffer, "course_pdfs", "raw")
+          : await cloudinary.uploader.upload(file.path, {
+              resource_type: "raw",
+              folder: "course_pdfs",
+            });
+
+        if (uploadResult) {
+          pdfResources.push({
+            pdfId: file.originalname || file.filename,
+            pdfTitle: file.originalname || file.filename,
+            pdfDescription: "",
+            pdfUrl: uploadResult.secure_url,
+          });
+        }
+      }
+      course.pdfResources = pdfResources;
+    }
+
+    await course.save();
+    res.json({ success: true, message: "Course updated successfully", course });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 
 // -----------------------------
 // Delete Course
 // -----------------------------
-educatorRouter.delete("/course/:id", protectEducator, deleteCourse);
+export const deleteCourse = async (req, res) => {
+  try {
+    const courseId = req.params.id;
+    const educatorId = req.auth.userId;
+
+    const course = await Course.findOne({
+      _id: courseId,
+      educator: educatorId,
+    });
+    if (!course)
+      return res
+        .status(404)
+        .json({ success: false, message: "Course not found" });
+
+    await course.deleteOne();
+    res.json({ success: true, message: "Course deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 
 // -----------------------------
 // Educator Dashboard Data
 // -----------------------------
-educatorRouter.get("/dashboard", protectEducator, educatorDashboardData);
+export const educatorDashboardData = async (req, res) => {
+  try {
+    const educator = req.auth.userId;
+    const courses = await Course.find({ educator });
+    const totalCourses = courses.length;
+    const courseIds = courses.map((course) => course._id);
+
+    const purchases = await Purchase.find({
+      courseId: { $in: courseIds },
+      status: "completed",
+    });
+
+    const totalEarnings = purchases.reduce(
+      (sum, purchase) => sum + (purchase.amount || 0),
+      0
+    );
+
+    const enrolledStudentsData = [];
+    for (const course of courses) {
+      const students = await User.find(
+        { _id: { $in: course.enrolledStudents } },
+        "name imageUrl"
+      );
+      students.forEach((student) => {
+        enrolledStudentsData.push({ courseTitle: course.courseTitle, student });
+      });
+    }
+
+    res.json({
+      success: true,
+      dashboardData: { totalEarnings, enrolledStudentsData, totalCourses },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 
 // -----------------------------
 // Get Enrolled Students Data
 // -----------------------------
-educatorRouter.get(
-  "/enrolled-students",
-  protectEducator,
-  getEnrolledStudentsData
-);
+export const getEnrolledStudentsData = async (req, res) => {
+  try {
+    const educator = req.auth.userId;
+    const courses = await Course.find({ educator });
+    const courseIds = courses.map((course) => course._id);
+
+    const purchases = await Purchase.find({
+      courseId: { $in: courseIds },
+      status: "completed",
+    })
+      .populate("userId", "name imageUrl")
+      .populate("courseId", "courseTitle");
+
+    const enrolledStudents = purchases.map((purchase) => ({
+      student: purchase.userId,
+      courseTitle: purchase.courseId?.courseTitle,
+      courseId: purchase.courseId?._id,
+      purchaseDate: purchase.createdAt,
+    }));
+
+    res.json({ success: true, enrolledStudents });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 
 // -----------------------------
-// Remove Student Access from Course ✅
+// ✅ Remove Student Access
 // -----------------------------
-educatorRouter.delete(
-  "/remove-student/:courseId/:studentId",
-  protectEducator,
-  removeStudentAccess
-);
+export const removeStudentAccess = async (req, res) => {
+  try {
+    const { courseId, studentId } = req.params;
+    const educatorId = req.auth.userId;
 
-export default educatorRouter;
+    const course = await Course.findOne({
+      _id: courseId,
+      educator: educatorId,
+    });
+    if (!course) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Course not found or unauthorized" });
+    }
+
+    // Remove from enrolled list
+    course.enrolledStudents = course.enrolledStudents.filter(
+      (id) => id.toString() !== studentId
+    );
+    await course.save();
+
+    // Delete purchase record
+    await Purchase.deleteOne({ courseId, userId: studentId });
+
+    res.json({ success: true, message: "Student access removed successfully" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
