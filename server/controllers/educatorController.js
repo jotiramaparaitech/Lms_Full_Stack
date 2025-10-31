@@ -10,7 +10,12 @@ import { clerkClient } from "@clerk/express";
 // -----------------------------
 export const updateRoleToEducator = async (req, res) => {
   try {
-    const userId = req.auth.userId;
+    const userId = req.auth?.userId;
+
+    if (!userId)
+      return res
+        .status(401)
+        .json({ success: false, message: "Unauthorized: No user ID found" });
 
     await clerkClient.users.updateUserMetadata(userId, {
       publicMetadata: { role: "educator" },
@@ -18,7 +23,9 @@ export const updateRoleToEducator = async (req, res) => {
 
     res.json({ success: true, message: "You can publish a course now" });
   } catch (error) {
-    res.json({ success: false, message: error.message });
+    res
+      .status(500)
+      .json({ success: false, message: error.message || "Server error" });
   }
 };
 
@@ -30,80 +37,77 @@ export const addCourse = async (req, res) => {
     const { courseData } = req.body;
     const imageFile = req.files?.image?.[0];
     const pdfFiles = req.files?.pdfs || [];
-    const educatorId = req.auth.userId;
+    const educatorId = req.auth?.userId;
 
-    if (!imageFile) {
-      return res.json({ success: false, message: "Thumbnail Not Attached" });
-    }
+    if (!educatorId)
+      return res
+        .status(401)
+        .json({ success: false, message: "Unauthorized educator" });
+
+    if (!imageFile)
+      return res.json({ success: false, message: "Thumbnail not attached" });
 
     const parsedCourseData = JSON.parse(courseData);
     parsedCourseData.educator = educatorId;
 
-    let pdfResources = [];
-    if (
-      parsedCourseData.pdfResources &&
-      Array.isArray(parsedCourseData.pdfResources)
-    ) {
-      pdfResources = parsedCourseData.pdfResources.map((p) => ({ ...p }));
-    }
+    let pdfResources = Array.isArray(parsedCourseData.pdfResources)
+      ? [...parsedCourseData.pdfResources]
+      : [];
 
     const newCourse = await Course.create(parsedCourseData);
 
-    if (imageFile.buffer) {
-      const uploadFromBuffer = (buffer) =>
-        new Promise((resolve, reject) => {
-          const stream = cloudinary.uploader.upload_stream(
-            { folder: "courses" },
-            (error, result) => {
-              if (error) return reject(error);
-              resolve(result);
-            }
-          );
-          Readable.from(buffer).pipe(stream);
-        });
+    // ✅ Upload thumbnail
+    const uploadFromBuffer = (buffer, folder, resource_type = "image") =>
+      new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { folder, resource_type },
+          (err, result) => (err ? reject(err) : resolve(result))
+        );
+        Readable.from(buffer).pipe(stream);
+      });
 
-      const imageUpload = await uploadFromBuffer(imageFile.buffer);
+    if (imageFile.buffer) {
+      const imageUpload = await uploadFromBuffer(imageFile.buffer, "courses");
       newCourse.courseThumbnail = imageUpload.secure_url;
     } else if (imageFile.path) {
-      const imageUpload = await cloudinary.uploader.upload(imageFile.path);
+      const imageUpload = await cloudinary.uploader.upload(imageFile.path, {
+        folder: "courses",
+      });
       newCourse.courseThumbnail = imageUpload.secure_url;
     }
 
-    if (pdfFiles.length > 0) {
-      for (const file of pdfFiles) {
-        let uploadResult;
-        if (file.buffer) {
-          uploadResult = await new Promise((resolve, reject) => {
-            const stream = cloudinary.uploader.upload_stream(
-              { resource_type: "raw", folder: "course_pdfs" },
-              (err, result) => (err ? reject(err) : resolve(result))
-            );
-            Readable.from(file.buffer).pipe(stream);
-          });
-        } else if (file.path) {
-          uploadResult = await cloudinary.uploader.upload(file.path, {
-            resource_type: "raw",
-            folder: "course_pdfs",
-          });
-        }
+    // ✅ Upload PDFs
+    for (const file of pdfFiles) {
+      let uploadResult;
+      if (file.buffer) {
+        uploadResult = await uploadFromBuffer(
+          file.buffer,
+          "course_pdfs",
+          "raw"
+        );
+      } else if (file.path) {
+        uploadResult = await cloudinary.uploader.upload(file.path, {
+          resource_type: "raw",
+          folder: "course_pdfs",
+        });
+      }
 
-        if (uploadResult) {
-          pdfResources.push({
-            pdfId: file.originalname || file.filename,
-            pdfTitle: file.originalname || file.filename,
-            pdfDescription: "",
-            pdfUrl: uploadResult.secure_url,
-          });
-        }
+      if (uploadResult) {
+        pdfResources.push({
+          pdfId: file.originalname || file.filename,
+          pdfTitle: file.originalname || file.filename,
+          pdfDescription: "",
+          pdfUrl: uploadResult.secure_url,
+        });
       }
     }
 
     if (pdfResources.length > 0) newCourse.pdfResources = pdfResources;
     await newCourse.save();
 
-    res.json({ success: true, message: "Course Added", course: newCourse });
+    res.json({ success: true, message: "Course added", course: newCourse });
   } catch (error) {
-    res.json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -112,11 +116,16 @@ export const addCourse = async (req, res) => {
 // -----------------------------
 export const getEducatorCourses = async (req, res) => {
   try {
-    const educator = req.auth.userId;
+    const educator = req.auth?.userId;
+    if (!educator)
+      return res
+        .status(401)
+        .json({ success: false, message: "Unauthorized educator" });
+
     const courses = await Course.find({ educator });
     res.json({ success: true, courses });
   } catch (error) {
-    res.json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -126,7 +135,7 @@ export const getEducatorCourses = async (req, res) => {
 export const updateCourse = async (req, res) => {
   try {
     const courseId = req.params.id;
-    const educatorId = req.auth.userId;
+    const educatorId = req.auth?.userId;
 
     const course = await Course.findOne({
       _id: courseId,
@@ -135,7 +144,7 @@ export const updateCourse = async (req, res) => {
     if (!course)
       return res
         .status(404)
-        .json({ success: false, message: "Course not found" });
+        .json({ success: false, message: "Course not found or unauthorized" });
 
     if (req.body.courseData) {
       const parsedCourseData = JSON.parse(req.body.courseData);
@@ -145,26 +154,22 @@ export const updateCourse = async (req, res) => {
     const imageFile = req.files?.image?.[0];
     const pdfFiles = req.files?.pdfs || [];
 
-    if (imageFile) {
-      if (imageFile.buffer) {
-        const uploadFromBuffer = (buffer) =>
-          new Promise((resolve, reject) => {
-            const stream = cloudinary.uploader.upload_stream(
-              { folder: "courses" },
-              (error, result) => {
-                if (error) return reject(error);
-                resolve(result);
-              }
-            );
-            Readable.from(buffer).pipe(stream);
-          });
+    const uploadFromBuffer = (buffer, folder, resource_type = "image") =>
+      new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { folder, resource_type },
+          (err, result) => (err ? reject(err) : resolve(result))
+        );
+        Readable.from(buffer).pipe(stream);
+      });
 
-        const imageUpload = await uploadFromBuffer(imageFile.buffer);
-        course.courseThumbnail = imageUpload.secure_url;
-      } else if (imageFile.path) {
-        const imageUpload = await cloudinary.uploader.upload(imageFile.path);
-        course.courseThumbnail = imageUpload.secure_url;
-      }
+    if (imageFile) {
+      const uploadResult = imageFile.buffer
+        ? await uploadFromBuffer(imageFile.buffer, "courses")
+        : await cloudinary.uploader.upload(imageFile.path, {
+            folder: "courses",
+          });
+      course.courseThumbnail = uploadResult.secure_url;
     }
 
     if (pdfFiles.length > 0) {
@@ -172,21 +177,12 @@ export const updateCourse = async (req, res) => {
         ? course.pdfResources
         : [];
       for (const file of pdfFiles) {
-        let uploadResult;
-        if (file.buffer) {
-          uploadResult = await new Promise((resolve, reject) => {
-            const stream = cloudinary.uploader.upload_stream(
-              { resource_type: "raw", folder: "course_pdfs" },
-              (err, result) => (err ? reject(err) : resolve(result))
-            );
-            Readable.from(file.buffer).pipe(stream);
-          });
-        } else if (file.path) {
-          uploadResult = await cloudinary.uploader.upload(file.path, {
-            resource_type: "raw",
-            folder: "course_pdfs",
-          });
-        }
+        const uploadResult = file.buffer
+          ? await uploadFromBuffer(file.buffer, "course_pdfs", "raw")
+          : await cloudinary.uploader.upload(file.path, {
+              resource_type: "raw",
+              folder: "course_pdfs",
+            });
 
         if (uploadResult) {
           pdfResources.push({
@@ -197,12 +193,11 @@ export const updateCourse = async (req, res) => {
           });
         }
       }
-
       course.pdfResources = pdfResources;
     }
 
     await course.save();
-    res.json({ success: true, message: "Course updated successfully", course });
+    res.json({ success: true, message: "Course updated", course });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -214,7 +209,7 @@ export const updateCourse = async (req, res) => {
 export const deleteCourse = async (req, res) => {
   try {
     const courseId = req.params.id;
-    const educatorId = req.auth.userId;
+    const educatorId = req.auth?.userId;
 
     const course = await Course.findOne({
       _id: courseId,
@@ -223,7 +218,7 @@ export const deleteCourse = async (req, res) => {
     if (!course)
       return res
         .status(404)
-        .json({ success: false, message: "Course not found" });
+        .json({ success: false, message: "Course not found or unauthorized" });
 
     await course.deleteOne();
     res.json({ success: true, message: "Course deleted successfully" });
@@ -237,10 +232,15 @@ export const deleteCourse = async (req, res) => {
 // -----------------------------
 export const educatorDashboardData = async (req, res) => {
   try {
-    const educator = req.auth.userId;
+    const educator = req.auth?.userId;
+    if (!educator)
+      return res
+        .status(401)
+        .json({ success: false, message: "Unauthorized educator" });
+
     const courses = await Course.find({ educator });
     const totalCourses = courses.length;
-    const courseIds = courses.map((course) => course._id);
+    const courseIds = courses.map((c) => c._id);
 
     const purchases = await Purchase.find({
       courseId: { $in: courseIds },
@@ -248,7 +248,7 @@ export const educatorDashboardData = async (req, res) => {
     });
 
     const totalEarnings = purchases.reduce(
-      (sum, purchase) => sum + purchase.amount,
+      (sum, p) => sum + (p.amount || 0),
       0
     );
 
@@ -258,8 +258,11 @@ export const educatorDashboardData = async (req, res) => {
         { _id: { $in: course.enrolledStudents } },
         "name imageUrl"
       );
-      students.forEach((student) => {
-        enrolledStudentsData.push({ courseTitle: course.courseTitle, student });
+      students.forEach((s) => {
+        enrolledStudentsData.push({
+          courseTitle: course.courseTitle,
+          student: s,
+        });
       });
     }
 
@@ -268,7 +271,7 @@ export const educatorDashboardData = async (req, res) => {
       dashboardData: { totalEarnings, enrolledStudentsData, totalCourses },
     });
   } catch (error) {
-    res.json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -277,9 +280,14 @@ export const educatorDashboardData = async (req, res) => {
 // -----------------------------
 export const getEnrolledStudentsData = async (req, res) => {
   try {
-    const educator = req.auth.userId;
+    const educator = req.auth?.userId;
+    if (!educator)
+      return res
+        .status(401)
+        .json({ success: false, message: "Unauthorized educator" });
+
     const courses = await Course.find({ educator });
-    const courseIds = courses.map((course) => course._id);
+    const courseIds = courses.map((c) => c._id);
 
     const purchases = await Purchase.find({
       courseId: { $in: courseIds },
@@ -288,36 +296,35 @@ export const getEnrolledStudentsData = async (req, res) => {
       .populate("userId", "name imageUrl")
       .populate("courseId", "courseTitle");
 
-    const enrolledStudents = purchases.map((purchase) => ({
-      student: purchase.userId,
-      courseId: purchase.courseId._id, // ✅ added line
-      courseTitle: purchase.courseId.courseTitle,
-      purchaseDate: purchase.createdAt,
+    const enrolledStudents = purchases.map((p) => ({
+      student: p.userId,
+      courseId: p.courseId?._id,
+      courseTitle: p.courseId?.courseTitle,
+      purchaseDate: p.createdAt,
     }));
 
     res.json({ success: true, enrolledStudents });
   } catch (error) {
-    res.json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
 // -----------------------------
-// ✅ Remove Student Access from Course
+// Remove Student Access
 // -----------------------------
 export const removeStudentAccess = async (req, res) => {
   try {
     const { courseId, studentId } = req.params;
-    const educatorId = req.auth.userId;
+    const educatorId = req.auth?.userId;
 
     const course = await Course.findOne({
       _id: courseId,
       educator: educatorId,
     });
-    if (!course) {
+    if (!course)
       return res
         .status(404)
         .json({ success: false, message: "Course not found or unauthorized" });
-    }
 
     course.enrolledStudents = course.enrolledStudents.filter(
       (id) => id.toString() !== studentId
@@ -331,14 +338,12 @@ export const removeStudentAccess = async (req, res) => {
       message: "Student access removed successfully",
     });
   } catch (error) {
-    res
-      .status(500)
-      .json({ success: false, message: error.message || "Server error" });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
 // -----------------------------
-// ✅ Get All Students (For Educator Panel)
+// Get All Students
 // -----------------------------
 export const getAllStudents = async (req, res) => {
   try {
@@ -350,12 +355,12 @@ export const getAllStudents = async (req, res) => {
 };
 
 // -----------------------------
-// ✅ Assign Course to Student (Manual Enrollment)
+// Assign Course to Student
 // -----------------------------
 export const assignCourse = async (req, res) => {
   try {
     const { studentId, courseId } = req.body;
-    const educatorId = req.auth.userId;
+    const educatorId = req.auth?.userId;
 
     const course = await Course.findOne({
       _id: courseId,
@@ -385,7 +390,7 @@ export const assignCourse = async (req, res) => {
       userId: studentId,
       courseId,
       status: "completed",
-      amount: 0, // Free enrollment (manual)
+      amount: 0,
       paymentId: "manual-assignment",
     });
 

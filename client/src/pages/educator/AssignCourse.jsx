@@ -3,33 +3,41 @@ import axios from "axios";
 import { motion } from "framer-motion";
 import { toast } from "react-toastify";
 import { AppContext } from "../../context/AppContext";
+import { useAuth } from "@clerk/clerk-react";
 
 const AssignCourse = () => {
-  const { backendUrl, user } = useContext(AppContext);
+  const { backendUrl } = useContext(AppContext);
+  const { getToken } = useAuth(); // ✅ Clerk Auth
   const [students, setStudents] = useState([]);
   const [courses, setCourses] = useState([]);
   const [selectedStudent, setSelectedStudent] = useState("");
   const [selectedCourse, setSelectedCourse] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // ✅ Fetch all students and educator's own courses
+  // ✅ Fetch all students and educator's courses (Clerk-secured)
   useEffect(() => {
     const fetchData = async () => {
       try {
+        const token = await getToken(); // 🔐 Get Clerk token
+
         const [studentsRes, coursesRes] = await Promise.all([
-          axios.get(`${backendUrl}/api/educator/all-students`),
+          axios.get(`${backendUrl}/api/educator/all-students`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
           axios.get(`${backendUrl}/api/educator/courses`, {
-            headers: { Authorization: `Bearer ${user?.token}` },
+            headers: { Authorization: `Bearer ${token}` },
           }),
         ]);
+
         setStudents(studentsRes.data.students || []);
         setCourses(coursesRes.data.courses || []);
       } catch (error) {
+        console.error(error);
         toast.error("Failed to load data");
       }
     };
     fetchData();
-  }, [backendUrl, user]);
+  }, [backendUrl, getToken]);
 
   // ✅ Assign course to student
   const handleAssign = async (e) => {
@@ -41,10 +49,12 @@ const AssignCourse = () => {
 
     try {
       setLoading(true);
+      const token = await getToken(); // 🔐 Clerk token again
+
       const { data } = await axios.post(
         `${backendUrl}/api/educator/assign-course`,
         { studentId: selectedStudent, courseId: selectedCourse },
-        { headers: { Authorization: `Bearer ${user?.token}` } }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
 
       if (data.success) {
@@ -55,6 +65,7 @@ const AssignCourse = () => {
         toast.error(data.message || "Failed to assign course");
       }
     } catch (error) {
+      console.error(error);
       toast.error("Server error while assigning");
     } finally {
       setLoading(false);
