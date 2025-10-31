@@ -110,3 +110,48 @@ export const uploadCoursePdf = async (req, res) => {
     });
   }
 };
+
+// ------------------------- Educator Dashboard -------------------------
+export const getEducatorDashboard = async (req, res) => {
+  try {
+    const educatorId = req.user?._id;
+
+    if (!educatorId) {
+      return res
+        .status(401)
+        .json({ success: false, message: "Unauthorized: Educator ID missing" });
+    }
+
+    // ✅ Fetch courses created by the educator
+    const courses = await Course.find({ educator: educatorId })
+      .populate("enrolledStudents", "name email")
+      .select("-courseContent");
+
+    // ✅ Calculate total enrolled students
+    const totalEnrolledStudents = courses.reduce(
+      (sum, course) => sum + (course.enrolledStudents?.length || 0),
+      0
+    );
+
+    res.status(200).json({
+      success: true,
+      educatorId,
+      totalCourses: courses.length,
+      totalEnrolledStudents,
+      courses: courses.map((course) => ({
+        _id: course._id,
+        courseTitle: course.courseTitle,
+        isPublished: course.isPublished,
+        enrolledCount: course.enrolledStudents?.length || 0,
+        enrolledStudents: course.enrolledStudents,
+      })),
+    });
+  } catch (error) {
+    console.error("❌ Error fetching educator dashboard:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching educator dashboard",
+      error: error.message,
+    });
+  }
+};
