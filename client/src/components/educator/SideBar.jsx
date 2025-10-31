@@ -29,6 +29,12 @@ const SideBar = () => {
       path: "/educator/student-enrolled",
       icon: assets.person_tick_icon,
     },
+    // ✅ NEW MENU ITEM ADDED BELOW (no other changes)
+    {
+      name: "Assign Course",
+      path: "/educator/assign-course",
+      icon: assets.my_course_icon,
+    },
   ];
 
   useEffect(() => {

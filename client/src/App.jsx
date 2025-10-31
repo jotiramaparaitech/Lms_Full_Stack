@@ -10,13 +10,14 @@ import AddCourse from "./pages/educator/AddCourse";
 import MyCourses from "./pages/educator/MyCourses";
 import StudentsEnrolled from "./pages/educator/StudentsEnrolled";
 import Educator from "./pages/educator/Educator";
+import AssignCourse from "./pages/educator/AssignCourse"; // ✅ Added import here
 import "quill/dist/quill.snow.css";
 import "react-toastify/dist/ReactToastify.css";
 import { ToastContainer } from "react-toastify";
 import Player from "./pages/student/Player";
 import MyEnrollments from "./pages/student/MyEnrollments";
 import Loading from "./components/student/Loading";
-import WhatsAppButton from "./components/common/WhatsAppButton"; // ✅ Added import
+import WhatsAppButton from "./components/common/WhatsAppButton";
 import ChatbotWidget from "./components/common/ChatbotWidget";
 import About from "./pages/student/About";
 
@@ -28,7 +29,7 @@ const App = () => {
     <div className="text-default min-h-screen bg-white relative">
       <ToastContainer />
 
-      {/* ✅ Student Navbar (Hidden on educator/admin routes) */}
+      {/* ✅ Student Navbar (Hidden on educator routes) */}
       {!isEducatorRoute && <Navbar />}
 
       <Routes>
@@ -42,7 +43,7 @@ const App = () => {
         <Route path="/loading/:path" element={<Loading />} />
         <Route path="/about" element={<About />} />
 
-        {/* 🧑‍🏫 Educator/Admin Routes (Protected) */}
+        {/* 🧑‍🏫 Educator Routes (Protected) */}
         <Route
           path="/educator/*"
           element={isEducator ? <Educator /> : <Navigate to="/" replace />}
@@ -51,10 +52,12 @@ const App = () => {
           <Route path="add-course" element={<AddCourse />} />
           <Route path="my-courses" element={<MyCourses />} />
           <Route path="student-enrolled" element={<StudentsEnrolled />} />
+          <Route path="assign-course" element={<AssignCourse />} />{" "}
+          {/* ✅ Fixed path */}
         </Route>
       </Routes>
 
-      {/* 💬 WhatsApp Floating Button (Visible on all pages) */}
+      {/* 💬 WhatsApp Floating Button */}
       <WhatsAppButton />
       {/* <ChatbotWidget /> */}
     </div>

@@ -309,7 +309,6 @@ export const removeStudentAccess = async (req, res) => {
     const { courseId, studentId } = req.params;
     const educatorId = req.auth.userId;
 
-    // Validate that the course belongs to this educator
     const course = await Course.findOne({
       _id: courseId,
       educator: educatorId,
@@ -320,13 +319,11 @@ export const removeStudentAccess = async (req, res) => {
         .json({ success: false, message: "Course not found or unauthorized" });
     }
 
-    // Remove student from course's enrolled list
     course.enrolledStudents = course.enrolledStudents.filter(
       (id) => id.toString() !== studentId
     );
     await course.save();
 
-    // Delete purchase record
     await Purchase.deleteOne({ courseId, userId: studentId });
 
     res.json({
@@ -337,5 +334,66 @@ export const removeStudentAccess = async (req, res) => {
     res
       .status(500)
       .json({ success: false, message: error.message || "Server error" });
+  }
+};
+
+// -----------------------------
+// ✅ Get All Students (For Educator Panel)
+// -----------------------------
+export const getAllStudents = async (req, res) => {
+  try {
+    const students = await User.find({}, "name email imageUrl");
+    res.json({ success: true, students });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// -----------------------------
+// ✅ Assign Course to Student (Manual Enrollment)
+// -----------------------------
+export const assignCourse = async (req, res) => {
+  try {
+    const { studentId, courseId } = req.body;
+    const educatorId = req.auth.userId;
+
+    const course = await Course.findOne({
+      _id: courseId,
+      educator: educatorId,
+    });
+    if (!course)
+      return res
+        .status(404)
+        .json({ success: false, message: "Course not found or unauthorized" });
+
+    const student = await User.findById(studentId);
+    if (!student)
+      return res
+        .status(404)
+        .json({ success: false, message: "Student not found" });
+
+    if (course.enrolledStudents.includes(studentId))
+      return res.json({
+        success: false,
+        message: "Student already enrolled in this course",
+      });
+
+    course.enrolledStudents.push(studentId);
+    await course.save();
+
+    await Purchase.create({
+      userId: studentId,
+      courseId,
+      status: "completed",
+      amount: 0, // Free enrollment (manual)
+      paymentId: "manual-assignment",
+    });
+
+    res.json({
+      success: true,
+      message: "Course successfully assigned to student",
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 };
