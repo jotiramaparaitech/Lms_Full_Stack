@@ -5,7 +5,7 @@ import "dotenv/config";
 import connectDB from "./configs/mongodb.js";
 import connectCloudinary from "./configs/cloudinary.js";
 import userRouter from "./routes/userRoutes.js";
-import { clerkMiddleware, ClerkExpressRequireAuth } from "@clerk/express";
+import { clerkMiddleware, requireAuth } from "@clerk/express"; // ✅ FIXED import
 import { clerkWebhooks, stripeWebhooks } from "./controllers/webhooks.js";
 import educatorRouter from "./routes/educatorRoutes.js";
 import courseRouter from "./routes/courseRoute.js";
@@ -13,7 +13,7 @@ import courseRouter from "./routes/courseRoute.js";
 // Initialize Express
 const app = express();
 
-// Connect to database
+// Connect to database & cloudinary
 await connectDB();
 await connectCloudinary();
 
@@ -51,7 +51,7 @@ app.options("*", (req, res) => {
   res.sendStatus(200);
 });
 
-// ✅ Initialize Clerk middleware (attaches req.auth if available)
+// ✅ Initialize Clerk middleware
 app.use(clerkMiddleware());
 
 // ---------------- ROUTES ----------------
@@ -61,14 +61,9 @@ app.get("/", (req, res) => res.send("API Working ✅"));
 app.post("/clerk", express.json(), clerkWebhooks);
 app.post("/stripe", express.raw({ type: "application/json" }), stripeWebhooks);
 
-// ✅ Protected Routes (require authentication)
-app.use(
-  "/api/educator",
-  express.json(),
-  ClerkExpressRequireAuth(),
-  educatorRouter
-);
-app.use("/api/user", express.json(), ClerkExpressRequireAuth(), userRouter);
+// ✅ Protected Routes
+app.use("/api/educator", express.json(), requireAuth(), educatorRouter);
+app.use("/api/user", express.json(), requireAuth(), userRouter);
 
 // ✅ Public Routes
 app.use("/api/course", express.json(), courseRouter);
