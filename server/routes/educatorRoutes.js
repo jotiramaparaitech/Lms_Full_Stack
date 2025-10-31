@@ -12,25 +12,21 @@ import {
   assignCourse,
 } from "../controllers/educatorController.js";
 import upload from "../configs/multer.js";
-import { ClerkExpressRequireAuth } from "@clerk/express";
+import { requireAuth } from "@clerk/express"; // ✅ FIXED IMPORT
 
 const educatorRouter = express.Router();
 
 // -----------------------------
 // Add Educator Role
 // -----------------------------
-educatorRouter.get(
-  "/update-role",
-  ClerkExpressRequireAuth(),
-  updateRoleToEducator
-);
+educatorRouter.get("/update-role", requireAuth(), updateRoleToEducator);
 
 // -----------------------------
 // Add Course
 // -----------------------------
 educatorRouter.post(
   "/add-course",
-  ClerkExpressRequireAuth(),
+  requireAuth(),
   upload.fields([
     { name: "image", maxCount: 1 },
     { name: "pdfs", maxCount: 10 },
@@ -41,14 +37,14 @@ educatorRouter.post(
 // -----------------------------
 // Get Educator Courses
 // -----------------------------
-educatorRouter.get("/courses", ClerkExpressRequireAuth(), getEducatorCourses);
+educatorRouter.get("/courses", requireAuth(), getEducatorCourses);
 
 // -----------------------------
 // Update Course
 // -----------------------------
 educatorRouter.put(
   "/course/:id",
-  ClerkExpressRequireAuth(),
+  requireAuth(),
   upload.fields([
     { name: "image", maxCount: 1 },
     { name: "pdfs", maxCount: 10 },
@@ -59,23 +55,19 @@ educatorRouter.put(
 // -----------------------------
 // Delete Course
 // -----------------------------
-educatorRouter.delete("/course/:id", ClerkExpressRequireAuth(), deleteCourse);
+educatorRouter.delete("/course/:id", requireAuth(), deleteCourse);
 
 // -----------------------------
 // Educator Dashboard Data
 // -----------------------------
-educatorRouter.get(
-  "/dashboard",
-  ClerkExpressRequireAuth(),
-  educatorDashboardData
-);
+educatorRouter.get("/dashboard", requireAuth(), educatorDashboardData);
 
 // -----------------------------
 // Get Enrolled Students Data
 // -----------------------------
 educatorRouter.get(
   "/enrolled-students",
-  ClerkExpressRequireAuth(),
+  requireAuth(),
   getEnrolledStudentsData
 );
 
@@ -84,18 +76,18 @@ educatorRouter.get(
 // -----------------------------
 educatorRouter.delete(
   "/remove-student/:courseId/:studentId",
-  ClerkExpressRequireAuth(),
+  requireAuth(),
   removeStudentAccess
 );
 
 // -----------------------------
 // Get All Students
 // -----------------------------
-educatorRouter.get("/all-students", ClerkExpressRequireAuth(), getAllStudents);
+educatorRouter.get("/all-students", requireAuth(), getAllStudents);
 
 // -----------------------------
 // Assign Course to Student
 // -----------------------------
-educatorRouter.post("/assign-course", ClerkExpressRequireAuth(), assignCourse);
+educatorRouter.post("/assign-course", requireAuth(), assignCourse);
 
 export default educatorRouter;
