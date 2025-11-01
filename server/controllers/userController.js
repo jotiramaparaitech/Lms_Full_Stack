@@ -2,10 +2,11 @@ import Course from "../models/Course.js";
 import { CourseProgress } from "../models/CourseProgress.js";
 import { Purchase } from "../models/Purchase.js";
 import User from "../models/User.js";
-// ❌ Removed Stripe import (you are using test/manual flow)
-// import stripe from "stripe";
+import Stripe from "stripe";
 
-// Get User Data
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+// ---------------- Get User Data ----------------
 export const getUserData = async (req, res) => {
   try {
     const userId = req.auth.userId;
@@ -21,53 +22,65 @@ export const getUserData = async (req, res) => {
   }
 };
 
-// ✅ Purchase Course (Manual/Test Mode without Stripe Checkout)
-export const purchaseCourse = async (req, res) => {
+// ---------------- Purchase Course with Stripe ----------------
+export const purchaseCourseStripe = async (req, res) => {
   try {
     const { courseId } = req.body;
     const userId = req.auth.userId;
+    const { origin } = req.headers;
 
     const courseData = await Course.findById(courseId);
     const userData = await User.findById(userId);
 
-    if (!userData || !courseData) {
+    if (!courseData || !userData) {
       return res.json({ success: false, message: "Data Not Found" });
     }
 
-    // Create a purchase record
+    // Calculate final price
     const amount = (
       courseData.coursePrice -
       (courseData.discount * courseData.coursePrice) / 100
     ).toFixed(2);
 
+    // Create a purchase record
     const newPurchase = await Purchase.create({
       courseId,
       userId,
       amount,
-      status: "completed",
-      paymentId: "test-payment-manual", // ✅ No Stripe, manual/test
+      status: "pending",
     });
 
-    // Enroll user into course
-    await Course.findByIdAndUpdate(courseId, {
-      $addToSet: { enrolledStudents: userId },
+    // Create Stripe Checkout Session
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ["card"],
+      mode: "payment",
+      customer_email: userData.email,
+      line_items: [
+        {
+          price_data: {
+            currency: process.env.CURRENCY.toLowerCase(),
+            product_data: { name: courseData.courseTitle },
+            unit_amount: Math.round(amount * 100), // in cents
+          },
+          quantity: 1,
+        },
+      ],
+      success_url: `${origin}/loading/my-enrollments?purchaseId=${newPurchase._id}`,
+      cancel_url: `${origin}/`,
+      metadata: {
+        purchaseId: newPurchase._id.toString(),
+        courseId: courseData._id.toString(),
+        userId: userId.toString(),
+      },
     });
 
-    await User.findByIdAndUpdate(userId, {
-      $addToSet: { enrolledCourses: courseId },
-    });
-
-    res.json({
-      success: true,
-      message: "Course Purchased Successfully (Test Mode)",
-      purchaseId: newPurchase._id,
-    });
+    res.json({ success: true, session_url: session.url });
   } catch (error) {
     res.json({ success: false, message: error.message });
   }
 };
 
-// Users Enrolled Courses With Lecture Links
+// ---------------- Users Enrolled Courses ----------------
 export const userEnrolledCourses = async (req, res) => {
   try {
     const userId = req.auth.userId;
@@ -79,7 +92,7 @@ export const userEnrolledCourses = async (req, res) => {
   }
 };
 
-// Update User Course Progress
+// ---------------- Update User Course Progress ----------------
 export const updateUserCourseProgress = async (req, res) => {
   try {
     const userId = req.auth.userId;
@@ -111,7 +124,7 @@ export const updateUserCourseProgress = async (req, res) => {
   }
 };
 
-// Get User Course Progress
+// ---------------- Get User Course Progress ----------------
 export const getUserCourseProgress = async (req, res) => {
   try {
     const userId = req.auth.userId;
@@ -125,7 +138,7 @@ export const getUserCourseProgress = async (req, res) => {
   }
 };
 
-// Add User Ratings to Course
+// ---------------- Add User Ratings ----------------
 export const addUserRating = async (req, res) => {
   const userId = req.auth.userId;
   const { courseId, rating } = req.body;

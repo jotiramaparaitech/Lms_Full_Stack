@@ -31,6 +31,10 @@ const CourseDetails = () => {
   // ---------------- Fetch Course ----------------
   const fetchCourseData = async () => {
     try {
+      if (!id) {
+        toast.error("Course ID is missing");
+        return;
+      }
       const { data } = await axios.get(`${backendUrl}/api/course/${id}`);
       if (data.success) {
         setCourseData(data.courseData);
@@ -50,7 +54,7 @@ const CourseDetails = () => {
     }));
   };
 
-  // ---------------- Enroll Course ----------------
+  // ---------------- Enroll Course (Stripe Payment) ----------------
   const enrollCourse = async () => {
     try {
       if (!userData) return toast.warn("Login to Enroll");
@@ -58,15 +62,16 @@ const CourseDetails = () => {
 
       const token = await getToken();
       const { data } = await axios.post(
-        `${backendUrl}/api/user/purchase`,
+        `${backendUrl}/api/user/purchase/stripe`,
         { courseId: courseData._id },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      if (data.success) {
-        window.location.replace(data.session_url);
+      if (data.success && data.session_url) {
+        // Redirect user to Stripe Checkout
+        window.location.href = data.session_url;
       } else {
-        toast.error(data.message);
+        toast.error(data.message || "Failed to initiate payment.");
       }
     } catch (error) {
       toast.error(error.message);
@@ -75,7 +80,7 @@ const CourseDetails = () => {
 
   useEffect(() => {
     fetchCourseData();
-  }, []);
+  }, [id]);
 
   useEffect(() => {
     if (userData && courseData) {
@@ -213,7 +218,7 @@ const CourseDetails = () => {
             </div>
           </div>
 
-          {/* ---------- PDF RESOURCES (Visible Only for Enrolled Students) ---------- */}
+          {/* ---------- PDF RESOURCES ---------- */}
           {isAlreadyEnrolled && courseData.pdfResources?.length > 0 && (
             <div className="mt-10 mb-10">
               <h2 className="text-2xl font-semibold text-gray-800 mb-4">
