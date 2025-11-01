@@ -65,9 +65,13 @@ const CourseDetails = () => {
       setIsLoading(true);
       const token = await getToken();
 
+      // ✅ Only send courseId; backend will use req.user._id
+      const payload = { courseId: courseData._id };
+      console.log("Enroll request payload:", payload);
+
       const { data } = await axios.post(
         `${backendUrl}/api/course/purchase/stripe-session`,
-        { courseId: courseData._id },
+        payload,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -76,13 +80,12 @@ const CourseDetails = () => {
         }
       );
 
-      console.log("Stripe session response:", data);
-
       if (data.success && data.session_url) {
         // Redirect user to Stripe Checkout
         window.location.href = data.session_url;
       } else {
         toast.error(data.message || "Failed to initiate payment.");
+        console.error("Stripe session error response:", data);
       }
     } catch (error) {
       console.error("Stripe session error:", error.response || error);

@@ -8,15 +8,20 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 // -------------------- Create Stripe Checkout Session --------------------
 export const createStripeSession = async (req, res) => {
   try {
-    const userId = req.user?._id; // ✅ Get user ID from protect middleware
+    // ✅ Get user ID from protect middleware (authenticated user)
+    const userId = req.user?._id || req.userId;
+
+    // Get courseId from request body
     const { courseId } = req.body;
 
+    // Validate
     if (!courseId || !userId) {
       return res
         .status(400)
         .json({ success: false, message: "Missing courseId or userId" });
     }
 
+    // Fetch course
     const course = await Course.findById(courseId);
     if (!course) {
       return res
@@ -24,6 +29,7 @@ export const createStripeSession = async (req, res) => {
         .json({ success: false, message: "Course not found" });
     }
 
+    // Fetch user
     const user = await User.findById(userId);
     if (!user) {
       return res
@@ -44,10 +50,10 @@ export const createStripeSession = async (req, res) => {
       line_items: [
         {
           price_data: {
-            currency: process.env.CURRENCY.toLowerCase(),
+            currency: process.env.CURRENCY?.toLowerCase() || "usd",
             product_data: {
               name: course.courseTitle,
-              description: course.courseDescription.slice(0, 200), // short desc
+              description: course.courseDescription?.slice(0, 200) || "", // short desc
             },
             unit_amount: amount,
           },
@@ -62,6 +68,7 @@ export const createStripeSession = async (req, res) => {
       },
     });
 
+    // Respond with session URL
     res.json({ success: true, session_url: session.url });
   } catch (error) {
     console.error("❌ Stripe session error:", error);
