@@ -80,6 +80,9 @@ export const purchaseCourseStripe = async (req, res) => {
   }
 };
 
+// ---------------- Export purchaseCourse for routes ----------------
+export const purchaseCourse = purchaseCourseStripe;
+
 // ---------------- Users Enrolled Courses ----------------
 export const userEnrolledCourses = async (req, res) => {
   try {
