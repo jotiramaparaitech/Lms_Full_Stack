@@ -8,7 +8,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 // -------------------- Create Stripe Checkout Session --------------------
 export const createStripeSession = async (req, res) => {
   try {
-    const userId = req.auth.userId;
+    const userId = req.user?._id; // ✅ fixed: get user from protect middleware
     const { courseId } = req.body;
 
     if (!courseId || !userId) {
@@ -46,7 +46,7 @@ export const createStripeSession = async (req, res) => {
             currency: process.env.CURRENCY.toLowerCase(),
             product_data: {
               name: course.courseTitle,
-              description: course.courseDescription,
+              description: course.courseDescription.slice(0, 200), // short desc
             },
             unit_amount: amount,
           },
@@ -56,14 +56,14 @@ export const createStripeSession = async (req, res) => {
       success_url: `${process.env.FRONTEND_URL}/course/${courseId}?payment=success`,
       cancel_url: `${process.env.FRONTEND_URL}/course/${courseId}?payment=cancel`,
       metadata: {
-        userId,
-        courseId,
+        userId: user._id.toString(),
+        courseId: course._id.toString(),
       },
     });
 
     res.json({ success: true, session_url: session.url });
   } catch (error) {
-    console.error("Stripe session error:", error);
+    console.error("❌ Stripe session error:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

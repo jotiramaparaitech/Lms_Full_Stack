@@ -1,6 +1,10 @@
 import Course from "../models/Course.js";
-import User from "../models/User.js"; // ✅ To fetch student info
+import User from "../models/User.js";
 import { v4 as uuidv4 } from "uuid";
+import Stripe from "stripe";
+
+// Initialize Stripe with secret key from environment variables
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 // ------------------------- Get All Published Courses -------------------------
 export const getAllCourse = async (req, res) => {
@@ -19,7 +23,7 @@ export const getAllCourse = async (req, res) => {
 // ------------------------- Get Course by ID -------------------------
 export const getCourseId = async (req, res) => {
   const { id } = req.params;
-  const userId = req.user?._id; // ✅ available if user logged in via protect middleware
+  const userId = req.user?._id;
 
   try {
     const courseData = await Course.findById(id).populate({
@@ -33,26 +37,23 @@ export const getCourseId = async (req, res) => {
         .json({ success: false, message: "Course not found" });
     }
 
-    // Hide paid lecture URLs for non-preview lectures
     courseData.courseContent.forEach((chapter) => {
       chapter.chapterContent.forEach((lecture) => {
         if (!lecture.isPreviewFree) lecture.lectureUrl = "";
       });
     });
 
-    // ✅ Allow full PDF access only to enrolled students or educator
     const isEducator =
       courseData.educator?._id?.toString() === userId?.toString();
     const isEnrolled = courseData.enrolledStudents?.includes(userId);
 
     if (!isEducator && !isEnrolled) {
-      // Hide PDF URLs for unauthorized users
       courseData.pdfResources = courseData.pdfResources.map((pdf) => ({
         pdfId: pdf.pdfId,
         pdfTitle: pdf.pdfTitle,
         pdfDescription: pdf.pdfDescription,
         allowDownload: false,
-        pdfUrl: "", // 🚫 Hide the actual link
+        pdfUrl: "",
       }));
     }
 
@@ -131,13 +132,11 @@ export const getEducatorDashboard = async (req, res) => {
       });
     }
 
-    // Calculate total students
     const totalStudents = courses.reduce(
       (acc, course) => acc + course.enrolledStudents.length,
       0
     );
 
-    // Aggregate all enrollments
     const allEnrollments = [];
     courses.forEach((course) => {
       course.enrolledStudents.forEach((student) => {
@@ -150,7 +149,6 @@ export const getEducatorDashboard = async (req, res) => {
       });
     });
 
-    // Get latest 10 enrollments
     const latestEnrollments = allEnrollments
       .sort((a, b) => new Date(b.enrolledAt) - new Date(a.enrolledAt))
       .slice(0, 10);
@@ -166,6 +164,56 @@ export const getEducatorDashboard = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Error fetching educator dashboard",
+      error: error.message,
+    });
+  }
+};
+
+// ------------------------- Create Stripe Checkout Session -------------------------
+export const createStripeSession = async (req, res) => {
+  try {
+    const { courseId } = req.body;
+    const userId = req.user._id;
+
+    const course = await Course.findById(courseId);
+    if (!course) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Course not found" });
+    }
+
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ["card"],
+      mode: "payment",
+      customer_email: req.user.email,
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            product_data: { name: course.courseTitle },
+            unit_amount: Math.round(
+              (course.coursePrice -
+                ((course.discount || 0) * course.coursePrice) / 100) *
+                100
+            ),
+          },
+          quantity: 1,
+        },
+      ],
+      metadata: {
+        courseId: course._id.toString(),
+        userId: userId.toString(),
+      },
+      success_url: `${process.env.FRONTEND_URL}/course/${course._id}?payment=success`,
+      cancel_url: `${process.env.FRONTEND_URL}/course/${course._id}?payment=cancel`,
+    });
+
+    res.status(200).json({ success: true, session_url: session.url });
+  } catch (error) {
+    console.error("❌ Stripe session error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error creating Stripe session",
       error: error.message,
     });
   }

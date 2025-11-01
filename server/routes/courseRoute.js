@@ -5,7 +5,7 @@ import {
   uploadCoursePdf,
   getEducatorDashboard,
 } from "../controllers/courseController.js";
-import { createStripeSession } from "../controllers/stripeController.js"; // ✅ Added Stripe controller
+import { createStripeSession } from "../controllers/stripeController.js"; // ✅ Stripe controller
 import { protect, isEducator } from "../middlewares/authMiddleware.js";
 
 const courseRouter = express.Router();

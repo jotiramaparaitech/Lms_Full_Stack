@@ -28,18 +28,21 @@ const CourseDetails = () => {
   } = useContext(AppContext);
   const { getToken } = useAuth();
 
-  // ---------------- Fetch Course ----------------
+  // ---------------- Fetch Course Data ----------------
   const fetchCourseData = async () => {
     try {
       if (!id) return toast.error("Course ID is missing");
+
       const { data } = await axios.get(`${backendUrl}/api/course/${id}`);
       if (data.success) {
         setCourseData(data.courseData);
       } else {
         toast.error(data.message || "Failed to fetch course data.");
+        console.error("Fetch course error:", data);
       }
     } catch (error) {
       toast.error(error.message);
+      console.error("Fetch course error:", error);
     }
   };
 
@@ -56,12 +59,19 @@ const CourseDetails = () => {
     try {
       if (!userData) return toast.warn("Login to enroll");
       if (isAlreadyEnrolled) return toast.warn("Already enrolled");
+      if (!courseData?._id) return toast.error("Invalid course data");
 
       const token = await getToken();
+
       const { data } = await axios.post(
         `${backendUrl}/api/course/purchase/stripe-session`,
         { courseId: courseData._id },
-        { headers: { Authorization: `Bearer ${token}` } }
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
       );
 
       if (data.success && data.session_url) {
@@ -69,8 +79,10 @@ const CourseDetails = () => {
         window.location.href = data.session_url;
       } else {
         toast.error(data.message || "Failed to initiate payment.");
+        console.error("Stripe session error response:", data);
       }
     } catch (error) {
+      console.error("Stripe session error:", error.response || error);
       toast.error(error.response?.data?.message || error.message);
     }
   };
@@ -82,7 +94,11 @@ const CourseDetails = () => {
 
   useEffect(() => {
     if (userData && courseData) {
-      setIsAlreadyEnrolled(userData.enrolledCourses?.includes(courseData._id));
+      setIsAlreadyEnrolled(
+        userData.enrolledCourses?.some(
+          (courseId) => courseId.toString() === courseData._id.toString()
+        )
+      );
     }
   }, [userData, courseData]);
 
@@ -117,7 +133,7 @@ const CourseDetails = () => {
                       ? assets.star
                       : assets.star_blank
                   }
-                  alt=""
+                  alt="star"
                   className="w-3.5 h-3.5"
                 />
               ))}
@@ -126,7 +142,6 @@ const CourseDetails = () => {
               ({courseData.courseRatings.length}{" "}
               {courseData.courseRatings.length > 1 ? "ratings" : "rating"})
             </p>
-
             <p>
               {courseData.enrolledStudents.length}{" "}
               {courseData.enrolledStudents.length > 1 ? "students" : "student"}
