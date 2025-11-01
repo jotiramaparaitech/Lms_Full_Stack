@@ -55,44 +55,10 @@ const CourseDetails = () => {
     }));
   };
 
-  // ---------------- Enroll Course (Stripe Payment) ----------------
-  const enrollCourse = async () => {
-    try {
-      if (!userData) return toast.warn("Login to enroll");
-      if (isAlreadyEnrolled) return toast.warn("Already enrolled");
-      if (!courseData?._id) return toast.error("Invalid course data");
-
-      setIsLoading(true);
-
-      const token = await getToken();
-
-      // Send only courseId; backend gets userId from token
-      const payload = { courseId: courseData._id };
-      console.log("Enroll request payload:", payload);
-
-      const { data } = await axios.post(
-        `${backendUrl}/api/course/purchase/stripe-session`,
-        payload,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (data.success && data.session_url) {
-        window.location.href = data.session_url; // redirect to Stripe
-      } else {
-        toast.error(data.message || "Failed to initiate payment.");
-        console.error("Stripe session error response:", data);
-      }
-    } catch (error) {
-      console.error("Stripe session error:", error.response || error);
-      toast.error(error.response?.data?.message || error.message);
-    } finally {
-      setIsLoading(false);
-    }
+  // ---------------- Enroll Course (Razorpay Link) ----------------
+  const enrollCourse = () => {
+    const paymentLink = "https://rzp.io/l/8SjZQ5sW"; // Razorpay payment link
+    window.location.href = paymentLink;
   };
 
   // ---------------- Check Enrollment ----------------
@@ -332,14 +298,9 @@ const CourseDetails = () => {
             </div>
             <button
               onClick={enrollCourse}
-              disabled={isLoading || isAlreadyEnrolled}
               className="md:mt-6 mt-4 w-full py-3 rounded bg-blue-600 text-white font-medium"
             >
-              {isAlreadyEnrolled
-                ? "Already Enrolled"
-                : isLoading
-                ? "Processing..."
-                : "Enroll Now"}
+              Enroll Now
             </button>
           </div>
         </div>
