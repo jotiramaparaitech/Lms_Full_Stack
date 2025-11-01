@@ -63,9 +63,11 @@ const CourseDetails = () => {
       if (!courseData?._id) return toast.error("Invalid course data");
 
       setIsLoading(true);
+
       const token = await getToken();
 
-      const payload = { courseId: courseData._id }; // only courseId
+      // Send only courseId; backend gets userId from token
+      const payload = { courseId: courseData._id };
       console.log("Enroll request payload:", payload);
 
       const { data } = await axios.post(
@@ -80,7 +82,7 @@ const CourseDetails = () => {
       );
 
       if (data.success && data.session_url) {
-        window.location.href = data.session_url;
+        window.location.href = data.session_url; // redirect to Stripe
       } else {
         toast.error(data.message || "Failed to initiate payment.");
         console.error("Stripe session error response:", data);
@@ -146,7 +148,7 @@ const CourseDetails = () => {
             </div>
             <p className="text-blue-600">
               ({courseData.courseRatings.length}{" "}
-              {courseData.courseRatings.length > 1 ? "ratings" : "rating"})
+              {courseData.courseRatings.length > 1 ? "ratings" : "rating"} )
             </p>
             <p>
               {courseData.enrolledStudents.length}{" "}

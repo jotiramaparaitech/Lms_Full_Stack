@@ -1,7 +1,7 @@
 import express from "express";
 import Stripe from "stripe";
-import { protect } from "../middlewares/authMiddleware.js"; // corrected path
-import Course from "../models/Course.js"; // corrected model import
+import { protect } from "../middlewares/authMiddleware.js";
+import Course from "../models/Course.js";
 
 const router = express.Router();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -10,9 +10,11 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 router.post("/stripe-session", protect, async (req, res) => {
   try {
     const { courseId } = req.body;
-    const user = req.user; // user object from protect middleware
+    const user = req.user; // now user.id and user.email exist
 
-    if (!courseId || !user?._id) {
+    console.log("Stripe session request:", { courseId, user });
+
+    if (!courseId || !user?.id) {
       return res
         .status(400)
         .json({ success: false, message: "Missing courseId or userId" });
@@ -27,9 +29,9 @@ router.post("/stripe-session", protect, async (req, res) => {
     }
 
     // Calculate amount in cents
-    const amount = Math.round(
-      (course.coursePrice - (course.discount * course.coursePrice) / 100) * 100
-    );
+    const price = course.coursePrice || 0;
+    const discount = course.discount || 0;
+    const amount = Math.round((price - (discount * price) / 100) * 100);
 
     // Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({
@@ -50,13 +52,14 @@ router.post("/stripe-session", protect, async (req, res) => {
         },
       ],
       metadata: {
-        userId: user._id.toString(),
+        userId: user.id, // updated
         courseId: course._id.toString(),
       },
       success_url: `${process.env.FRONTEND_URL}/course/${courseId}?payment=success`,
       cancel_url: `${process.env.FRONTEND_URL}/course/${courseId}?payment=cancel`,
     });
 
+    console.log("Stripe session created:", session.id);
     res.status(200).json({ success: true, session_url: session.url });
   } catch (error) {
     console.error("❌ Stripe session error:", error);
