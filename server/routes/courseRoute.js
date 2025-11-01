@@ -4,7 +4,7 @@ import {
   getCourseId,
   uploadCoursePdf,
   getEducatorDashboard,
-  createStripeSession, // Add Stripe session controller if needed
+  // createStripeSession, // ❌ Removed: not present in courseController.js
 } from "../controllers/courseController.js";
 import { protect, isEducator } from "../middlewares/authMiddleware.js";
 
@@ -28,6 +28,7 @@ courseRouter.get(
 );
 
 // -------------------- Stripe Checkout Session --------------------
-courseRouter.post("/purchase/stripe-session", protect, createStripeSession);
+// If you move createStripeSession to courseController.js, uncomment below
+// courseRouter.post("/purchase/stripe-session", protect, createStripeSession);
 
 export default courseRouter;
