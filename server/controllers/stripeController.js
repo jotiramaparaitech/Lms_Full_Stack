@@ -8,7 +8,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 // -------------------- Create Stripe Checkout Session --------------------
 export const createStripeSession = async (req, res) => {
   try {
-    const userId = req.user?._id; // ✅ fixed: get user from protect middleware
+    const userId = req.user?._id; // ✅ Get user ID from protect middleware
     const { courseId } = req.body;
 
     if (!courseId || !userId) {
@@ -31,9 +31,10 @@ export const createStripeSession = async (req, res) => {
         .json({ success: false, message: "User not found" });
     }
 
+    // Calculate amount in cents
     const amount = Math.round(
       (course.coursePrice - (course.discount * course.coursePrice) / 100) * 100
-    ); // amount in cents
+    );
 
     // Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({

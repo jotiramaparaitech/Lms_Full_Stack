@@ -16,6 +16,7 @@ const CourseDetails = () => {
   const [playerData, setPlayerData] = useState(null);
   const [isAlreadyEnrolled, setIsAlreadyEnrolled] = useState(false);
   const [openSections, setOpenSections] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
 
   const {
     backendUrl,
@@ -61,6 +62,7 @@ const CourseDetails = () => {
       if (isAlreadyEnrolled) return toast.warn("Already enrolled");
       if (!courseData?._id) return toast.error("Invalid course data");
 
+      setIsLoading(true);
       const token = await getToken();
 
       const { data } = await axios.post(
@@ -74,16 +76,19 @@ const CourseDetails = () => {
         }
       );
 
+      console.log("Stripe session response:", data);
+
       if (data.success && data.session_url) {
         // Redirect user to Stripe Checkout
         window.location.href = data.session_url;
       } else {
         toast.error(data.message || "Failed to initiate payment.");
-        console.error("Stripe session error response:", data);
       }
     } catch (error) {
       console.error("Stripe session error:", error.response || error);
       toast.error(error.response?.data?.message || error.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -324,9 +329,14 @@ const CourseDetails = () => {
             </div>
             <button
               onClick={enrollCourse}
+              disabled={isLoading}
               className="md:mt-6 mt-4 w-full py-3 rounded bg-blue-600 text-white font-medium"
             >
-              {isAlreadyEnrolled ? "Already Enrolled" : "Enroll Now"}
+              {isAlreadyEnrolled
+                ? "Already Enrolled"
+                : isLoading
+                ? "Processing..."
+                : "Enroll Now"}
             </button>
           </div>
         </div>
