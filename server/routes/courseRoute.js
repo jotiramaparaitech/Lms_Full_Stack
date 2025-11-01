@@ -1,69 +1,33 @@
-import Stripe from "stripe";
-import Course from "../models/Course.js";
-import User from "../models/User.js";
-import { Purchase } from "../models/Purchase.js";
+import express from "express";
+import {
+  getAllCourse,
+  getCourseId,
+  uploadCoursePdf,
+  getEducatorDashboard,
+  createStripeSession, // Add Stripe session controller if needed
+} from "../controllers/courseController.js";
+import { protect, isEducator } from "../middlewares/authMiddleware.js";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const courseRouter = express.Router();
 
-// -------------------- Create Stripe Checkout Session --------------------
-export const createStripeSession = async (req, res) => {
-  try {
-    const userId = req.auth.userId;
-    const { courseId } = req.body;
+// -------------------- Get All Courses --------------------
+courseRouter.get("/all", getAllCourse);
 
-    if (!courseId || !userId) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Missing courseId or userId" });
-    }
+// -------------------- Get Course by ID --------------------
+courseRouter.get("/:id", getCourseId);
 
-    const course = await Course.findById(courseId);
-    if (!course) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Course not found" });
-    }
+// -------------------- Add / Update Course PDF Link --------------------
+courseRouter.post("/:courseId/add-pdf", protect, isEducator, uploadCoursePdf);
 
-    const user = await User.findById(userId);
-    if (!user) {
-      return res
-        .status(404)
-        .json({ success: false, message: "User not found" });
-    }
+// -------------------- Educator Dashboard --------------------
+courseRouter.get(
+  "/educator/dashboard",
+  protect,
+  isEducator,
+  getEducatorDashboard
+);
 
-    const amount = Math.round(
-      (course.coursePrice - (course.discount * course.coursePrice) / 100) * 100
-    ); // amount in cents
+// -------------------- Stripe Checkout Session --------------------
+courseRouter.post("/purchase/stripe-session", protect, createStripeSession);
 
-    // Create Stripe checkout session
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
-      mode: "payment",
-      customer_email: user.email,
-      line_items: [
-        {
-          price_data: {
-            currency: "usd",
-            product_data: {
-              name: course.courseTitle,
-              description: course.courseDescription,
-            },
-            unit_amount: amount,
-          },
-          quantity: 1,
-        },
-      ],
-      success_url: `${process.env.FRONTEND_URL}/course/${courseId}?payment=success`,
-      cancel_url: `${process.env.FRONTEND_URL}/course/${courseId}?payment=cancel`,
-      metadata: {
-        userId,
-        courseId,
-      },
-    });
-
-    res.json({ success: true, session_url: session.url });
-  } catch (error) {
-    console.error("Stripe session error:", error);
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
+export default courseRouter;
