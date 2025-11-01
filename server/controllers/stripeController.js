@@ -4,42 +4,52 @@ import User from "../models/User.js";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-// -------------------- Create Stripe Checkout Session --------------------
 export const createStripeSession = async (req, res) => {
   try {
-    // ✅ Get user ID from protected route (Clerk middleware)
     const userId = req.user?._id;
     const { courseId } = req.body;
 
-    // Validate input
     if (!courseId || !userId) {
       return res
         .status(400)
         .json({ success: false, message: "Missing courseId or userId" });
     }
 
-    // Fetch course
     const course = await Course.findById(courseId);
-    if (!course) {
+    if (!course)
       return res
         .status(404)
         .json({ success: false, message: "Course not found" });
-    }
 
-    // Fetch user
     const user = await User.findById(userId);
-    if (!user) {
+    if (!user)
       return res
         .status(404)
         .json({ success: false, message: "User not found" });
-    }
 
-    // Calculate amount in cents with fallback
+    if (!user.email)
+      return res
+        .status(400)
+        .json({ success: false, message: "User email missing" });
+
     const price = course.coursePrice || 0;
     const discount = course.discount || 0;
     const amount = Math.round((price - (discount * price) / 100) * 100);
 
-    // Create Stripe checkout session
+    if (amount <= 0)
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid course price" });
+
+    console.log(
+      "Creating Stripe session for user:",
+      user.email,
+      "course:",
+      course.courseTitle,
+      "amount:",
+      amount
+    );
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "payment",
@@ -65,7 +75,6 @@ export const createStripeSession = async (req, res) => {
       },
     });
 
-    // Respond with session URL
     res.json({ success: true, session_url: session.url });
   } catch (error) {
     console.error("❌ Stripe session error:", error);
