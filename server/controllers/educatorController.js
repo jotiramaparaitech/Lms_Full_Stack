@@ -383,9 +383,17 @@ export const assignCourse = async (req, res) => {
         message: "Student already enrolled in this course",
       });
 
+    // ✅ Add student to course enrollment
     course.enrolledStudents.push(studentId);
     await course.save();
 
+    // ✅ Add course to student's enrolledCourses if not already present
+    if (!student.enrolledCourses.includes(courseId)) {
+      student.enrolledCourses.push(courseId);
+      await student.save();
+    }
+
+    // ✅ Create purchase record (manual assignment)
     await Purchase.create({
       userId: studentId,
       courseId,

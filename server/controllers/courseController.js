@@ -1,5 +1,5 @@
 import Course from "../models/Course.js";
-import User from "../models/User.js"; // ✅ added to fetch student info
+import User from "../models/User.js"; // ✅ To fetch student info
 import { v4 as uuidv4 } from "uuid";
 
 // ------------------------- Get All Published Courses -------------------------
@@ -69,7 +69,6 @@ export const uploadCoursePdf = async (req, res) => {
     const { pdfTitle, pdfDescription, pdfUrl, allowDownload } = req.body;
     const { courseId } = req.params;
 
-    // ✅ Validate fields
     if (!pdfUrl) {
       return res
         .status(400)
@@ -83,7 +82,6 @@ export const uploadCoursePdf = async (req, res) => {
         .json({ success: false, message: "Course not found" });
     }
 
-    // ✅ Create PDF object
     const newPdf = {
       pdfId: uuidv4(),
       pdfTitle: pdfTitle || "Untitled PDF",
@@ -92,7 +90,6 @@ export const uploadCoursePdf = async (req, res) => {
       allowDownload: allowDownload === "true" || allowDownload === true,
     };
 
-    // ✅ Save PDF resource directly to MongoDB
     course.pdfResources = [...(course.pdfResources || []), newPdf];
     await course.save();
 
@@ -117,7 +114,6 @@ export const getEducatorDashboard = async (req, res) => {
   try {
     const educatorId = req.user._id;
 
-    // ✅ Get all courses created by this educator
     const courses = await Course.find({ educator: educatorId })
       .populate({
         path: "enrolledStudents",
@@ -135,13 +131,11 @@ export const getEducatorDashboard = async (req, res) => {
       });
     }
 
-    // ✅ Count total students across all courses
     const totalStudents = courses.reduce(
       (acc, course) => acc + course.enrolledStudents.length,
       0
     );
 
-    // ✅ Collect latest enrollments across all courses
     const allEnrollments = [];
     courses.forEach((course) => {
       course.enrolledStudents.forEach((student) => {
@@ -154,10 +148,9 @@ export const getEducatorDashboard = async (req, res) => {
       });
     });
 
-    // ✅ Sort by latest enrollment date
     const latestEnrollments = allEnrollments
       .sort((a, b) => new Date(b.enrolledAt) - new Date(a.enrolledAt))
-      .slice(0, 10); // show latest 10 enrollments
+      .slice(0, 10);
 
     res.json({
       success: true,

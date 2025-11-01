@@ -1,26 +1,21 @@
 import { Webhook } from "svix";
 import User from "../models/User.js";
-// import stripe from "stripe";   ❌ removed Stripe import
 import { Purchase } from "../models/Purchase.js";
 import Course from "../models/Course.js";
 
 // API Controller Function to Manage Clerk User with database
 export const clerkWebhooks = async (req, res) => {
   try {
-    // Create a Svix instance with clerk webhook secret.
     const whook = new Webhook(process.env.CLERK_WEBHOOK_SECRET);
 
-    // Verifying Headers
     await whook.verify(JSON.stringify(req.body), {
       "svix-id": req.headers["svix-id"],
       "svix-timestamp": req.headers["svix-timestamp"],
       "svix-signature": req.headers["svix-signature"],
     });
 
-    // Getting Data from request body
     const { data, type } = req.body;
 
-    // Switch Cases for differernt Events
     switch (type) {
       case "user.created": {
         const userData = {
@@ -60,16 +55,46 @@ export const clerkWebhooks = async (req, res) => {
 };
 
 // ---------------------------------------------
-// Razorpay / Placeholder Webhook (Replaces Stripe)
+// Test Payment / Dummy Webhook (Simulates Stripe success)
 // ---------------------------------------------
-
-// Dummy Webhook Function — to prevent runtime errors.
-// Replace this later with your Razorpay webhook logic.
-export const stripeWebhooks = async (request, response) => {
+export const stripeWebhooks = async (req, res) => {
   try {
-    console.log("Payment webhook received (Razorpay placeholder)");
-    response.json({ received: true });
+    console.log("✅ Test payment webhook received.");
+
+    const { courseId, userId, amount } = req.body;
+
+    if (!courseId || !userId) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Missing courseId or userId" });
+    }
+
+    // Record purchase in DB
+    const newPurchase = await Purchase.create({
+      courseId,
+      userId,
+      amount: amount || 0,
+      status: "completed",
+      paymentId: "test-payment",
+    });
+
+    // Add student to course enrollment
+    await Course.findByIdAndUpdate(courseId, {
+      $addToSet: { enrolledStudents: userId },
+    });
+
+    // Add course to user's enrolledCourses array
+    await User.findByIdAndUpdate(userId, {
+      $addToSet: { enrolledCourses: courseId },
+    });
+
+    res.json({
+      success: true,
+      message: "Test payment recorded successfully",
+      purchase: newPurchase,
+    });
   } catch (error) {
-    response.status(400).json({ success: false, message: error.message });
+    console.error("❌ Test payment error:", error);
+    res.status(400).json({ success: false, message: error.message });
   }
 };
