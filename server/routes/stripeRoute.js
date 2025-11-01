@@ -1,18 +1,18 @@
+import express from "express";
 import Stripe from "stripe";
-import Course from "../models/Course.js";
-import User from "../models/User.js";
+import { protect } from "../middlewares/authMiddleware.js"; // corrected path
+import Course from "../models/Course.js"; // corrected model import
 
+const router = express.Router();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 // -------------------- Create Stripe Checkout Session --------------------
-export const createStripeSession = async (req, res) => {
+router.post("/stripe-session", protect, async (req, res) => {
   try {
-    // ✅ Get user ID from protected route (Clerk middleware)
-    const userId = req.user?._id;
     const { courseId } = req.body;
+    const user = req.user; // user object from protect middleware
 
-    // Validate input
-    if (!courseId || !userId) {
+    if (!courseId || !user?._id) {
       return res
         .status(400)
         .json({ success: false, message: "Missing courseId or userId" });
@@ -26,18 +26,10 @@ export const createStripeSession = async (req, res) => {
         .json({ success: false, message: "Course not found" });
     }
 
-    // Fetch user
-    const user = await User.findById(userId);
-    if (!user) {
-      return res
-        .status(404)
-        .json({ success: false, message: "User not found" });
-    }
-
-    // Calculate amount in cents with fallback
-    const price = course.coursePrice || 0;
-    const discount = course.discount || 0;
-    const amount = Math.round((price - (discount * price) / 100) * 100);
+    // Calculate amount in cents
+    const amount = Math.round(
+      (course.coursePrice - (course.discount * course.coursePrice) / 100) * 100
+    );
 
     // Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({
@@ -57,18 +49,19 @@ export const createStripeSession = async (req, res) => {
           quantity: 1,
         },
       ],
-      success_url: `${process.env.FRONTEND_URL}/course/${courseId}?payment=success`,
-      cancel_url: `${process.env.FRONTEND_URL}/course/${courseId}?payment=cancel`,
       metadata: {
         userId: user._id.toString(),
         courseId: course._id.toString(),
       },
+      success_url: `${process.env.FRONTEND_URL}/course/${courseId}?payment=success`,
+      cancel_url: `${process.env.FRONTEND_URL}/course/${courseId}?payment=cancel`,
     });
 
-    // Respond with session URL
-    res.json({ success: true, session_url: session.url });
+    res.status(200).json({ success: true, session_url: session.url });
   } catch (error) {
     console.error("❌ Stripe session error:", error);
     res.status(500).json({ success: false, message: error.message });
   }
-};
+});
+
+export default router;

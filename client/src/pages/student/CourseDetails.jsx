@@ -65,8 +65,7 @@ const CourseDetails = () => {
       setIsLoading(true);
       const token = await getToken();
 
-      // ✅ Only send courseId; backend will use req.user._id
-      const payload = { courseId: courseData._id };
+      const payload = { courseId: courseData._id }; // only courseId
       console.log("Enroll request payload:", payload);
 
       const { data } = await axios.post(
@@ -81,7 +80,6 @@ const CourseDetails = () => {
       );
 
       if (data.success && data.session_url) {
-        // Redirect user to Stripe Checkout
         window.location.href = data.session_url;
       } else {
         toast.error(data.message || "Failed to initiate payment.");
@@ -332,7 +330,7 @@ const CourseDetails = () => {
             </div>
             <button
               onClick={enrollCourse}
-              disabled={isLoading}
+              disabled={isLoading || isAlreadyEnrolled}
               className="md:mt-6 mt-4 w-full py-3 rounded bg-blue-600 text-white font-medium"
             >
               {isAlreadyEnrolled

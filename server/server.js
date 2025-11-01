@@ -5,10 +5,11 @@ import "dotenv/config";
 import connectDB from "./configs/mongodb.js";
 import connectCloudinary from "./configs/cloudinary.js";
 import userRouter from "./routes/userRoutes.js";
-import { clerkMiddleware, requireAuth } from "@clerk/express"; // ✅ FIXED import
+import { clerkMiddleware, requireAuth } from "@clerk/express";
 import { clerkWebhooks, stripeWebhooks } from "./controllers/webhooks.js";
 import educatorRouter from "./routes/educatorRoutes.js";
 import courseRouter from "./routes/courseRoute.js";
+import stripeRoute from "./routes/stripeRoute.js"; // ✅ New Stripe route
 
 // Initialize Express
 const app = express();
@@ -17,7 +18,7 @@ const app = express();
 await connectDB();
 await connectCloudinary();
 
-// ✅ Global CORS Configuration
+// ------------------ CORS ------------------
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
   : [
@@ -40,7 +41,7 @@ app.use(
   })
 );
 
-// ✅ Handle preflight requests
+// Preflight requests
 app.options("*", (req, res) => {
   res.header("Access-Control-Allow-Origin", req.headers.origin);
   res.header(
@@ -51,24 +52,27 @@ app.options("*", (req, res) => {
   res.sendStatus(200);
 });
 
-// ✅ Initialize Clerk middleware
+// Clerk middleware
 app.use(clerkMiddleware());
 
-// ---------------- ROUTES ----------------
+// ------------------ ROUTES ------------------
 app.get("/", (req, res) => res.send("API Working ✅"));
 
-// ✅ Webhooks (public)
+// Webhooks (public)
 app.post("/clerk", express.json(), clerkWebhooks);
 app.post("/stripe", express.raw({ type: "application/json" }), stripeWebhooks);
 
-// ✅ Protected Routes
+// Protected routes
 app.use("/api/educator", express.json(), requireAuth(), educatorRouter);
 app.use("/api/user", express.json(), requireAuth(), userRouter);
 
-// ✅ Public Routes
+// Public course routes
 app.use("/api/course", express.json(), courseRouter);
 
-// ✅ Debug route
+// Stripe Checkout route (authenticated)
+app.use("/api/course/purchase", express.json(), requireAuth(), stripeRoute);
+
+// Debug network
 app.get("/api/network", (req, res) => res.json(os.networkInterfaces()));
 
 // Start server
