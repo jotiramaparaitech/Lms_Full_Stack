@@ -4,8 +4,8 @@ import {
   getCourseId,
   uploadCoursePdf,
   getEducatorDashboard,
-  // createStripeSession, // ❌ Removed: not present in courseController.js
 } from "../controllers/courseController.js";
+import { createStripeSession } from "../controllers/stripeController.js"; // ✅ Added Stripe controller
 import { protect, isEducator } from "../middlewares/authMiddleware.js";
 
 const courseRouter = express.Router();
@@ -28,7 +28,6 @@ courseRouter.get(
 );
 
 // -------------------- Stripe Checkout Session --------------------
-// If you move createStripeSession to courseController.js, uncomment below
-// courseRouter.post("/purchase/stripe-session", protect, createStripeSession);
+courseRouter.post("/purchase/stripe-session", protect, createStripeSession);
 
 export default courseRouter;

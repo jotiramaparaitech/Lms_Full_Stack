@@ -33,7 +33,7 @@ export const getCourseId = async (req, res) => {
         .json({ success: false, message: "Course not found" });
     }
 
-    // Hide paid lecture URLs for security
+    // Hide paid lecture URLs for non-preview lectures
     courseData.courseContent.forEach((chapter) => {
       chapter.chapterContent.forEach((lecture) => {
         if (!lecture.isPreviewFree) lecture.lectureUrl = "";
@@ -46,13 +46,13 @@ export const getCourseId = async (req, res) => {
     const isEnrolled = courseData.enrolledStudents?.includes(userId);
 
     if (!isEducator && !isEnrolled) {
-      // Hide actual pdfUrl for unauthorized users
+      // Hide PDF URLs for unauthorized users
       courseData.pdfResources = courseData.pdfResources.map((pdf) => ({
         pdfId: pdf.pdfId,
         pdfTitle: pdf.pdfTitle,
         pdfDescription: pdf.pdfDescription,
         allowDownload: false,
-        pdfUrl: "", // 🚫 Hide the real link
+        pdfUrl: "", // 🚫 Hide the actual link
       }));
     }
 
@@ -131,11 +131,13 @@ export const getEducatorDashboard = async (req, res) => {
       });
     }
 
+    // Calculate total students
     const totalStudents = courses.reduce(
       (acc, course) => acc + course.enrolledStudents.length,
       0
     );
 
+    // Aggregate all enrollments
     const allEnrollments = [];
     courses.forEach((course) => {
       course.enrolledStudents.forEach((student) => {
@@ -148,6 +150,7 @@ export const getEducatorDashboard = async (req, res) => {
       });
     });
 
+    // Get latest 10 enrollments
     const latestEnrollments = allEnrollments
       .sort((a, b) => new Date(b.enrolledAt) - new Date(a.enrolledAt))
       .slice(0, 10);

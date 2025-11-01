@@ -31,15 +31,12 @@ const CourseDetails = () => {
   // ---------------- Fetch Course ----------------
   const fetchCourseData = async () => {
     try {
-      if (!id) {
-        toast.error("Course ID is missing");
-        return;
-      }
+      if (!id) return toast.error("Course ID is missing");
       const { data } = await axios.get(`${backendUrl}/api/course/${id}`);
       if (data.success) {
         setCourseData(data.courseData);
       } else {
-        toast.error(data.message);
+        toast.error(data.message || "Failed to fetch course data.");
       }
     } catch (error) {
       toast.error(error.message);
@@ -57,12 +54,12 @@ const CourseDetails = () => {
   // ---------------- Enroll Course (Stripe Payment) ----------------
   const enrollCourse = async () => {
     try {
-      if (!userData) return toast.warn("Login to Enroll");
-      if (isAlreadyEnrolled) return toast.warn("Already Enrolled");
+      if (!userData) return toast.warn("Login to enroll");
+      if (isAlreadyEnrolled) return toast.warn("Already enrolled");
 
       const token = await getToken();
       const { data } = await axios.post(
-        `${backendUrl}/api/user/purchase/stripe`,
+        `${backendUrl}/api/course/purchase/stripe-session`,
         { courseId: courseData._id },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -74,22 +71,25 @@ const CourseDetails = () => {
         toast.error(data.message || "Failed to initiate payment.");
       }
     } catch (error) {
-      toast.error(error.message);
+      toast.error(error.response?.data?.message || error.message);
     }
   };
 
+  // ---------------- Check Enrollment ----------------
   useEffect(() => {
     fetchCourseData();
   }, [id]);
 
   useEffect(() => {
     if (userData && courseData) {
-      setIsAlreadyEnrolled(userData.enrolledCourses.includes(courseData._id));
+      setIsAlreadyEnrolled(userData.enrolledCourses?.includes(courseData._id));
     }
   }, [userData, courseData]);
 
   // ---------------- Main Render ----------------
-  return courseData ? (
+  if (!courseData) return <Loading />;
+
+  return (
     <>
       <div className="flex md:flex-row flex-col-reverse gap-10 relative items-start justify-between md:px-36 px-8 md:pt-20 pt-10 text-left">
         <div className="absolute top-0 left-0 w-full h-section-height -z-1 bg-gradient-to-b from-cyan-100/70"></div>
@@ -319,8 +319,6 @@ const CourseDetails = () => {
 
       <Footer />
     </>
-  ) : (
-    <Loading />
   );
 };
 
