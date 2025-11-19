@@ -12,7 +12,7 @@ import { protect, isEducator } from "../middlewares/authMiddleware.js";
 import {
   createRazorpayOrder,
   verifyRazorpayPayment,
-} from "../controllers/razorpayPurchaseController.js";
+} from "../controllers/razorpayController.js";
 
 const courseRouter = express.Router();
 
