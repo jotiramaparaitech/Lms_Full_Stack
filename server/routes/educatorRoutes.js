@@ -5,6 +5,7 @@ import {
   deleteCourse,
   educatorDashboardData,
   getEducatorCourses,
+  getEducatorCourseById,
   getEnrolledStudentsData,
   updateRoleToEducator,
   removeStudentAccess,
@@ -38,6 +39,11 @@ educatorRouter.post(
 // Get Educator Courses
 // -----------------------------
 educatorRouter.get("/courses", requireAuth(), getEducatorCourses);
+
+// -----------------------------
+// Get Single Educator Course
+// -----------------------------
+educatorRouter.get("/course/:id", requireAuth(), getEducatorCourseById);
 
 // -----------------------------
 // Update Course

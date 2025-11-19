@@ -44,7 +44,7 @@ const MyCourses = () => {
   };
 
   const handleEditCourse = (courseId) => {
-    navigate(`/educator/edit-course/${courseId}`);
+    navigate(`/educator/course/${courseId}/edit`);
   };
 
   useEffect(() => {

@@ -7,6 +7,7 @@ import CourseDetails from "./pages/student/CourseDetails";
 import CoursesList from "./pages/student/CoursesList";
 import Dashboard from "./pages/educator/Dashboard";
 import AddCourse from "./pages/educator/AddCourse";
+import EditCourse from "./pages/educator/EditCourse";
 import MyCourses from "./pages/educator/MyCourses";
 import StudentsEnrolled from "./pages/educator/StudentsEnrolled";
 import Educator from "./pages/educator/Educator";
@@ -51,6 +52,7 @@ const App = () => {
           <Route index element={<Dashboard />} />
           <Route path="add-course" element={<AddCourse />} />
           <Route path="my-courses" element={<MyCourses />} />
+          <Route path="course/:courseId/edit" element={<EditCourse />} />
           <Route path="student-enrolled" element={<StudentsEnrolled />} />
           <Route path="assign-course" element={<AssignCourse />} />{" "}
           {/* ✅ Fixed path */}

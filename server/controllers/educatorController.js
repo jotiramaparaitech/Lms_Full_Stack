@@ -130,6 +130,33 @@ export const getEducatorCourses = async (req, res) => {
 };
 
 // -----------------------------
+// Get Single Educator Course
+// -----------------------------
+export const getEducatorCourseById = async (req, res) => {
+  try {
+    const educator = req.auth?.userId;
+    const { id } = req.params;
+
+    if (!educator)
+      return res
+        .status(401)
+        .json({ success: false, message: "Unauthorized educator" });
+
+    const course = await Course.findOne({ _id: id, educator });
+
+    if (!course) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Course not found" });
+    }
+
+    res.json({ success: true, course });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// -----------------------------
 // Update Course
 // -----------------------------
 export const updateCourse = async (req, res) => {
