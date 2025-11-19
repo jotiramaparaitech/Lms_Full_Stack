@@ -10,6 +10,7 @@ import {
   createOrder,
   verifyPayment,
 } from "../controllers/razorpayController.js";
+
 import { protect, isEducator } from "../middlewares/authMiddleware.js";
 
 const courseRouter = express.Router();
@@ -17,10 +18,10 @@ const courseRouter = express.Router();
 // Get all courses
 courseRouter.get("/all", getAllCourse);
 
-// Get single course
+// Get a single course
 courseRouter.get("/:id", getCourseId);
 
-// Add PDF
+// Upload PDF
 courseRouter.post("/:courseId/add-pdf", protect, isEducator, uploadCoursePdf);
 
 // Educator dashboard
@@ -31,10 +32,10 @@ courseRouter.get(
   getEducatorDashboard
 );
 
-// Razorpay order creation
+// Razorpay order (create)
 courseRouter.post("/purchase/create-order", protect, createOrder);
 
-// Razorpay payment verification
+// Razorpay payment verify
 courseRouter.post("/purchase/verify-payment", protect, verifyPayment);
 
 export default courseRouter;
