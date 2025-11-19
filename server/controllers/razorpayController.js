@@ -13,7 +13,7 @@ const razorpay = new Razorpay({
 // ====================== CREATE ORDER ======================
 export const createOrder = async (req, res) => {
   try {
-    const userId = req.auth.userId; // ✅ FIXED for Clerk
+    const userId = req.auth?.userId || req.user?.id;
     const { courseId } = req.body;
 
     if (!courseId || !userId) {
@@ -32,6 +32,21 @@ export const createOrder = async (req, res) => {
         message: "Course or User not found",
       });
     }
+
+    const alreadyEnrolled =
+      user.enrolledCourses?.some(
+        (enrolledCourseId) =>
+          enrolledCourseId.toString() === courseId.toString()
+      ) || false;
+
+    if (alreadyEnrolled) {
+      return res.status(409).json({
+        success: false,
+        message: "You are already enrolled in this course.",
+      });
+    }
+
+    await Purchase.deleteMany({ userId, courseId, status: "pending" });
 
     // FINAL PRICE
     const price = course.coursePrice;
@@ -120,6 +135,21 @@ export const verifyPayment = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "User or Course not found",
+      });
+    }
+
+    const purchase = await Purchase.findById(purchaseId);
+    if (!purchase) {
+      return res.status(404).json({
+        success: false,
+        message: "Purchase record not found",
+      });
+    }
+
+    if (purchase.status === "completed") {
+      return res.json({
+        success: true,
+        message: "Payment already verified",
       });
     }
 

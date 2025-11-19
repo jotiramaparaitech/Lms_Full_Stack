@@ -22,6 +22,8 @@ const CourseDetails = () => {
     backendUrl,
     currency,
     userData,
+    fetchUserData,
+    fetchUserEnrolledCourses,
     calculateChapterTime,
     calculateCourseDuration,
     calculateRating,
@@ -55,10 +57,31 @@ const CourseDetails = () => {
 
   // ---------------- Enroll Course (Razorpay Checkout) ----------------
   const enrollCourse = async () => {
+    let checkoutLaunched = false;
+
+    if (!id) {
+      toast.error("Course ID is missing");
+      return;
+    }
+
+    if (!userData) {
+      toast.error("Please sign in to enroll.");
+      return;
+    }
+
+    if (!window.Razorpay) {
+      toast.error("Payment SDK not loaded. Please refresh and try again.");
+      return;
+    }
+
     try {
       setIsLoading(true);
 
       const token = await getToken();
+      if (!token) {
+        toast.error("Unable to authenticate request. Please login again.");
+        return;
+      }
 
       // 1️⃣ Create Razorpay order
       const { data: orderData } = await axios.post(
@@ -67,8 +90,8 @@ const CourseDetails = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      if (!orderData.success) {
-        toast.error("Failed to create payment order");
+      if (!orderData?.success || !orderData?.orderId) {
+        toast.error(orderData?.message || "Failed to create payment order");
         return;
       }
 
@@ -77,7 +100,7 @@ const CourseDetails = () => {
       // 2️⃣ Configure Razorpay UI
       const options = {
         key: import.meta.env.VITE_RAZORPAY_KEY_ID,
-        amount: amount,
+        amount,
         currency,
         name: "Aparaitech LMS",
         description: "Course Purchase",
@@ -86,33 +109,50 @@ const CourseDetails = () => {
         theme: { color: "#2563EB" },
 
         prefill: {
-          name: userData?.name,
+          name:
+            userData?.name ||
+            userData?.firstName ||
+            userData?.fullName ||
+            userData?.email,
           email: userData?.email,
         },
 
         handler: async function (response) {
-          // 3️⃣ Verify payment
-          const verifyRes = await axios.post(
-            `${backendUrl}/api/course/purchase/verify-payment`,
-            {
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-            },
-            { headers: { Authorization: `Bearer ${token}` } }
-          );
+          try {
+            const verifyRes = await axios.post(
+              `${backendUrl}/api/course/purchase/verify-payment`,
+              {
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+              },
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
 
-          if (verifyRes.data.success) {
-            toast.success("🎉 Payment Successful! You are now enrolled.");
-            fetchCourseData();
-          } else {
-            toast.error("Payment verification failed.");
+            if (verifyRes.data.success) {
+              toast.success("🎉 Payment Successful! You are now enrolled.");
+              await Promise.all([
+                fetchCourseData(),
+                fetchUserData(),
+                fetchUserEnrolledCourses(),
+              ]);
+              setIsAlreadyEnrolled(true);
+            } else {
+              toast.error(
+                verifyRes.data.message || "Payment verification failed."
+              );
+            }
+          } catch (error) {
+            toast.error(error.response?.data?.message || error.message);
+          } finally {
+            setIsLoading(false);
           }
         },
 
         modal: {
           ondismiss: () => {
             toast.info("Payment cancelled.");
+            setIsLoading(false);
           },
         },
       };
@@ -120,10 +160,13 @@ const CourseDetails = () => {
       // 4️⃣ Open Razorpay Popup
       const rzp = new window.Razorpay(options);
       rzp.open();
+      checkoutLaunched = true;
     } catch (error) {
       toast.error("Payment failed. Try again.");
     } finally {
-      setIsLoading(false);
+      if (!checkoutLaunched) {
+        setIsLoading(false);
+      }
     }
   };
 

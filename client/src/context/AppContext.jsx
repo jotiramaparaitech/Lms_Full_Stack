@@ -13,7 +13,13 @@ axios.defaults.withCredentials = true;
 
 export const AppContextProvider = (props) => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
-  const currency = import.meta.env.VITE_CURRENCY;
+  const rawCurrency = (import.meta.env.VITE_CURRENCY || "₹").toString();
+  const normalizedCurrency = rawCurrency.trim().toLowerCase();
+  const currency = ["$", "usd", "rs", "rs.", "inr", "rupees"].includes(
+    normalizedCurrency
+  )
+    ? "₹"
+    : rawCurrency;
   const navigate = useNavigate();
   const { getToken } = useAuth();
   const { user, isLoaded } = useUser();
@@ -202,6 +208,7 @@ export const AppContextProvider = (props) => {
     navigate,
     userData,
     setUserData,
+    fetchUserData,
     getToken,
     allCourses,
     fetchAllCourses,
