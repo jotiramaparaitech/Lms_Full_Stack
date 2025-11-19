@@ -1,14 +1,11 @@
 import Course from "../models/Course.js";
 import User from "../models/User.js";
 import { v4 as uuidv4 } from "uuid";
-import Razorpay from "razorpay";
 import crypto from "crypto";
-
-// -------------------- Initialize Razorpay --------------------
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+import {
+  getRazorpayClient,
+  RazorpayConfigError,
+} from "../utils/razorpayClient.js";
 
 // ------------------------- Get All Published Courses -------------------------
 export const getAllCourse = async (req, res) => {
@@ -180,6 +177,18 @@ export const createRazorpayOrder = async (req, res) => {
   try {
     const userId = req.user?._id;
     const { courseId } = req.body;
+    let razorpay;
+    try {
+      razorpay = getRazorpayClient();
+    } catch (error) {
+      if (error instanceof RazorpayConfigError) {
+        return res.status(503).json({
+          success: false,
+          message: error.message,
+        });
+      }
+      throw error;
+    }
 
     const course = await Course.findById(courseId);
     if (!course)
@@ -217,6 +226,18 @@ export const verifyRazorpayPayment = async (req, res) => {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
       req.body;
+    let razorpay;
+    try {
+      razorpay = getRazorpayClient();
+    } catch (error) {
+      if (error instanceof RazorpayConfigError) {
+        return res.status(503).json({
+          success: false,
+          message: error.message,
+        });
+      }
+      throw error;
+    }
 
     const body = razorpay_order_id + "|" + razorpay_payment_id;
 

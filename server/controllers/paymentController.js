@@ -2,7 +2,10 @@ import crypto from "crypto";
 import Course from "../models/Course.js";
 import User from "../models/User.js";
 import { Purchase } from "../models/Purchase.js";
-import { getRazorpayClient } from "../utils/razorpayClient.js";
+import {
+  getRazorpayClient,
+  RazorpayConfigError,
+} from "../utils/razorpayClient.js";
 
 // ============================================================
 //                 CREATE RAZORPAY ORDER
@@ -11,7 +14,19 @@ export const createRazorpayOrder = async (req, res) => {
   try {
     const userId = req.auth.userId; // Clerk user
     const { courseId } = req.body;
-    const razorpay = getRazorpayClient();
+
+    let razorpay;
+    try {
+      razorpay = getRazorpayClient();
+    } catch (error) {
+      if (error instanceof RazorpayConfigError) {
+        return res.status(503).json({
+          success: false,
+          message: error.message,
+        });
+      }
+      throw error;
+    }
 
     if (!courseId || !userId) {
       return res
@@ -66,7 +81,19 @@ export const verifyRazorpayPayment = async (req, res) => {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
       req.body;
-    const razorpay = getRazorpayClient();
+
+    let razorpay;
+    try {
+      razorpay = getRazorpayClient();
+    } catch (error) {
+      if (error instanceof RazorpayConfigError) {
+        return res.status(503).json({
+          success: false,
+          message: error.message,
+        });
+      }
+      throw error;
+    }
 
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
       return res.status(400).json({

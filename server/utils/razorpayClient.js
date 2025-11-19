@@ -1,5 +1,14 @@
 import Razorpay from "razorpay";
 
+export class RazorpayConfigError extends Error {
+  constructor() {
+    super(
+      "Missing Razorpay credentials. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET."
+    );
+    this.name = "RazorpayConfigError";
+  }
+}
+
 let razorpayInstance = null;
 
 export const getRazorpayClient = () => {
@@ -7,9 +16,7 @@ export const getRazorpayClient = () => {
   const keySecret = process.env.RAZORPAY_KEY_SECRET;
 
   if (!keyId || !keySecret) {
-    throw new Error(
-      "Missing Razorpay credentials. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET."
-    );
+    throw new RazorpayConfigError();
   }
 
   if (!razorpayInstance) {
