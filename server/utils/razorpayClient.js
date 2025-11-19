@@ -1,5 +1,18 @@
 import Razorpay from "razorpay";
 
+const sanitizeEnvValue = (value) => {
+  if (
+    value === undefined ||
+    value === null ||
+    value === "" ||
+    value === "undefined" ||
+    value === "null"
+  ) {
+    return undefined;
+  }
+  return value;
+};
+
 export class RazorpayConfigError extends Error {
   constructor() {
     super(
@@ -12,8 +25,8 @@ export class RazorpayConfigError extends Error {
 let razorpayInstance = null;
 
 export const getRazorpayClient = () => {
-  const keyId = process.env.RAZORPAY_KEY_ID;
-  const keySecret = process.env.RAZORPAY_KEY_SECRET;
+  const keyId = sanitizeEnvValue(process.env.RAZORPAY_KEY_ID);
+  const keySecret = sanitizeEnvValue(process.env.RAZORPAY_KEY_SECRET);
 
   if (!keyId || !keySecret) {
     throw new RazorpayConfigError();
