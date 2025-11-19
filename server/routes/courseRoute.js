@@ -6,26 +6,24 @@ import {
   getEducatorDashboard,
 } from "../controllers/courseController.js";
 
-import { protect, isEducator } from "../middlewares/authMiddleware.js";
-
-// ⬅️ NEW Razorpay controllers
 import {
-  createRazorpayOrder,
-  verifyRazorpayPayment,
+  createOrder,
+  verifyPayment,
 } from "../controllers/razorpayController.js";
+import { protect, isEducator } from "../middlewares/authMiddleware.js";
 
 const courseRouter = express.Router();
 
-// -------------------- Get All Courses --------------------
+// Get all courses
 courseRouter.get("/all", getAllCourse);
 
-// -------------------- Get Course by ID --------------------
+// Get single course
 courseRouter.get("/:id", getCourseId);
 
-// -------------------- Add / Update Course PDF Link --------------------
+// Add PDF
 courseRouter.post("/:courseId/add-pdf", protect, isEducator, uploadCoursePdf);
 
-// -------------------- Educator Dashboard --------------------
+// Educator dashboard
 courseRouter.get(
   "/educator/dashboard",
   protect,
@@ -33,10 +31,10 @@ courseRouter.get(
   getEducatorDashboard
 );
 
-// -------------------- Razorpay Order Creation --------------------
-courseRouter.post("/purchase/create-order", protect, createRazorpayOrder);
+// Razorpay order creation
+courseRouter.post("/purchase/create-order", protect, createOrder);
 
-// -------------------- Razorpay Payment Verification --------------------
-courseRouter.post("/purchase/verify-payment", protect, verifyRazorpayPayment);
+// Razorpay payment verification
+courseRouter.post("/purchase/verify-payment", protect, verifyPayment);
 
 export default courseRouter;
