@@ -1,20 +1,15 @@
-import Razorpay from "razorpay";
 import crypto from "crypto";
 import Course from "../models/Course.js";
 import User from "../models/User.js";
 import { Purchase } from "../models/Purchase.js";
-
-// -------------------- Initialize Razorpay --------------------
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+import { getRazorpayClient } from "../utils/razorpayClient.js";
 
 // ====================== CREATE ORDER ======================
 export const createOrder = async (req, res) => {
   try {
     const userId = req.auth?.userId || req.user?.id;
     const { courseId } = req.body;
+    const razorpay = getRazorpayClient();
 
     if (!courseId || !userId) {
       return res.status(400).json({
@@ -99,6 +94,7 @@ export const verifyPayment = async (req, res) => {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
       req.body;
+    const razorpay = getRazorpayClient();
 
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
       return res.status(400).json({
