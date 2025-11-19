@@ -2,9 +2,14 @@ import Course from "../models/Course.js";
 import { CourseProgress } from "../models/CourseProgress.js";
 import { Purchase } from "../models/Purchase.js";
 import User from "../models/User.js";
-import Stripe from "stripe";
+import Razorpay from "razorpay";
+import crypto from "crypto";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+// -------------------- Initialize Razorpay --------------------
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET,
+});
 
 // ---------------- Get User Data ----------------
 export const getUserData = async (req, res) => {
@@ -22,12 +27,11 @@ export const getUserData = async (req, res) => {
   }
 };
 
-// ---------------- Purchase Course with Stripe ----------------
-export const purchaseCourseStripe = async (req, res) => {
+// ---------------- Purchase Course (Razorpay) ----------------
+export const purchaseCourse = async (req, res) => {
   try {
     const { courseId } = req.body;
     const userId = req.auth.userId;
-    const { origin } = req.headers;
 
     const courseData = await Course.findById(courseId);
     const userData = await User.findById(userId);
@@ -36,13 +40,12 @@ export const purchaseCourseStripe = async (req, res) => {
       return res.json({ success: false, message: "Data Not Found" });
     }
 
-    // Calculate final price
-    const amount = (
+    // Final price with discount
+    const amount =
       courseData.coursePrice -
-      (courseData.discount * courseData.coursePrice) / 100
-    ).toFixed(2);
+      (courseData.discount * courseData.coursePrice) / 100;
 
-    // Create a purchase record
+    // Create purchase entry (initially pending)
     const newPurchase = await Purchase.create({
       courseId,
       userId,
@@ -50,38 +53,87 @@ export const purchaseCourseStripe = async (req, res) => {
       status: "pending",
     });
 
-    // Create Stripe Checkout Session
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
-      mode: "payment",
-      customer_email: userData.email,
-      line_items: [
-        {
-          price_data: {
-            currency: process.env.CURRENCY.toLowerCase(),
-            product_data: { name: courseData.courseTitle },
-            unit_amount: Math.round(amount * 100), // in cents
-          },
-          quantity: 1,
-        },
-      ],
-      success_url: `${origin}/loading/my-enrollments?purchaseId=${newPurchase._id}`,
-      cancel_url: `${origin}/`,
-      metadata: {
+    // Create Razorpay order
+    const order = await razorpay.orders.create({
+      amount: Math.round(amount * 100), // INR to paise
+      currency: "INR",
+      receipt: `receipt_${newPurchase._id}`,
+      notes: {
         purchaseId: newPurchase._id.toString(),
-        courseId: courseData._id.toString(),
-        userId: userId.toString(),
+        userId,
+        courseId,
       },
     });
 
-    res.json({ success: true, session_url: session.url });
+    return res.json({
+      success: true,
+      orderId: order.id,
+      amount: order.amount,
+      currency: order.currency,
+    });
   } catch (error) {
     res.json({ success: false, message: error.message });
   }
 };
 
-// ---------------- Export purchaseCourse for routes ----------------
-export const purchaseCourse = purchaseCourseStripe;
+// ---------------- Verify Razorpay Payment ----------------
+export const verifyRazorpayPayment = async (req, res) => {
+  try {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
+      req.body;
+
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return res.json({
+        success: false,
+        message: "Missing payment details",
+      });
+    }
+
+    // Verify signature
+    const sign = razorpay_order_id + "|" + razorpay_payment_id;
+
+    const expectedSign = crypto
+      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+      .update(sign)
+      .digest("hex");
+
+    if (expectedSign !== razorpay_signature) {
+      return res.json({
+        success: false,
+        message: "Invalid payment signature",
+      });
+    }
+
+    // Fetch Razorpay order
+    const order = await razorpay.orders.fetch(razorpay_order_id);
+
+    const purchaseId = order.notes.purchaseId;
+    const userId = order.notes.userId;
+    const courseId = order.notes.courseId;
+
+    // Update purchase record
+    await Purchase.findByIdAndUpdate(purchaseId, {
+      status: "completed",
+      paymentId: razorpay_payment_id,
+    });
+
+    // Enroll user & course
+    await Course.findByIdAndUpdate(courseId, {
+      $addToSet: { enrolledStudents: userId },
+    });
+
+    await User.findByIdAndUpdate(userId, {
+      $addToSet: { enrolledCourses: courseId },
+    });
+
+    return res.json({
+      success: true,
+      message: "Payment verified & enrolled successfully",
+    });
+  } catch (error) {
+    return res.json({ success: false, message: error.message });
+  }
+};
 
 // ---------------- Users Enrolled Courses ----------------
 export const userEnrolledCourses = async (req, res) => {
@@ -147,7 +199,7 @@ export const addUserRating = async (req, res) => {
   const { courseId, rating } = req.body;
 
   if (!courseId || !userId || !rating || rating < 1 || rating > 5) {
-    return res.json({ success: false, message: "InValid Details" });
+    return res.json({ success: false, message: "Invalid Details" });
   }
 
   try {

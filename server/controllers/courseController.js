@@ -1,10 +1,14 @@
 import Course from "../models/Course.js";
 import User from "../models/User.js";
 import { v4 as uuidv4 } from "uuid";
-import Stripe from "stripe";
+import Razorpay from "razorpay";
+import crypto from "crypto";
 
-// Initialize Stripe with secret key from environment variables
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+// -------------------- Initialize Razorpay --------------------
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET,
+});
 
 // ------------------------- Get All Published Courses -------------------------
 export const getAllCourse = async (req, res) => {
@@ -169,52 +173,87 @@ export const getEducatorDashboard = async (req, res) => {
   }
 };
 
-// ------------------------- Create Stripe Checkout Session -------------------------
-export const createStripeSession = async (req, res) => {
+// ------------------------- Razorpay Payment (Replaces Stripe) -------------------------
+
+// ⭐ Create Razorpay Order
+export const createRazorpayOrder = async (req, res) => {
   try {
+    const userId = req.user?._id;
     const { courseId } = req.body;
-    const userId = req.user._id;
 
     const course = await Course.findById(courseId);
-    if (!course) {
+    if (!course)
       return res
         .status(404)
         .json({ success: false, message: "Course not found" });
-    }
 
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
-      mode: "payment",
-      customer_email: req.user.email,
-      line_items: [
-        {
-          price_data: {
-            currency: "usd",
-            product_data: { name: course.courseTitle },
-            unit_amount: Math.round(
-              (course.coursePrice -
-                ((course.discount || 0) * course.coursePrice) / 100) *
-                100
-            ),
-          },
-          quantity: 1,
-        },
-      ],
-      metadata: {
+    const price =
+      course.coursePrice - (course.discount / 100) * course.coursePrice;
+
+    const amountInPaise = Math.round(price * 100);
+
+    const order = await razorpay.orders.create({
+      amount: amountInPaise,
+      currency: "INR",
+      receipt: `receipt_${Date.now()}`,
+      notes: {
         courseId: course._id.toString(),
         userId: userId.toString(),
       },
-      success_url: `${process.env.FRONTEND_URL}/course/${course._id}?payment=success`,
-      cancel_url: `${process.env.FRONTEND_URL}/course/${course._id}?payment=cancel`,
     });
 
-    res.status(200).json({ success: true, session_url: session.url });
+    res.json({ success: true, order });
   } catch (error) {
-    console.error("❌ Stripe session error:", error);
+    console.error("❌ Razorpay order error:", error);
     res.status(500).json({
       success: false,
-      message: "Error creating Stripe session",
-      error: error.message,
+      message: "Error creating Razorpay order",
+    });
+  }
+};
+
+// ⭐ Verify Razorpay Signature + Enroll Student
+export const verifyRazorpayPayment = async (req, res) => {
+  try {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
+      req.body;
+
+    const body = razorpay_order_id + "|" + razorpay_payment_id;
+
+    const expectedSignature = crypto
+      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+      .update(body)
+      .digest("hex");
+
+    if (expectedSignature !== razorpay_signature) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid payment signature",
+      });
+    }
+
+    const order = await razorpay.orders.fetch(razorpay_order_id);
+
+    const userId = order.notes.userId;
+    const courseId = order.notes.courseId;
+
+    const course = await Course.findById(courseId);
+
+    // avoid duplicate
+    if (!course.enrolledStudents.includes(userId)) {
+      course.enrolledStudents.push(userId);
+      await course.save();
+    }
+
+    res.json({
+      success: true,
+      message: "Payment verified & enrollment successful",
+    });
+  } catch (error) {
+    console.log("❌ Razorpay verification error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Payment verification failed",
     });
   }
 };

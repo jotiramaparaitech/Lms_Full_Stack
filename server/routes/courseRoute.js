@@ -5,8 +5,14 @@ import {
   uploadCoursePdf,
   getEducatorDashboard,
 } from "../controllers/courseController.js";
-import { createStripeSession } from "../controllers/stripeController.js"; // ✅ Stripe controller
+
 import { protect, isEducator } from "../middlewares/authMiddleware.js";
+
+// ⬅️ NEW Razorpay controllers
+import {
+  createRazorpayOrder,
+  verifyRazorpayPayment,
+} from "../controllers/razorpayPurchaseController.js";
 
 const courseRouter = express.Router();
 
@@ -27,7 +33,10 @@ courseRouter.get(
   getEducatorDashboard
 );
 
-// -------------------- Stripe Checkout Session --------------------
-courseRouter.post("/purchase/stripe-session", protect, createStripeSession);
+// -------------------- Razorpay Order Creation --------------------
+courseRouter.post("/purchase/create-order", protect, createRazorpayOrder);
+
+// -------------------- Razorpay Payment Verification --------------------
+courseRouter.post("/purchase/verify-payment", protect, verifyRazorpayPayment);
 
 export default courseRouter;

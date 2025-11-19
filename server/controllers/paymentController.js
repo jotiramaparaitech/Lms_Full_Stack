@@ -1,14 +1,21 @@
-import Stripe from "stripe";
+import Razorpay from "razorpay";
+import crypto from "crypto";
 import Course from "../models/Course.js";
 import User from "../models/User.js";
 import { Purchase } from "../models/Purchase.js";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+// -------------------- Initialize Razorpay --------------------
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET,
+});
 
-// -------------------- Create Stripe Checkout Session --------------------
-export const createStripeSession = async (req, res) => {
+// ============================================================
+//                 CREATE RAZORPAY ORDER
+// ============================================================
+export const createRazorpayOrder = async (req, res) => {
   try {
-    const userId = req.auth.userId;
+    const userId = req.auth.userId; // Clerk user
     const { courseId } = req.body;
 
     if (!courseId || !userId) {
@@ -18,103 +25,124 @@ export const createStripeSession = async (req, res) => {
     }
 
     const course = await Course.findById(courseId);
-    if (!course) {
+    if (!course)
       return res
         .status(404)
         .json({ success: false, message: "Course not found" });
-    }
 
     const user = await User.findById(userId);
-    if (!user) {
+    if (!user)
       return res
         .status(404)
         .json({ success: false, message: "User not found" });
-    }
 
-    const amount = Math.round(
-      (course.coursePrice - (course.discount * course.coursePrice) / 100) * 100
-    ); // amount in cents
+    const amount =
+      course.coursePrice - (course.discount * course.coursePrice) / 100;
 
-    // Create Stripe checkout session
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
-      mode: "payment",
-      customer_email: user.email,
-      line_items: [
-        {
-          price_data: {
-            currency: "usd",
-            product_data: {
-              name: course.courseTitle,
-              description: course.courseDescription,
-            },
-            unit_amount: amount,
-          },
-          quantity: 1,
-        },
-      ],
-      success_url: `${process.env.FRONTEND_URL}/course/${courseId}?payment=success`,
-      cancel_url: `${process.env.FRONTEND_URL}/course/${courseId}?payment=cancel`,
-      metadata: {
+    const order = await razorpay.orders.create({
+      amount: Math.round(amount * 100), // paise
+      currency: "INR",
+      receipt: `receipt_${Date.now()}`,
+      notes: {
         userId,
         courseId,
       },
     });
 
-    res.json({ success: true, session_url: session.url });
+    return res.json({
+      success: true,
+      orderId: order.id,
+      amount: order.amount,
+      currency: order.currency,
+    });
   } catch (error) {
-    console.error("Stripe session error:", error);
-    res.status(500).json({ success: false, message: error.message });
+    console.error("❌ Razorpay order error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error creating Razorpay order",
+    });
   }
 };
 
-// -------------------- Stripe Webhook --------------------
-export const stripeWebhookHandler = async (req, res) => {
-  const sig = req.headers["stripe-signature"];
-  let event;
-
+// ============================================================
+//                 VERIFY PAYMENT + ENROLL USER
+// ============================================================
+export const verifyRazorpayPayment = async (req, res) => {
   try {
-    event = stripe.webhooks.constructEvent(
-      req.rawBody, // must use raw body (configure in Express)
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
-  } catch (err) {
-    console.error("Webhook signature verification failed.", err.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
-  }
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
+      req.body;
 
-  // Handle successful checkout
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object;
-
-    const userId = session.metadata.userId;
-    const courseId = session.metadata.courseId;
-    const amount = session.amount_total / 100; // convert cents to dollars
-
-    try {
-      // Record purchase in DB
-      const newPurchase = await Purchase.create({
-        courseId,
-        userId,
-        amount,
-        status: "completed",
-        paymentId: session.id,
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing payment details",
       });
-
-      // Enroll user
-      await Course.findByIdAndUpdate(courseId, {
-        $addToSet: { enrolledStudents: userId },
-      });
-      await User.findByIdAndUpdate(userId, {
-        $addToSet: { enrolledCourses: courseId },
-      });
-
-      console.log("✅ Stripe payment processed successfully");
-    } catch (error) {
-      console.error("Error processing Stripe webhook:", error);
     }
-  }
 
-  res.json({ received: true });
+    // -------------------- Verify Signature --------------------
+    const body = razorpay_order_id + "|" + razorpay_payment_id;
+
+    const expectedSignature = crypto
+      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+      .update(body)
+      .digest("hex");
+
+    if (expectedSignature !== razorpay_signature) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid payment signature",
+      });
+    }
+
+    // -------------------- Fetch Order Notes --------------------
+    const order = await razorpay.orders.fetch(razorpay_order_id);
+
+    const userId = order.notes.userId;
+    const courseId = order.notes.courseId;
+
+    const course = await Course.findById(courseId);
+    const user = await User.findById(userId);
+
+    if (!course || !user) {
+      return res.status(404).json({
+        success: false,
+        message: "User or Course not found",
+      });
+    }
+
+    // ============================================================
+    //              RECORD PURCHASE IN DATABASE
+    // ============================================================
+    const amountPaid = order.amount / 100; // convert to INR
+
+    await Purchase.create({
+      courseId,
+      userId,
+      amount: amountPaid,
+      status: "completed",
+      paymentId: razorpay_payment_id,
+    });
+
+    // ============================================================
+    //              ENROLL USER IN THE COURSE
+    // ============================================================
+    await Course.findByIdAndUpdate(courseId, {
+      $addToSet: { enrolledStudents: userId },
+    });
+
+    await User.findByIdAndUpdate(userId, {
+      $addToSet: { enrolledCourses: courseId },
+    });
+
+    return res.json({
+      success: true,
+      message: "Payment verified & user enrolled successfully",
+    });
+  } catch (error) {
+    console.error("❌ Razorpay verification error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Payment verification failed",
+    });
+  }
 };

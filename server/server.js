@@ -6,10 +6,12 @@ import connectDB from "./configs/mongodb.js";
 import connectCloudinary from "./configs/cloudinary.js";
 import userRouter from "./routes/userRoutes.js";
 import { clerkMiddleware, requireAuth } from "@clerk/express";
-import { clerkWebhooks, stripeWebhooks } from "./controllers/webhooks.js";
+import { clerkWebhooks } from "./controllers/webhooks.js"; // Stripe removed
 import educatorRouter from "./routes/educatorRoutes.js";
 import courseRouter from "./routes/courseRoute.js";
-import stripeRoute from "./routes/stripeRoute.js"; // ✅ New Stripe route
+
+// ⬅️ NEW — Razorpay Route
+import razorpayRoute from "./routes/razorpayRoute.js";
 
 // Initialize Express
 const app = express();
@@ -60,7 +62,6 @@ app.get("/", (req, res) => res.send("API Working ✅"));
 
 // Webhooks (public)
 app.post("/clerk", express.json(), clerkWebhooks);
-app.post("/stripe", express.raw({ type: "application/json" }), stripeWebhooks);
 
 // Protected routes
 app.use("/api/educator", express.json(), requireAuth(), educatorRouter);
@@ -69,8 +70,8 @@ app.use("/api/user", express.json(), requireAuth(), userRouter);
 // Public course routes
 app.use("/api/course", express.json(), courseRouter);
 
-// Stripe Checkout route (authenticated)
-app.use("/api/course/purchase", express.json(), requireAuth(), stripeRoute);
+// ⬅️ NEW — Razorpay Payment Routes
+app.use("/api/razorpay", express.json(), razorpayRoute);
 
 // Debug network
 app.get("/api/network", (req, res) => res.json(os.networkInterfaces()));

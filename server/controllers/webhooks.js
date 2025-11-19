@@ -3,7 +3,9 @@ import User from "../models/User.js";
 import { Purchase } from "../models/Purchase.js";
 import Course from "../models/Course.js";
 
-// API Controller Function to Manage Clerk User with database
+// --------------------------------------------------------------------
+//              CLERK WEBHOOK (USER CREATE / UPDATE / DELETE)
+// --------------------------------------------------------------------
 export const clerkWebhooks = async (req, res) => {
   try {
     const whook = new Webhook(process.env.CLERK_WEBHOOK_SECRET);
@@ -26,8 +28,7 @@ export const clerkWebhooks = async (req, res) => {
           resume: "",
         };
         await User.create(userData);
-        res.json({});
-        break;
+        return res.json({});
       }
 
       case "user.updated": {
@@ -37,64 +38,27 @@ export const clerkWebhooks = async (req, res) => {
           imageUrl: data.image_url,
         };
         await User.findByIdAndUpdate(data.id, userData);
-        res.json({});
-        break;
+        return res.json({});
       }
 
       case "user.deleted": {
         await User.findByIdAndDelete(data.id);
-        res.json({});
-        break;
+        return res.json({});
       }
+
       default:
-        break;
+        return res.json({});
     }
   } catch (error) {
-    res.json({ success: false, message: error.message });
+    return res.json({ success: false, message: error.message });
   }
 };
 
-// ---------------------------------------------
-// Test Payment / Dummy Webhook (Simulates Stripe success)
-// ---------------------------------------------
-export const stripeWebhooks = async (req, res) => {
-  try {
-    console.log("✅ Test payment webhook received.");
+// --------------------------------------------------------------------
+//     ❌ REMOVED: Stripe Webhook (No longer needed for Razorpay)
+// --------------------------------------------------------------------
 
-    const { courseId, userId, amount } = req.body;
-
-    if (!courseId || !userId) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Missing courseId or userId" });
-    }
-
-    // Record purchase in DB
-    const newPurchase = await Purchase.create({
-      courseId,
-      userId,
-      amount: amount || 0,
-      status: "completed",
-      paymentId: "test-payment",
-    });
-
-    // Add student to course enrollment
-    await Course.findByIdAndUpdate(courseId, {
-      $addToSet: { enrolledStudents: userId },
-    });
-
-    // Add course to user's enrolledCourses array
-    await User.findByIdAndUpdate(userId, {
-      $addToSet: { enrolledCourses: courseId },
-    });
-
-    res.json({
-      success: true,
-      message: "Test payment recorded successfully",
-      purchase: newPurchase,
-    });
-  } catch (error) {
-    console.error("❌ Test payment error:", error);
-    res.status(400).json({ success: false, message: error.message });
-  }
-};
+// NOTE:
+// Razorpay does NOT use server-side webhooks in your setup.
+// Payments are verified using verifyRazorpayPayment() controller.
+// So you DO NOT need any Razorpay webhook here.
