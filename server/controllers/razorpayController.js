@@ -189,9 +189,17 @@ export const verifyPayment = async (req, res) => {
       $addToSet: { enrolledCourses: courseId },
     });
 
+    const updatedUser = await User.findById(userId)
+      .populate({
+        path: "enrolledCourses",
+        options: { sort: { createdAt: -1 } },
+      })
+      .lean();
+
     return res.json({
       success: true,
       message: "Payment verified & student enrolled successfully",
+      enrolledCourses: updatedUser?.enrolledCourses || [],
     });
   } catch (error) {
     console.error("❌ Payment verification error:", error);

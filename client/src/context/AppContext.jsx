@@ -213,6 +213,7 @@ export const AppContextProvider = (props) => {
     allCourses,
     fetchAllCourses,
     enrolledCourses,
+    setEnrolledCourses,
     fetchUserEnrolledCourses,
     fetchCourseById,
     calculateChapterTime,

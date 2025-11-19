@@ -24,6 +24,7 @@ const CourseDetails = () => {
     userData,
     fetchUserData,
     fetchUserEnrolledCourses,
+    setEnrolledCourses,
     calculateChapterTime,
     calculateCourseDuration,
     calculateRating,
@@ -91,7 +92,10 @@ const CourseDetails = () => {
       );
 
       if (!orderData?.success || !orderData?.orderId) {
-        toast.error(orderData?.message || "Failed to create payment order");
+        toast.error(
+          orderData?.message ||
+            "Failed to create payment order. Please try again later."
+        );
         return;
       }
 
@@ -131,6 +135,9 @@ const CourseDetails = () => {
 
             if (verifyRes.data.success) {
               toast.success("🎉 Payment Successful! You are now enrolled.");
+              if (Array.isArray(verifyRes.data.enrolledCourses)) {
+                setEnrolledCourses(verifyRes.data.enrolledCourses);
+              }
               await Promise.all([
                 fetchCourseData(),
                 fetchUserData(),
@@ -143,7 +150,12 @@ const CourseDetails = () => {
               );
             }
           } catch (error) {
-            toast.error(error.response?.data?.message || error.message);
+            const serverMessage =
+              error.response?.data?.message ||
+              (error.response?.status === 503
+                ? "Payment service is unavailable. Please try again later."
+                : null);
+            toast.error(serverMessage || error.message);
           } finally {
             setIsLoading(false);
           }
@@ -162,7 +174,12 @@ const CourseDetails = () => {
       rzp.open();
       checkoutLaunched = true;
     } catch (error) {
-      toast.error("Payment failed. Try again.");
+      const serverMessage =
+        error.response?.data?.message ||
+        (error.response?.status === 503
+          ? "Payment service is temporarily unavailable. Please contact support."
+          : null);
+      toast.error(serverMessage || "Payment failed. Try again.");
     } finally {
       if (!checkoutLaunched) {
         setIsLoading(false);
