@@ -1,6 +1,6 @@
 // 📁 src/context/AppContext.jsx
 import axios from "axios";
-import { createContext, useEffect, useState } from "react";
+import { createContext, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useAuth, useUser } from "@clerk/clerk-react";
@@ -29,6 +29,7 @@ export const AppContextProvider = (props) => {
   const [allCourses, setAllCourses] = useState([]);
   const [userData, setUserData] = useState(null);
   const [enrolledCourses, setEnrolledCourses] = useState([]);
+  const roleRedirectedRef = useRef(false);
 
   // ✅ Fetch all courses (handles errors gracefully)
   const fetchAllCourses = async () => {
@@ -64,9 +65,16 @@ export const AppContextProvider = (props) => {
   // ✅ Fetch user data (robust to CORS/network errors)
   const fetchUserData = async () => {
     try {
-      if (!user) return;
+      if (!user) {
+        setUserData(null);
+        return;
+      }
 
       const token = await getToken();
+      if (!token) {
+        console.warn("fetchUserData: Missing auth token");
+        return;
+      }
 
       const response = await axios.get(`${backendUrl}/api/user/data`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -103,7 +111,18 @@ export const AppContextProvider = (props) => {
   // ✅ Fetch enrolled courses
   const fetchUserEnrolledCourses = async () => {
     try {
+      if (!user) {
+        setEnrolledCourses([]);
+        return;
+      }
+
       const token = await getToken();
+      if (!token) {
+        console.warn("fetchUserEnrolledCourses: Missing auth token");
+        setEnrolledCourses([]);
+        return;
+      }
+
       const response = await axios.get(
         `${backendUrl}/api/user/enrolled-courses`,
         { headers: { Authorization: `Bearer ${token}` }, timeout: 8000 }
@@ -187,12 +206,21 @@ export const AppContextProvider = (props) => {
 
   // ✅ Role-based redirect + data fetch
   useEffect(() => {
-    if (isLoaded && user) {
-      const role = user.publicMetadata?.role || "student";
-      fetchUserData();
-      fetchUserEnrolledCourses();
+    if (!isLoaded) return;
+
+    if (!user) {
+      roleRedirectedRef.current = false;
+      return;
+    }
+
+    const role = user.publicMetadata?.role || "student";
+    fetchUserData();
+    fetchUserEnrolledCourses();
+
+    if (!roleRedirectedRef.current) {
       if (role === "educator" || role === "admin") navigate("/educator");
       else navigate("/");
+      roleRedirectedRef.current = true;
     }
   }, [user, isLoaded]);
 

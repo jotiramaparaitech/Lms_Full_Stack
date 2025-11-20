@@ -35,6 +35,11 @@ const SideBar = () => {
       path: "/educator/assign-course",
       icon: assets.my_course_icon,
     },
+    {
+      name: "My Enrollments",
+      path: "/my-enrollments",
+      icon: assets.lesson_icon,
+    },
   ];
 
   useEffect(() => {
