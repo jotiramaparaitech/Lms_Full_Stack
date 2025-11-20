@@ -164,6 +164,12 @@ export const updateCourse = async (req, res) => {
     const courseId = req.params.id;
     const educatorId = req.auth?.userId;
 
+    if (!educatorId) {
+      return res
+        .status(401)
+        .json({ success: false, message: "Unauthorized: No user ID found" });
+    }
+
     const course = await Course.findOne({
       _id: courseId,
       educator: educatorId,
@@ -173,38 +179,71 @@ export const updateCourse = async (req, res) => {
         .status(404)
         .json({ success: false, message: "Course not found or unauthorized" });
 
+    // Parse courseData with error handling
+    let parsedCourseData = {};
     if (req.body.courseData) {
-      const parsedCourseData = JSON.parse(req.body.courseData);
+      try {
+        // Handle both string and object formats
+        if (typeof req.body.courseData === "string") {
+          parsedCourseData = JSON.parse(req.body.courseData);
+        } else {
+          parsedCourseData = req.body.courseData;
+        }
+        console.log("✅ Course data parsed successfully");
+        console.log("  Fields received:", Object.keys(parsedCourseData));
+      } catch (parseError) {
+        console.error("❌ Error parsing courseData:", parseError);
+        console.error("  Raw courseData type:", typeof req.body.courseData);
+        console.error("  Raw courseData length:", req.body.courseData?.length);
+        console.error(
+          "  Raw courseData preview:",
+          typeof req.body.courseData === "string"
+            ? req.body.courseData.substring(0, 200)
+            : JSON.stringify(req.body.courseData).substring(0, 200)
+        );
+        return res.status(400).json({
+          success: false,
+          message: "Invalid course data format",
+          error: parseError.message,
+        });
+      }
+    } else {
+      console.warn("⚠️ No courseData in request body");
+      console.log("  Request body keys:", Object.keys(req.body));
+    }
 
-      // Explicitly update all fields to ensure they're saved
-      if (parsedCourseData.courseTitle !== undefined) {
-        course.courseTitle = parsedCourseData.courseTitle;
-      }
-      if (parsedCourseData.customDomain !== undefined) {
-        course.customDomain = parsedCourseData.customDomain;
-      }
-      if (parsedCourseData.courseDescription !== undefined) {
-        course.courseDescription = parsedCourseData.courseDescription;
-      }
-      if (parsedCourseData.coursePrice !== undefined) {
-        course.coursePrice = parsedCourseData.coursePrice;
-      }
-      if (parsedCourseData.discount !== undefined) {
-        course.discount = parsedCourseData.discount;
-      }
-      if (parsedCourseData.courseContent !== undefined) {
-        course.courseContent = parsedCourseData.courseContent;
-      }
-      if (parsedCourseData.pdfResources !== undefined) {
-        course.pdfResources = parsedCourseData.pdfResources;
-      }
-      // courseThumbnail is handled separately below if imageFile is provided
-      if (
-        parsedCourseData.courseThumbnail !== undefined &&
-        !req.files?.image?.[0]
-      ) {
-        course.courseThumbnail = parsedCourseData.courseThumbnail;
-      }
+    // Explicitly update all fields to ensure they're saved
+    if (parsedCourseData.courseTitle !== undefined) {
+      course.courseTitle = parsedCourseData.courseTitle;
+    }
+    if (parsedCourseData.customDomain !== undefined) {
+      course.customDomain = parsedCourseData.customDomain;
+    }
+    if (parsedCourseData.courseDescription !== undefined) {
+      course.courseDescription = parsedCourseData.courseDescription;
+    }
+    if (parsedCourseData.coursePrice !== undefined) {
+      course.coursePrice = Number(parsedCourseData.coursePrice) || 0;
+    }
+    if (parsedCourseData.discount !== undefined) {
+      course.discount = Number(parsedCourseData.discount) || 0;
+    }
+    if (parsedCourseData.courseContent !== undefined) {
+      course.courseContent = Array.isArray(parsedCourseData.courseContent)
+        ? parsedCourseData.courseContent
+        : course.courseContent;
+    }
+    if (parsedCourseData.pdfResources !== undefined) {
+      course.pdfResources = Array.isArray(parsedCourseData.pdfResources)
+        ? parsedCourseData.pdfResources
+        : course.pdfResources;
+    }
+    // courseThumbnail is handled separately below if imageFile is provided
+    if (
+      parsedCourseData.courseThumbnail !== undefined &&
+      !req.files?.image?.[0]
+    ) {
+      course.courseThumbnail = parsedCourseData.courseThumbnail;
     }
 
     const imageFile = req.files?.image?.[0];
@@ -220,42 +259,80 @@ export const updateCourse = async (req, res) => {
       });
 
     if (imageFile) {
-      const uploadResult = imageFile.buffer
-        ? await uploadFromBuffer(imageFile.buffer, "courses")
-        : await cloudinary.uploader.upload(imageFile.path, {
-            folder: "courses",
-          });
-      course.courseThumbnail = uploadResult.secure_url;
+      try {
+        const uploadResult = imageFile.buffer
+          ? await uploadFromBuffer(imageFile.buffer, "courses")
+          : await cloudinary.uploader.upload(imageFile.path, {
+              folder: "courses",
+            });
+        if (uploadResult && uploadResult.secure_url) {
+          course.courseThumbnail = uploadResult.secure_url;
+        }
+      } catch (imageError) {
+        console.error("❌ Error uploading image:", imageError);
+        return res.status(500).json({
+          success: false,
+          message: "Failed to upload image",
+          error: imageError.message,
+        });
+      }
     }
 
+    // Handle PDF file uploads - append to existing PDFs
     if (pdfFiles.length > 0) {
       const pdfResources = Array.isArray(course.pdfResources)
-        ? course.pdfResources
+        ? [...course.pdfResources]
         : [];
       for (const file of pdfFiles) {
-        const uploadResult = file.buffer
-          ? await uploadFromBuffer(file.buffer, "course_pdfs", "raw")
-          : await cloudinary.uploader.upload(file.path, {
-              resource_type: "raw",
-              folder: "course_pdfs",
-            });
+        try {
+          const uploadResult = file.buffer
+            ? await uploadFromBuffer(file.buffer, "course_pdfs", "raw")
+            : await cloudinary.uploader.upload(file.path, {
+                resource_type: "raw",
+                folder: "course_pdfs",
+              });
 
-        if (uploadResult) {
-          pdfResources.push({
-            pdfId: file.originalname || file.filename,
-            pdfTitle: file.originalname || file.filename,
-            pdfDescription: "",
-            pdfUrl: uploadResult.secure_url,
-          });
+          if (uploadResult) {
+            pdfResources.push({
+              pdfId: file.originalname || file.filename,
+              pdfTitle: file.originalname || file.filename,
+              pdfDescription: "",
+              pdfUrl: uploadResult.secure_url,
+            });
+          }
+        } catch (pdfError) {
+          console.error("❌ Error uploading PDF:", pdfError);
+          // Continue with other PDFs even if one fails
         }
       }
       course.pdfResources = pdfResources;
     }
 
-    await course.save();
-    res.json({ success: true, message: "Course updated", course });
+    // Save the course
+    try {
+      await course.save();
+      console.log("✅ Course updated successfully:", courseId);
+      res.json({
+        success: true,
+        message: "Course updated successfully",
+        course,
+      });
+    } catch (saveError) {
+      console.error("❌ Error saving course:", saveError);
+      return res.status(500).json({
+        success: false,
+        message: "Failed to save course",
+        error: saveError.message,
+      });
+    }
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error("❌ Error in updateCourse:", error);
+    console.error("  Error stack:", error.stack);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Internal server error",
+      error: error.name,
+    });
   }
 };
 

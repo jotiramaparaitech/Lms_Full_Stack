@@ -43,43 +43,53 @@ const EditCourse = () => {
 
   const [initialDescription, setInitialDescription] = useState("");
   const [quillReady, setQuillReady] = useState(false);
+  const [dataLoaded, setDataLoaded] = useState(false);
 
-  // Initialize Quill editor
+  // Initialize Quill editor - runs once on mount
   useEffect(() => {
     if (editorRef.current && !quillRef.current) {
-      quillRef.current = new Quill(editorRef.current, { theme: "snow" });
-      // Mark Quill as ready after a short delay to ensure it's fully initialized
-      setTimeout(() => {
-        setQuillReady(true);
-        // If description was already loaded, set it now
-        if (initialDescription) {
-          quillRef.current.root.innerHTML = initialDescription;
-        }
-      }, 50);
+      try {
+        quillRef.current = new Quill(editorRef.current, { theme: "snow" });
+        // Mark Quill as ready after initialization
+        setTimeout(() => {
+          if (quillRef.current) {
+            setQuillReady(true);
+          }
+        }, 150);
+      } catch (error) {
+        console.error("Error initializing Quill:", error);
+      }
     }
   }, []);
 
-  // Apply fetched description to editor - improved timing
+  // Set description when both Quill is ready AND data is loaded
   useEffect(() => {
     if (
       quillRef.current &&
+      quillRef.current.root &&
       quillReady &&
-      initialDescription !== undefined &&
-      initialDescription !== null
+      dataLoaded &&
+      initialDescription !== undefined
     ) {
-      // Ensure Quill is ready before setting content
+      // Use a small delay to ensure DOM is ready
       const timer = setTimeout(() => {
         if (quillRef.current && quillRef.current.root) {
-          const currentContent = quillRef.current.root.innerHTML;
-          // Only update if content is different to avoid unnecessary updates
-          if (currentContent !== initialDescription) {
-            quillRef.current.root.innerHTML = initialDescription || "";
+          const description = initialDescription || "";
+          const currentContent = quillRef.current.root.innerHTML.trim();
+          const newContent = description.trim();
+
+          // Only update if content is different
+          if (currentContent !== newContent) {
+            // Clear existing content first
+            quillRef.current.setText("");
+            // Then set the HTML content
+            quillRef.current.root.innerHTML = description;
           }
         }
-      }, 50);
+      }, 200);
       return () => clearTimeout(timer);
     }
-  }, [initialDescription, quillReady]);
+  }, [initialDescription, quillReady, dataLoaded]);
 
   const normalizeChapter = (chapter) => ({
     ...chapter,
@@ -122,19 +132,21 @@ const EditCourse = () => {
       // Set description - ensure it's a string
       const description = course.courseDescription || "";
       setInitialDescription(description);
+      setDataLoaded(true); // Mark data as loaded
 
-      // If Quill is already ready, set the description immediately
-      if (quillRef.current && quillRef.current.root) {
+      // Also try to set immediately if Quill is already ready (fallback)
+      if (quillRef.current && quillRef.current.root && quillReady) {
         setTimeout(() => {
           if (quillRef.current && quillRef.current.root) {
             quillRef.current.root.innerHTML = description;
           }
-        }, 100);
+        }, 250);
       }
     } catch (error) {
       toast.error(
         error.response?.data?.message || "Failed to fetch course details"
       );
+      setDataLoaded(true); // Still mark as loaded even on error
     } finally {
       setIsFetching(false);
     }
