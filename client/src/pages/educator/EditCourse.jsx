@@ -42,20 +42,44 @@ const EditCourse = () => {
   });
 
   const [initialDescription, setInitialDescription] = useState("");
+  const [quillReady, setQuillReady] = useState(false);
 
   // Initialize Quill editor
   useEffect(() => {
     if (editorRef.current && !quillRef.current) {
       quillRef.current = new Quill(editorRef.current, { theme: "snow" });
+      // Mark Quill as ready after a short delay to ensure it's fully initialized
+      setTimeout(() => {
+        setQuillReady(true);
+        // If description was already loaded, set it now
+        if (initialDescription) {
+          quillRef.current.root.innerHTML = initialDescription;
+        }
+      }, 50);
     }
   }, []);
 
-  // Apply fetched description to editor
+  // Apply fetched description to editor - improved timing
   useEffect(() => {
-    if (quillRef.current && initialDescription !== null) {
-      quillRef.current.root.innerHTML = initialDescription || "";
+    if (
+      quillRef.current &&
+      quillReady &&
+      initialDescription !== undefined &&
+      initialDescription !== null
+    ) {
+      // Ensure Quill is ready before setting content
+      const timer = setTimeout(() => {
+        if (quillRef.current && quillRef.current.root) {
+          const currentContent = quillRef.current.root.innerHTML;
+          // Only update if content is different to avoid unnecessary updates
+          if (currentContent !== initialDescription) {
+            quillRef.current.root.innerHTML = initialDescription || "";
+          }
+        }
+      }, 50);
+      return () => clearTimeout(timer);
     }
-  }, [initialDescription]);
+  }, [initialDescription, quillReady]);
 
   const normalizeChapter = (chapter) => ({
     ...chapter,
@@ -95,7 +119,18 @@ const EditCourse = () => {
           : []
       );
       setPdfs(course.pdfResources || []);
-      setInitialDescription(course.courseDescription || "");
+      // Set description - ensure it's a string
+      const description = course.courseDescription || "";
+      setInitialDescription(description);
+
+      // If Quill is already ready, set the description immediately
+      if (quillRef.current && quillRef.current.root) {
+        setTimeout(() => {
+          if (quillRef.current && quillRef.current.root) {
+            quillRef.current.root.innerHTML = description;
+          }
+        }, 100);
+      }
     } catch (error) {
       toast.error(
         error.response?.data?.message || "Failed to fetch course details"

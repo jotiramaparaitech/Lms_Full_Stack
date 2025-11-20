@@ -175,7 +175,36 @@ export const updateCourse = async (req, res) => {
 
     if (req.body.courseData) {
       const parsedCourseData = JSON.parse(req.body.courseData);
-      Object.assign(course, parsedCourseData);
+
+      // Explicitly update all fields to ensure they're saved
+      if (parsedCourseData.courseTitle !== undefined) {
+        course.courseTitle = parsedCourseData.courseTitle;
+      }
+      if (parsedCourseData.customDomain !== undefined) {
+        course.customDomain = parsedCourseData.customDomain;
+      }
+      if (parsedCourseData.courseDescription !== undefined) {
+        course.courseDescription = parsedCourseData.courseDescription;
+      }
+      if (parsedCourseData.coursePrice !== undefined) {
+        course.coursePrice = parsedCourseData.coursePrice;
+      }
+      if (parsedCourseData.discount !== undefined) {
+        course.discount = parsedCourseData.discount;
+      }
+      if (parsedCourseData.courseContent !== undefined) {
+        course.courseContent = parsedCourseData.courseContent;
+      }
+      if (parsedCourseData.pdfResources !== undefined) {
+        course.pdfResources = parsedCourseData.pdfResources;
+      }
+      // courseThumbnail is handled separately below if imageFile is provided
+      if (
+        parsedCourseData.courseThumbnail !== undefined &&
+        !req.files?.image?.[0]
+      ) {
+        course.courseThumbnail = parsedCourseData.courseThumbnail;
+      }
     }
 
     const imageFile = req.files?.image?.[0];
