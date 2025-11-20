@@ -496,7 +496,12 @@ export const removeStudentAccess = async (req, res) => {
     );
     await course.save();
 
-    await Purchase.deleteOne({ courseId, userId: studentId });
+    await Promise.all([
+      User.findByIdAndUpdate(studentId, {
+        $pull: { enrolledCourses: courseId },
+      }),
+      Purchase.deleteMany({ courseId, userId: studentId }),
+    ]);
 
     res.json({
       success: true,
