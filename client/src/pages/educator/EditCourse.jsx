@@ -45,22 +45,34 @@ const EditCourse = () => {
   const [quillReady, setQuillReady] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
 
-  // Initialize Quill editor - runs once on mount
+  // Initialize Quill editor once the form is rendered (i.e., not fetching)
   useEffect(() => {
-    if (editorRef.current && !quillRef.current) {
+    let isCancelled = false;
+
+    const initQuill = () => {
+      if (isCancelled) return;
+      if (!editorRef.current || quillRef.current) return;
+
       try {
         quillRef.current = new Quill(editorRef.current, { theme: "snow" });
-        // Mark Quill as ready after initialization
         setTimeout(() => {
-          if (quillRef.current) {
+          if (!isCancelled && quillRef.current) {
             setQuillReady(true);
           }
         }, 150);
       } catch (error) {
         console.error("Error initializing Quill:", error);
       }
+    };
+
+    if (!isFetching) {
+      initQuill();
     }
-  }, []);
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isFetching]);
 
   // Set description when both Quill is ready AND data is loaded
   useEffect(() => {
