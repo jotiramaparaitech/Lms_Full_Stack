@@ -10,13 +10,23 @@ import {
 // ====================== HEALTH CHECK ======================
 export const checkRazorpayConfig = async (req, res) => {
   try {
-    const keyId = process.env.RAZORPAY_KEY_ID;
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    const rawKeyId = process.env.RAZORPAY_KEY_ID;
+    const rawKeySecret = process.env.RAZORPAY_KEY_SECRET;
 
     const config = {
-      keyId: keyId ? `${keyId.substring(0, 8)}...` : "NOT SET",
-      keySecret: keySecret ? "***SET***" : "NOT SET",
-      status: keyId && keySecret ? "configured" : "missing",
+      keyId: {
+        exists: !!rawKeyId,
+        length: rawKeyId?.length || 0,
+        preview: rawKeyId ? `${rawKeyId.substring(0, 10)}...` : "NOT SET",
+        isValidFormat: rawKeyId?.startsWith("rzp_") || false,
+      },
+      keySecret: {
+        exists: !!rawKeySecret,
+        length: rawKeySecret?.length || 0,
+        preview: rawKeySecret ? "***SET***" : "NOT SET",
+        isValidLength: (rawKeySecret?.length || 0) >= 20,
+      },
+      status: rawKeyId && rawKeySecret ? "configured" : "missing",
     };
 
     // Try to initialize client
@@ -24,20 +34,35 @@ export const checkRazorpayConfig = async (req, res) => {
       const razorpay = getRazorpayClient();
       config.clientInitialized = true;
       config.message = "Razorpay is properly configured";
+      config.status = "ready";
     } catch (error) {
       config.clientInitialized = false;
       config.error = error.message;
+      config.errorType = error.name;
       config.message = "Razorpay configuration error";
+      config.status = "error";
+
+      // Add specific error details
+      if (error.message.includes("Authentication key")) {
+        config.details =
+          "The Razorpay SDK rejected the authentication keys. Check that keys are correct and properly formatted.";
+      } else if (error.message.includes("Missing")) {
+        config.details = "One or both Razorpay keys are missing or empty.";
+      } else {
+        config.details = "Unknown configuration error.";
+      }
     }
 
     res.json({
       success: config.clientInitialized,
       config,
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     res.status(500).json({
       success: false,
       message: error.message,
+      error: error.name,
     });
   }
 };
