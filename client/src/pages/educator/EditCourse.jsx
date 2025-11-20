@@ -309,13 +309,51 @@ const EditCourse = () => {
         })
       );
 
-      // Get description from Quill editor
-      const description = quillRef.current?.root?.innerHTML || "";
+      // Get description from Quill editor - try multiple methods
+      let description = "";
+      if (quillRef.current && quillRef.current.root) {
+        // Try to get content using Quill's API
+        try {
+          const quillContent = quillRef.current.root.innerHTML;
+          console.log("Quill content read:", {
+            hasContent: !!quillContent,
+            contentLength: quillContent?.length || 0,
+            isDefaultEmpty: quillContent === "<p><br></p>",
+            preview: quillContent?.substring(0, 100) || "empty",
+          });
+
+          // Check if it's just the default empty paragraph
+          if (
+            quillContent &&
+            quillContent !== "<p><br></p>" &&
+            quillContent.trim() !== ""
+          ) {
+            description = quillContent;
+          }
+        } catch (error) {
+          console.warn("Error reading Quill content:", error);
+        }
+      } else {
+        console.warn("Quill editor not initialized or root not available");
+      }
+
+      // Fallback to initialDescription if Quill is empty
+      if (
+        !description ||
+        description.trim() === "" ||
+        description === "<p><br></p>"
+      ) {
+        console.log("Using fallback description from initialDescription:", {
+          hasInitialDescription: !!initialDescription,
+          initialDescriptionLength: initialDescription?.length || 0,
+        });
+        description = initialDescription || "";
+      }
 
       const courseData = {
         courseTitle: courseTitle.trim(),
         customDomain: customDomain.trim(),
-        courseDescription: description,
+        courseDescription: description.trim(),
         coursePrice: Number(coursePrice) || 0,
         discount: Number(discount) || 0,
         courseContent: preparedChapters,
@@ -330,10 +368,27 @@ const EditCourse = () => {
         return;
       }
 
+      // Validate description - it's required by the model
+      if (
+        !courseData.courseDescription ||
+        courseData.courseDescription.trim() === "" ||
+        courseData.courseDescription === "<p><br></p>"
+      ) {
+        toast.error(
+          "Course description is required. Please add a description."
+        );
+        setIsSubmitting(false);
+        return;
+      }
+
       console.log("Submitting course data:", {
         courseTitle: courseData.courseTitle,
         customDomain: courseData.customDomain,
         descriptionLength: courseData.courseDescription?.length || 0,
+        descriptionPreview:
+          courseData.courseDescription?.substring(0, 50) || "empty",
+        quillReady: !!quillRef.current,
+        initialDescriptionLength: initialDescription?.length || 0,
         price: courseData.coursePrice,
         chaptersCount: courseData.courseContent?.length || 0,
       });

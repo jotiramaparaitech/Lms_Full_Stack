@@ -220,7 +220,15 @@ export const updateCourse = async (req, res) => {
       course.customDomain = parsedCourseData.customDomain;
     }
     if (parsedCourseData.courseDescription !== undefined) {
-      course.courseDescription = parsedCourseData.courseDescription;
+      // Ensure description is not empty (required field)
+      const description = parsedCourseData.courseDescription?.trim() || "";
+      if (description === "" || description === "<p><br></p>") {
+        return res.status(400).json({
+          success: false,
+          message: "Course description is required and cannot be empty",
+        });
+      }
+      course.courseDescription = description;
     }
     if (parsedCourseData.coursePrice !== undefined) {
       course.coursePrice = Number(parsedCourseData.coursePrice) || 0;
