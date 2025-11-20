@@ -75,18 +75,19 @@ const EditCourse = () => {
       const timer = setTimeout(() => {
         if (quillRef.current && quillRef.current.root) {
           const description = initialDescription || "";
-          const currentContent = quillRef.current.root.innerHTML.trim();
-          const newContent = description.trim();
-
-          // Only update if content is different
-          if (currentContent !== newContent) {
-            // Clear existing content first
-            quillRef.current.setText("");
-            // Then set the HTML content
+          try {
+            // Use Quill's clipboard API for better compatibility
+            const delta = quillRef.current.clipboard.convert({
+              html: description,
+            });
+            quillRef.current.setContents(delta, "silent");
+          } catch (error) {
+            // Fallback to innerHTML if clipboard API fails
+            console.warn("Quill clipboard API failed, using innerHTML:", error);
             quillRef.current.root.innerHTML = description;
           }
         }
-      }, 200);
+      }, 300);
       return () => clearTimeout(timer);
     }
   }, [initialDescription, quillReady, dataLoaded]);
@@ -131,6 +132,11 @@ const EditCourse = () => {
       setPdfs(course.pdfResources || []);
       // Set description - ensure it's a string
       const description = course.courseDescription || "";
+      console.log("Course description loaded:", {
+        hasDescription: !!description,
+        descriptionLength: description.length,
+        preview: description.substring(0, 100),
+      });
       setInitialDescription(description);
       setDataLoaded(true); // Mark data as loaded
 
@@ -138,9 +144,16 @@ const EditCourse = () => {
       if (quillRef.current && quillRef.current.root && quillReady) {
         setTimeout(() => {
           if (quillRef.current && quillRef.current.root) {
-            quillRef.current.root.innerHTML = description;
+            try {
+              const delta = quillRef.current.clipboard.convert({
+                html: description,
+              });
+              quillRef.current.setContents(delta, "silent");
+            } catch (error) {
+              quillRef.current.root.innerHTML = description;
+            }
           }
-        }, 250);
+        }, 300);
       }
     } catch (error) {
       toast.error(
@@ -296,16 +309,34 @@ const EditCourse = () => {
         })
       );
 
+      // Get description from Quill editor
+      const description = quillRef.current?.root?.innerHTML || "";
+
       const courseData = {
-        courseTitle,
-        customDomain,
-        courseDescription: quillRef.current?.root?.innerHTML || "",
-        coursePrice: Number(coursePrice),
-        discount: Number(discount),
+        courseTitle: courseTitle.trim(),
+        customDomain: customDomain.trim(),
+        courseDescription: description,
+        coursePrice: Number(coursePrice) || 0,
+        discount: Number(discount) || 0,
         courseContent: preparedChapters,
         pdfResources: pdfs,
         courseThumbnail: existingThumbnail,
       };
+
+      // Validate required fields
+      if (!courseData.courseTitle) {
+        toast.error("Course title is required");
+        setIsSubmitting(false);
+        return;
+      }
+
+      console.log("Submitting course data:", {
+        courseTitle: courseData.courseTitle,
+        customDomain: courseData.customDomain,
+        descriptionLength: courseData.courseDescription?.length || 0,
+        price: courseData.coursePrice,
+        chaptersCount: courseData.courseContent?.length || 0,
+      });
 
       const formData = new FormData();
       formData.append("courseData", JSON.stringify(courseData));
@@ -331,9 +362,23 @@ const EditCourse = () => {
         toast.error(data.message || "Failed to update course");
       }
     } catch (error) {
-      toast.error(
-        error.response?.data?.message || "Something went wrong while updating."
-      );
+      console.error("Error updating course:", error);
+      console.error("Error response:", error.response?.data);
+      const errorMessage =
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        error.message ||
+        "Something went wrong while updating.";
+      toast.error(errorMessage);
+
+      // Log more details for debugging
+      if (error.response?.status === 500) {
+        console.error("Server error details:", {
+          status: error.response.status,
+          data: error.response.data,
+          courseId,
+        });
+      }
     } finally {
       setIsSubmitting(false);
     }

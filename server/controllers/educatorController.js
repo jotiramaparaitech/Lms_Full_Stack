@@ -310,8 +310,26 @@ export const updateCourse = async (req, res) => {
 
     // Save the course
     try {
+      // Validate course before saving
+      const validationError = course.validateSync();
+      if (validationError) {
+        console.error("❌ Course validation error:", validationError);
+        return res.status(400).json({
+          success: false,
+          message: "Course validation failed",
+          error: validationError.message,
+          details: validationError.errors,
+        });
+      }
+
       await course.save();
       console.log("✅ Course updated successfully:", courseId);
+      console.log("  Updated fields:", {
+        title: course.courseTitle,
+        descriptionLength: course.courseDescription?.length || 0,
+        price: course.coursePrice,
+        chaptersCount: course.courseContent?.length || 0,
+      });
       res.json({
         success: true,
         message: "Course updated successfully",
@@ -319,10 +337,16 @@ export const updateCourse = async (req, res) => {
       });
     } catch (saveError) {
       console.error("❌ Error saving course:", saveError);
+      console.error("  Error name:", saveError.name);
+      console.error("  Error message:", saveError.message);
+      if (saveError.errors) {
+        console.error("  Validation errors:", saveError.errors);
+      }
       return res.status(500).json({
         success: false,
         message: "Failed to save course",
         error: saveError.message,
+        errorType: saveError.name,
       });
     }
   } catch (error) {
