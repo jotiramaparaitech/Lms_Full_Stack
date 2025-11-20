@@ -7,6 +7,41 @@ import {
   RazorpayConfigError,
 } from "../utils/razorpayClient.js";
 
+// ====================== HEALTH CHECK ======================
+export const checkRazorpayConfig = async (req, res) => {
+  try {
+    const keyId = process.env.RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+
+    const config = {
+      keyId: keyId ? `${keyId.substring(0, 8)}...` : "NOT SET",
+      keySecret: keySecret ? "***SET***" : "NOT SET",
+      status: keyId && keySecret ? "configured" : "missing",
+    };
+
+    // Try to initialize client
+    try {
+      const razorpay = getRazorpayClient();
+      config.clientInitialized = true;
+      config.message = "Razorpay is properly configured";
+    } catch (error) {
+      config.clientInitialized = false;
+      config.error = error.message;
+      config.message = "Razorpay configuration error";
+    }
+
+    res.json({
+      success: config.clientInitialized,
+      config,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 // ====================== CREATE ORDER ======================
 export const createOrder = async (req, res) => {
   try {
@@ -99,7 +134,32 @@ export const createOrder = async (req, res) => {
     });
   } catch (error) {
     console.error("❌ Razorpay order error:", error);
-    res.status(500).json({ success: false, message: error.message });
+    console.error("  Error details:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+    });
+
+    // Check if it's a Razorpay API error
+    if (error.statusCode || error.error) {
+      console.error("  Razorpay API Error:", {
+        statusCode: error.statusCode,
+        error: error.error,
+        description: error.error?.description,
+      });
+      return res.status(error.statusCode || 500).json({
+        success: false,
+        message:
+          error.error?.description || error.message || "Razorpay API error",
+        error: "RAZORPAY_API_ERROR",
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: error.message || "Internal server error",
+      error: "INTERNAL_ERROR",
+    });
   }
 };
 
@@ -113,9 +173,14 @@ export const verifyPayment = async (req, res) => {
       razorpay = getRazorpayClient();
     } catch (error) {
       if (error instanceof RazorpayConfigError) {
+        console.error(
+          "❌ Razorpay configuration error in verifyPayment:",
+          error.message
+        );
         return res.status(503).json({
           success: false,
           message: error.message,
+          error: "RAZORPAY_CONFIG_ERROR",
         });
       }
       throw error;
@@ -203,6 +268,16 @@ export const verifyPayment = async (req, res) => {
     });
   } catch (error) {
     console.error("❌ Payment verification error:", error);
-    res.status(500).json({ success: false, message: error.message });
+    console.error("  Error details:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+    });
+
+    res.status(500).json({
+      success: false,
+      message: error.message || "Internal server error",
+      error: "VERIFICATION_ERROR",
+    });
   }
 };

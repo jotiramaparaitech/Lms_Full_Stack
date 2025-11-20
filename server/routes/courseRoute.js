@@ -9,6 +9,7 @@ import {
 import {
   createOrder,
   verifyPayment,
+  checkRazorpayConfig,
 } from "../controllers/razorpayController.js";
 
 import { protect, isEducator } from "../middlewares/authMiddleware.js";
@@ -31,6 +32,9 @@ courseRouter.get(
   isEducator,
   getEducatorDashboard
 );
+
+// Razorpay health check (for debugging)
+courseRouter.get("/purchase/check-config", checkRazorpayConfig);
 
 // Razorpay order (create)
 courseRouter.post("/purchase/create-order", protect, createOrder);
