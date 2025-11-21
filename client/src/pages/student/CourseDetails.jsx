@@ -56,6 +56,16 @@ const CourseDetails = () => {
     }));
   };
 
+  // ---------------- Sanitize HTML (Fix SVG width/height auto) ----------------
+  const sanitizeHTML = (html) => {
+    if (!html) return "";
+    // Remove invalid width="auto" and height="auto" attributes from SVG elements
+    // SVG will use CSS for sizing instead
+    return html
+      .replace(/\s+width\s*=\s*["']auto["']/gi, "")
+      .replace(/\s+height\s*=\s*["']auto["']/gi, "");
+  };
+
   // ---------------- Enroll Course (Razorpay Checkout) ----------------
   const enrollCourse = async () => {
     let checkoutLaunched = false;
@@ -244,7 +254,7 @@ const CourseDetails = () => {
           <p
             className="pt-4 md:text-base text-sm"
             dangerouslySetInnerHTML={{
-              __html: courseData.courseDescription.slice(0, 200),
+              __html: sanitizeHTML(courseData.courseDescription.slice(0, 200)),
             }}
           ></p>
 
@@ -382,7 +392,7 @@ const CourseDetails = () => {
             <p
               className="rich-text pt-3"
               dangerouslySetInnerHTML={{
-                __html: courseData.courseDescription,
+                __html: sanitizeHTML(courseData.courseDescription),
               }}
             ></p>
           </div>
