@@ -92,18 +92,32 @@ const CourseDetails = () => {
       );
 
       if (!orderData?.success || !orderData?.orderId) {
-        toast.error(
+        // Show the exact error message from server (includes configuration errors)
+        const errorMessage =
           orderData?.message ||
-            "Failed to create payment order. Please try again later."
-        );
+          "Failed to create payment order. Please try again later.";
+        toast.error(errorMessage);
+        console.error("Razorpay order creation failed:", orderData);
         return;
       }
 
       const { orderId, amount, currency } = orderData;
 
       // 2️⃣ Configure Razorpay UI
+      const razorpayKeyId = import.meta.env.VITE_RAZORPAY_KEY_ID;
+
+      if (!razorpayKeyId) {
+        toast.error(
+          "Payment configuration error: Razorpay Key ID is missing. Please contact support."
+        );
+        console.error(
+          "VITE_RAZORPAY_KEY_ID is not set in environment variables"
+        );
+        return;
+      }
+
       const options = {
-        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+        key: razorpayKeyId,
         amount,
         currency,
         name: "Aparaitech LMS",
@@ -174,12 +188,23 @@ const CourseDetails = () => {
       rzp.open();
       checkoutLaunched = true;
     } catch (error) {
+      // Handle configuration errors (503) and other errors
       const serverMessage =
         error.response?.data?.message ||
         (error.response?.status === 503
           ? "Payment service is temporarily unavailable. Please contact support."
           : null);
-      toast.error(serverMessage || "Payment failed. Try again.");
+
+      // Log full error for debugging
+      console.error("Payment error:", {
+        status: error.response?.status,
+        message: error.response?.data?.message || error.message,
+        error: error.response?.data?.error,
+      });
+
+      toast.error(
+        serverMessage || error.message || "Payment failed. Try again."
+      );
     } finally {
       if (!checkoutLaunched) {
         setIsLoading(false);

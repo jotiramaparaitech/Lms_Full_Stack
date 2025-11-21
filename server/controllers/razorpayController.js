@@ -77,12 +77,31 @@ export const createOrder = async (req, res) => {
       razorpay = getRazorpayClient();
     } catch (error) {
       if (error instanceof RazorpayConfigError) {
+        console.error(
+          "❌ Razorpay configuration error in createOrder:",
+          error.message
+        );
         return res.status(503).json({
           success: false,
-          message: error.message,
+          message:
+            error.message ||
+            "Payment Failed because of a configuration error. Authentication key was missing during initialization.",
+          error: "RAZORPAY_CONFIG_ERROR",
         });
       }
-      throw error;
+      // If it's any other error during initialization, treat it as config error
+      console.error(
+        "❌ Unexpected error during Razorpay initialization:",
+        error.message
+      );
+      return res.status(503).json({
+        success: false,
+        message: `Payment Failed because of a configuration error. ${
+          error.message ||
+          "Authentication key was missing during initialization."
+        }`,
+        error: "RAZORPAY_CONFIG_ERROR",
+      });
     }
 
     if (!courseId || !userId) {
@@ -204,11 +223,25 @@ export const verifyPayment = async (req, res) => {
         );
         return res.status(503).json({
           success: false,
-          message: error.message,
+          message:
+            error.message ||
+            "Payment Failed because of a configuration error. Authentication key was missing during initialization.",
           error: "RAZORPAY_CONFIG_ERROR",
         });
       }
-      throw error;
+      // If it's any other error during initialization, treat it as config error
+      console.error(
+        "❌ Unexpected error during Razorpay initialization in verifyPayment:",
+        error.message
+      );
+      return res.status(503).json({
+        success: false,
+        message: `Payment Failed because of a configuration error. ${
+          error.message ||
+          "Authentication key was missing during initialization."
+        }`,
+        error: "RAZORPAY_CONFIG_ERROR",
+      });
     }
 
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {

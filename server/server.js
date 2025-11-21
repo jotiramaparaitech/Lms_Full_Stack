@@ -20,6 +20,17 @@ const app = express();
 await connectDB();
 await connectCloudinary();
 
+// Validate Razorpay configuration on startup (non-blocking)
+try {
+  const { getRazorpayClient } = await import("./utils/razorpayClient.js");
+  getRazorpayClient();
+  console.log("✅ Razorpay configuration validated on startup");
+} catch (error) {
+  console.warn("⚠️  Razorpay configuration issue detected on startup:");
+  console.warn(`   ${error.message}`);
+  console.warn("   Payment functionality may not work until this is fixed.");
+}
+
 // ------------------ CORS ------------------
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())

@@ -45,7 +45,7 @@ export class RazorpayConfigError extends Error {
   constructor(message) {
     super(
       message ||
-        "Missing Razorpay credentials. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET."
+        "Payment Failed because of a configuration error. Missing Razorpay credentials. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in your environment variables."
     );
     this.name = "RazorpayConfigError";
   }
@@ -117,7 +117,14 @@ export const getRazorpayClient = () => {
       // If it's a Razorpay SDK error, provide more context
       if (error.message && error.message.includes("Authentication key")) {
         const configError = new RazorpayConfigError();
-        configError.message = `Razorpay SDK Error: ${error.message}. Please check that your RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET are correct and properly set in your environment variables.`;
+        configError.message = `Payment Failed because of a configuration error. Authentication key was missing during initialization. Please check that your RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET are correct and properly set in your environment variables.`;
+        throw configError;
+      }
+
+      // Handle other Razorpay SDK initialization errors
+      if (error.message) {
+        const configError = new RazorpayConfigError();
+        configError.message = `Payment Failed because of a configuration error. ${error.message}. Please verify your RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in your environment variables.`;
         throw configError;
       }
 
