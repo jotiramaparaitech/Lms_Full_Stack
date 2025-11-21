@@ -77,10 +77,6 @@ export const createOrder = async (req, res) => {
       razorpay = getRazorpayClient();
     } catch (error) {
       if (error instanceof RazorpayConfigError) {
-        console.error(
-          "❌ Razorpay configuration error in createOrder:",
-          error.message
-        );
         return res.status(503).json({
           success: false,
           message:
@@ -90,10 +86,6 @@ export const createOrder = async (req, res) => {
         });
       }
       // If it's any other error during initialization, treat it as config error
-      console.error(
-        "❌ Unexpected error during Razorpay initialization:",
-        error.message
-      );
       return res.status(503).json({
         success: false,
         message: `Payment Failed because of a configuration error. ${
@@ -177,20 +169,8 @@ export const createOrder = async (req, res) => {
       purchaseId: purchase._id,
     });
   } catch (error) {
-    console.error("❌ Razorpay order error:", error);
-    console.error("  Error details:", {
-      message: error.message,
-      stack: error.stack,
-      name: error.name,
-    });
-
     // Check if it's a Razorpay API error
     if (error.statusCode || error.error) {
-      console.error("  Razorpay API Error:", {
-        statusCode: error.statusCode,
-        error: error.error,
-        description: error.error?.description,
-      });
       return res.status(error.statusCode || 500).json({
         success: false,
         message:
@@ -217,10 +197,6 @@ export const verifyPayment = async (req, res) => {
       razorpay = getRazorpayClient();
     } catch (error) {
       if (error instanceof RazorpayConfigError) {
-        console.error(
-          "❌ Razorpay configuration error in verifyPayment:",
-          error.message
-        );
         return res.status(503).json({
           success: false,
           message:
@@ -230,10 +206,6 @@ export const verifyPayment = async (req, res) => {
         });
       }
       // If it's any other error during initialization, treat it as config error
-      console.error(
-        "❌ Unexpected error during Razorpay initialization in verifyPayment:",
-        error.message
-      );
       return res.status(503).json({
         success: false,
         message: `Payment Failed because of a configuration error. ${
@@ -325,13 +297,6 @@ export const verifyPayment = async (req, res) => {
       enrolledCourses: updatedUser?.enrolledCourses || [],
     });
   } catch (error) {
-    console.error("❌ Payment verification error:", error);
-    console.error("  Error details:", {
-      message: error.message,
-      stack: error.stack,
-      name: error.name,
-    });
-
     res.status(500).json({
       success: false,
       message: error.message || "Internal server error",

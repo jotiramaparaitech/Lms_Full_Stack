@@ -24,11 +24,8 @@ await connectCloudinary();
 try {
   const { getRazorpayClient } = await import("./utils/razorpayClient.js");
   getRazorpayClient();
-  console.log("✅ Razorpay configuration validated on startup");
 } catch (error) {
-  console.warn("⚠️  Razorpay configuration issue detected on startup:");
-  console.warn(`   ${error.message}`);
-  console.warn("   Payment functionality may not work until this is fixed.");
+  // Razorpay configuration error - handled silently
 }
 
 // ------------------ CORS ------------------

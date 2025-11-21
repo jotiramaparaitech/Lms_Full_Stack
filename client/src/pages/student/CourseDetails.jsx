@@ -60,10 +60,30 @@ const CourseDetails = () => {
   const sanitizeHTML = (html) => {
     if (!html) return "";
     // Remove invalid width="auto" and height="auto" attributes from SVG elements
-    // SVG will use CSS for sizing instead
-    return html
-      .replace(/\s+width\s*=\s*["']auto["']/gi, "")
-      .replace(/\s+height\s*=\s*["']auto["']/gi, "");
+    // Handle all variations: width="auto", width='auto', width=auto, width = "auto", etc.
+    let sanitized = html;
+
+    // First, handle SVG tags specifically - remove width/height="auto" from opening tags
+    sanitized = sanitized.replace(
+      /<svg([^>]*)\s+width\s*=\s*["']?auto["']?([^>]*)>/gi,
+      "<svg$1$2>"
+    );
+    sanitized = sanitized.replace(
+      /<svg([^>]*)\s+height\s*=\s*["']?auto["']?([^>]*)>/gi,
+      "<svg$1$2>"
+    );
+
+    // Then remove any remaining width="auto" or height="auto" attributes anywhere
+    sanitized = sanitized.replace(/width\s*=\s*["']?auto["']?/gi, "");
+    sanitized = sanitized.replace(/height\s*=\s*["']?auto["']?/gi, "");
+
+    // Clean up any double spaces that might have been created
+    sanitized = sanitized.replace(/\s{2,}/g, " ");
+
+    // Clean up spaces before closing tags
+    sanitized = sanitized.replace(/\s+>/g, ">");
+
+    return sanitized;
   };
 
   // ---------------- Enroll Course (Razorpay Checkout) ----------------
@@ -147,6 +167,14 @@ const CourseDetails = () => {
 
         handler: async function (response) {
           try {
+            // Get a fresh token for payment verification
+            const freshToken = await getToken();
+            if (!freshToken) {
+              toast.error("Unable to authenticate. Please login again.");
+              setIsLoading(false);
+              return;
+            }
+
             const verifyRes = await axios.post(
               `${backendUrl}/api/course/purchase/verify-payment`,
               {
@@ -154,7 +182,7 @@ const CourseDetails = () => {
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_signature: response.razorpay_signature,
               },
-              { headers: { Authorization: `Bearer ${token}` } }
+              { headers: { Authorization: `Bearer ${freshToken}` } }
             );
 
             if (verifyRes.data.success) {

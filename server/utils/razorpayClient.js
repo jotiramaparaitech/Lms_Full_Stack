@@ -60,37 +60,13 @@ export const getRazorpayClient = () => {
   const keyId = sanitizeEnvValue(rawKeyId);
   const keySecret = sanitizeEnvValue(rawKeySecret);
 
-  // Enhanced error logging for debugging
   if (!keyId || !keySecret) {
-    console.error("❌ Razorpay Configuration Error:");
-    console.error(
-      "  RAZORPAY_KEY_ID:",
-      keyId ? `✅ Set (${keyId.substring(0, 10)}...)` : "❌ Missing or empty"
-    );
-    console.error(
-      "  RAZORPAY_KEY_SECRET:",
-      keySecret ? "✅ Set (***hidden***)" : "❌ Missing or empty"
-    );
-    console.error("  Raw values check:", {
-      keyIdExists: !!rawKeyId,
-      keyIdLength: rawKeyId?.length || 0,
-      keySecretExists: !!rawKeySecret,
-      keySecretLength: rawKeySecret?.length || 0,
-    });
-    console.error(
-      "  All env vars:",
-      Object.keys(process.env)
-        .filter((k) => k.includes("RAZORPAY"))
-        .join(", ") || "None found"
-    );
     throw new RazorpayConfigError();
   }
 
   // Validate key format
   const validationErrors = validateRazorpayKey(keyId, keySecret);
   if (validationErrors.length > 0) {
-    console.error("❌ Razorpay Key Validation Error:");
-    validationErrors.forEach((err) => console.error(`  - ${err}`));
     const error = new RazorpayConfigError();
     error.message = validationErrors.join("; ");
     throw error;
@@ -102,18 +78,7 @@ export const getRazorpayClient = () => {
         key_id: keyId,
         key_secret: keySecret,
       });
-      console.log("✅ Razorpay client initialized successfully");
-      console.log(`  Key ID: ${keyId.substring(0, 10)}...`);
     } catch (error) {
-      console.error("❌ Failed to initialize Razorpay client:");
-      console.error("  Error message:", error.message);
-      console.error("  Error type:", error.constructor.name);
-      console.error("  Error details:", {
-        name: error.name,
-        message: error.message,
-        stack: error.stack?.split("\n")[0],
-      });
-
       // If it's a Razorpay SDK error, provide more context
       if (error.message && error.message.includes("Authentication key")) {
         const configError = new RazorpayConfigError();
