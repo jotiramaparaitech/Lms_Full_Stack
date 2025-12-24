@@ -52,18 +52,18 @@ const Hero = () => {
               </button>
             </Link>
 
-            <Link to="/course-list">
+            {/* <Link to="/course-list">
               <button className="border border-cyan-500 text-cyan-600 hover:bg-cyan-50 px-6 sm:px-8 py-3 rounded-md font-medium transition-all duration-300">
                 Free Resources
               </button>
-            </Link>
+            </Link> */}
           </motion.div>
           {/* FEATURES */}
           <div className="flex items-center gap-6 mt-6 text-sm text-gray-600">
-            <div className="flex items-center gap-2">
+            {/* <div className="flex items-center gap-2">
               <img src={assets.check_icon} alt="check" className="w-4 h-4" />
               <span>Free Registration</span>
-            </div>
+            </div> */}
             <div className="flex items-center gap-2">
               <img src={assets.check_icon} alt="check" className="w-4 h-4" />
               <span>Certificates</span>
