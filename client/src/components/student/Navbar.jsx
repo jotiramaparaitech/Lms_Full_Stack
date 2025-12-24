@@ -61,7 +61,7 @@ const Navbar = () => {
           : "bg-gradient-to-r from-cyan-50 via-cyan-100 to-cyan-50"
       }`}
     >
-      <div className="max-w-[1400px] mx-auto flex items-center justify-between flex-wrap px-4 sm:px-8 md:px-14 lg:px-20 py-2">
+      <div className="max-w-[1400px] mx-auto flex items-center justify-between flex-wrap px-4 sm:px-8 md:px-14 lg:px-20 py-2.5">
         {/* Logo */}
         <div
           className="flex items-center flex-shrink-0 cursor-pointer"
@@ -72,9 +72,9 @@ const Navbar = () => {
             transition={{ type: "spring", stiffness: 250, damping: 20 }}
             src={assets.logo}
             alt="Aparaitech Logo"
-            className="w-16 sm:w-20 md:w-24 drop-shadow-lg transition-all duration-300"
+            className="w-12 sm:w-14 md:w-16 drop-shadow-lg transition-all duration-300"
           />
-          <span className="ml-2 font-semibold text-gray-800 tracking-wide text-lg sm:text-xl md:text-2xl lg:text-3xl whitespace-nowrap">
+          <span className="ml-2 font-semibold text-gray-800 tracking-wide text-base sm:text-lg md:text-xl lg:text-2xl whitespace-nowrap">
             Aparaitech
           </span>
         </div>
@@ -113,13 +113,13 @@ const Navbar = () => {
               Projects
             </Link>
 
-            {/* Scroll to Footer Instead of Redirect */}
-            <button
-              onClick={handleScrollToFooter}
+            {/* Contact Us Link */}
+            <Link
+              to="/contact"
               className="hover:text-cyan-700 transition-colors duration-200"
             >
               Contact Us
-            </button>
+            </Link>
           </div>
 
           {user && (
@@ -185,16 +185,14 @@ const Navbar = () => {
               Projects
             </Link>
 
-            {/* Contact Us — Scroll to Footer */}
-            <button
-              onClick={() => {
-                setMenuOpen(false);
-                handleScrollToFooter();
-              }}
-              className="text-left hover:text-cyan-700 transition-colors"
+            {/* Contact Us Link */}
+            <Link
+              to="/contact"
+              onClick={() => setMenuOpen(false)}
+              className="hover:text-cyan-700 transition-colors"
             >
               Contact Us
-            </button>
+            </Link>
 
             {user && (
               <>

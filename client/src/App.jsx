@@ -21,6 +21,7 @@ import Loading from "./components/student/Loading";
 import WhatsAppButton from "./components/common/WhatsAppButton";
 import ChatbotWidget from "./components/common/ChatbotWidget";
 import About from "./pages/student/About";
+import Contact from "./pages/student/Contact";
 
 const App = () => {
   const { isEducator } = useContext(AppContext);
@@ -43,6 +44,7 @@ const App = () => {
         <Route path="/player/:courseId" element={<Player />} />
         <Route path="/loading/:path" element={<Loading />} />
         <Route path="/about" element={<About />} />
+        <Route path="/contact" element={<Contact />} />
 
         {/* 🧑‍🏫 Educator Routes (Protected) */}
         <Route
