@@ -39,7 +39,7 @@ const Contact = () => {
       phone: formData.phone || "Not provided",
       subject: formData.subject || "General Inquiry",
       message: formData.message,
-      to_email: "support@aparaitech.com",
+      to_email: "info@aparaitech.org",
     };
 
     try {
@@ -247,10 +247,10 @@ const Contact = () => {
                     Send us an email anytime
                   </p>
                   <a
-                    href="mailto:support@aparaitech.com"
+                    href="mailto:info@aparaitech.org"
                     className="text-cyan-600 hover:text-cyan-700 font-medium text-sm mt-1 block"
                   >
-                    support@aparaitech.com
+                    info@aparaitech.org
                   </a>
                 </div>
               </motion.div>
@@ -266,7 +266,7 @@ const Contact = () => {
                 <div>
                   <h3 className="font-bold text-gray-800 mb-1">Call Us</h3>
                   <p className="text-gray-600 text-sm">
-                    Mon to Fri, 9am to 6pm
+                    Mon to Sat, 10am to 9pm
                   </p>
                   <a
                     href="tel:+916364326342"
@@ -291,7 +291,7 @@ const Contact = () => {
                     Come say hello at our office
                   </p>
                   <p className="text-gray-700 font-medium text-sm mt-1">
-                    Aparaitech Global HQ
+                    New Branch Baramati Mukti Complex Near Prahashkiya bhawan
                   </p>
                 </div>
               </motion.div>

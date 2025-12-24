@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useState, createContext } from "react";
 import { assets } from "../../assets/assets";
 import { Link, useLocation } from "react-router-dom";
 import { AppContext } from "../../context/AppContext";
@@ -7,6 +7,9 @@ import { toast } from "react-toastify";
 import { motion } from "framer-motion";
 import { Menu, X } from "lucide-react";
 
+// Context for AllProjects state
+export const AllProjectsContext = createContext();
+
 const Navbar = () => {
   const location = useLocation();
   const isCoursesListPage = location.pathname.includes("/course-list");
@@ -14,6 +17,8 @@ const Navbar = () => {
   const { navigate } = useContext(AppContext);
   const { openSignIn } = useClerk();
   const { user } = useUser();
+  const { isAllProjectsOpen, setIsAllProjectsOpen } =
+    useContext(AllProjectsContext);
 
   const [isFixed, setIsFixed] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -113,6 +118,19 @@ const Navbar = () => {
               Projects
             </Link>
 
+            {/* All Project Button - Available on all pages */}
+            <motion.button
+              onClick={() => setIsAllProjectsOpen(true)}
+              whileHover={{ scale: 1.05 }}
+              className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                isAllProjectsOpen
+                  ? "bg-cyan-600 text-white shadow-md"
+                  : "bg-gradient-to-r from-cyan-500 to-blue-500 text-white hover:from-cyan-600 hover:to-blue-600 shadow-sm hover:shadow-md"
+              }`}
+            >
+              All Project
+            </motion.button>
+
             {/* Contact Us Link */}
             <Link
               to="/contact"
@@ -185,6 +203,21 @@ const Navbar = () => {
               Projects
             </Link>
 
+            {/* All Project Button - Mobile (available on all pages) */}
+            <button
+              onClick={() => {
+                setIsAllProjectsOpen(true);
+                setMenuOpen(false);
+              }}
+              className={`text-left px-4 py-2 rounded-lg transition-all ${
+                isAllProjectsOpen
+                  ? "bg-cyan-600 text-white"
+                  : "bg-gradient-to-r from-cyan-500 to-blue-500 text-white hover:from-cyan-600 hover:to-blue-600"
+              }`}
+            >
+              All Project
+            </button>
+
             {/* Contact Us Link */}
             <Link
               to="/contact"
@@ -237,6 +270,19 @@ const Navbar = () => {
         )}
       </div>
     </motion.nav>
+  );
+};
+
+// Provider component to wrap app
+export const AllProjectsProvider = ({ children }) => {
+  const [isAllProjectsOpen, setIsAllProjectsOpen] = useState(false);
+
+  return (
+    <AllProjectsContext.Provider
+      value={{ isAllProjectsOpen, setIsAllProjectsOpen }}
+    >
+      {children}
+    </AllProjectsContext.Provider>
   );
 };
 

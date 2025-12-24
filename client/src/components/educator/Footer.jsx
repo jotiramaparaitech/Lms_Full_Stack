@@ -70,7 +70,7 @@ const AdminFooter = () => {
         </a>
 
         <a
-          href="https://twitter.com/yourprofile"
+          href="https://x.com/Aparaitech/with_replies"
           target="_blank"
           rel="noopener noreferrer"
           className="transition-all duration-300 hover:scale-110 text-sky-400"
