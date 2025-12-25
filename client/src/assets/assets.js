@@ -116,28 +116,28 @@ export const assets = {
 
 export const dummyTestimonial = [
   {
-    name: "Donald Jackman",
-    role: "SWE 1 @ Amazon",
+    name: "Aditi Sharma",
+    role: "Promp Engineer",
     image: assets.profile_img_1,
     rating: 5,
     feedback:
-      "I've been using Imagify for nearly two years, primarily for Instagram, and it has been incredibly user-friendly, making my work much easier.",
+      "Joining the program completely transformed my confidence. The hands-on labs and real attack simulations helped me gain a deep understanding of security. I even cracked my first internship because of this training.",
   },
   {
-    name: "Richard Nelson",
-    role: "SWE 2 @ Samsung",
+    name: "Rohan Jagtap",
+    role: "Software Developer",
     image: assets.profile_img_2,
     rating: 4,
     feedback:
-      "I've been using Imagify for nearly two years, primarily for Instagram, and it has been incredibly user-friendly, making my work much easier.",
+      "Aparaitech’s cybersecurity training made everything so practical. I worked on real-time vulnerability analysis and learned tools I had never touched before. This course finally gave direction to my career.",
   },
   {
-    name: "James Washington",
-    role: "SWE 2 @ Google",
+    name: "Priya Deshmukh",
+    role: "AI Engineer",
     image: assets.profile_img_3,
     rating: 4.5,
     feedback:
-      "I've been using Imagify for nearly two years, primarily for Instagram, and it has been incredibly user-friendly, making my work much easier.",
+      "Aparaitech’s training made everything so practical. I worked on real-time vulnerability analysis and learned tools I never touched before. This course finally gave direction to my career.",
   },
 ];
 
