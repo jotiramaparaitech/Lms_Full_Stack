@@ -24,6 +24,7 @@ import About from "./pages/student/About";
 import Contact from "./pages/student/Contact";
 import AllProjectsModal from "./components/student/AllProjectsModal";
 import { AllProjectsContext } from "./components/student/Navbar";
+import InquiryModal from "./components/common/InquiryModal";
 
 const App = () => {
   const { isEducator } = useContext(AppContext);
@@ -53,6 +54,9 @@ const AppContent = ({ isEducatorRoute, isEducator }) => {
           onClose={() => setIsAllProjectsOpen(false)}
         />
       )}
+
+      {/* ✅ Inquiry Modal - Appears after 15 seconds */}
+      {!isEducatorRoute && <InquiryModal />}
 
         <Routes>
           {/* 🧩 Student Routes */}
