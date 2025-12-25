@@ -58,13 +58,16 @@ const InquiryModal = () => {
     };
 
     try {
-      await emailjs.send(
+      console.log("Sending email with params:", templateParams);
+      
+      const response = await emailjs.send(
         "service_wdj15jn",
         "template_xtmll8h",
         templateParams,
         "gpm7Cf-quPRpX09xI"
       );
 
+      console.log("EmailJS success:", response);
       toast.success("Thank you! We'll get back to you soon.");
       setFormData({
         name: "",
@@ -74,8 +77,18 @@ const InquiryModal = () => {
       });
       setIsOpen(false);
     } catch (error) {
-      toast.error("Failed to send message. Please try again.");
-      console.error("EmailJS error:", error);
+      console.error("EmailJS error details:", error);
+      console.error("Full error object:", JSON.stringify(error, null, 2));
+      
+      // More specific error messages
+      let errorMessage = "Failed to send message. Please try again.";
+      if (error?.text) {
+        errorMessage = `Error: ${error.text}`;
+      } else if (error?.message) {
+        errorMessage = `Error: ${error.message}`;
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
