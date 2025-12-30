@@ -12,9 +12,29 @@ export const getAllCourse = async (req, res) => {
   try {
     const courses = await Course.find({ isPublished: true })
       .select(["-courseContent", "-enrolledStudents"])
-      .populate({ path: "educator", select: "-password" });
+      .populate({ 
+        path: "educator", 
+        select: "name email imageUrl",
+        strictPopulate: false
+      })
+      .lean();
 
-    res.json({ success: true, courses });
+    console.log(`✅ Found ${courses.length} published courses`);
+
+    // Handle courses where educator might be null (educator user doesn't exist in DB)
+    const coursesWithEducator = courses.map(course => {
+      if (!course.educator) {
+        // Set default educator info if educator user doesn't exist
+        course.educator = {
+          name: "Unknown Educator",
+          email: "",
+          imageUrl: ""
+        };
+      }
+      return course;
+    });
+
+    res.json({ success: true, courses: coursesWithEducator });
   } catch (error) {
     console.error("❌ Error fetching all courses:", error);
     res.status(500).json({ success: false, message: error.message });

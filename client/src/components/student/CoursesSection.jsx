@@ -14,7 +14,8 @@ const CoursesSection = () => {
     );
   }
 
-  const validCourses = allCourses.filter((course) => course && course.educator);
+  // Filter out invalid courses, but keep courses even if educator is missing (backend handles this)
+  const validCourses = allCourses.filter((course) => course && course.courseTitle);
 
   return (
     <section
