@@ -54,12 +54,28 @@ export const getAllCourse = async (req, res) => {
     console.log("📤 Response structure:", {
       success: response.success,
       coursesCount: response.courses.length,
+      coursesIsArray: Array.isArray(response.courses),
       firstCourse: response.courses[0] ? {
         id: response.courses[0]._id,
         title: response.courses[0].courseTitle,
         educator: response.courses[0].educator?.name
       } : null
     });
+    
+    // Log full response for debugging
+    if (response.courses.length === 0) {
+      console.log("⚠️ WARNING: No courses to send! Checking database...");
+      // Check if there are any courses at all (even unpublished)
+      const allCoursesCount = await Course.countDocuments({});
+      const unpublishedCount = await Course.countDocuments({ isPublished: false });
+      console.log(`📊 Database stats: Total=${allCoursesCount}, Published=${publishedCount}, Unpublished=${unpublishedCount}`);
+      
+      // If there are unpublished courses, log them
+      if (unpublishedCount > 0) {
+        const unpublishedCourses = await Course.find({ isPublished: false }).select("courseTitle isPublished").lean();
+        console.log("📋 Unpublished courses:", unpublishedCourses.map(c => ({ title: c.courseTitle, published: c.isPublished })));
+      }
+    }
     
     res.json(response);
   } catch (error) {

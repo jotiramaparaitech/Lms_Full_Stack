@@ -19,6 +19,23 @@ const courseRouter = express.Router();
 // Get all courses
 courseRouter.get("/all", getAllCourse);
 
+// Debug endpoint - get all courses (including unpublished) - remove in production
+courseRouter.get("/debug/all", async (req, res) => {
+  try {
+    const Course = (await import("../models/Course.js")).default;
+    const allCourses = await Course.find({}).select("courseTitle isPublished educator").lean();
+    res.json({ 
+      success: true, 
+      total: allCourses.length,
+      published: allCourses.filter(c => c.isPublished).length,
+      unpublished: allCourses.filter(c => !c.isPublished).length,
+      courses: allCourses 
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // Get a single course
 courseRouter.get("/:id", getCourseId);
 

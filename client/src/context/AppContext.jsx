@@ -40,10 +40,15 @@ export const AppContextProvider = (props) => {
       });
 
       console.log("📦 Courses API Response:", response.data);
+      console.log("📦 Response success:", response.data?.success);
+      console.log("📦 Response courses:", response.data?.courses);
+      console.log("📦 Courses type:", typeof response.data?.courses);
+      console.log("📦 Courses is array:", Array.isArray(response.data?.courses));
 
       if (response?.data?.success) {
         const courses = response.data.courses || [];
         console.log(`✅ Loaded ${courses.length} courses`);
+        console.log("📦 Courses data:", courses);
         setAllCourses(courses);
       } else {
         console.error("❌ API returned success: false", response?.data);
