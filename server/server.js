@@ -33,8 +33,9 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
   : [
       "http://localhost:5173",
-      "https://lms-full-stack-beta-nine.vercel.app",
-      "https://lms-full-stack-server-ten-navy.vercel.app",
+      // "https://lms-full-stack-beta-nine.vercel.app",
+      // "https://lms-full-stack-server-ten-navy.vercel.app",
+      "https://vercel.com/jotiram-shindes-projects/lms-full-stack/GZquJrFatXvcawsjGoNuWLmJ1rcq",
       "https://lms-full-stack-tan.vercel.app",
       "https://lms-full-stack-mcq7.vercel.app",
       "https://www.aparaitech.org",
