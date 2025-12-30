@@ -285,14 +285,7 @@ export const verifyPayment = async (req, res) => {
       $addToSet: { enrolledCourses: courseId },
     });
 
-    const user = await ensureUserExists(userId);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
-    }
-    
+    // Populate enrolled courses for response
     await user.populate({
       path: "enrolledCourses",
       options: { sort: { createdAt: -1 } },
