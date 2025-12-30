@@ -35,7 +35,10 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
       "http://localhost:5173",
       "https://lms-full-stack-beta-nine.vercel.app",
       "https://lms-full-stack-server-ten-navy.vercel.app",
+      "https://lms-full-stack-tan.vercel.app",
+      "https://lms-full-stack-mcq7.vercel.app",
       "https://www.aparaitech.org",
+      "https://aparaitech.org",
     ];
 
 app.use(
