@@ -6,16 +6,36 @@ import { Link } from "react-router-dom";
 const CoursesSection = () => {
   const { allCourses } = useContext(AppContext);
 
+  console.log("📚 CoursesSection - allCourses:", allCourses);
+  console.log("📚 CoursesSection - allCourses length:", allCourses?.length);
+
   if (!allCourses || allCourses.length === 0) {
     return (
       <div className="py-20 md:px-40 px-8 text-center text-gray-400 animate-pulse">
-        <p>Loading projects...</p>
+        <p>No projects available. {allCourses?.length === 0 ? "No courses found in database." : "Loading projects..."}</p>
       </div>
     );
   }
 
   // Filter out invalid courses, but keep courses even if educator is missing (backend handles this)
   const validCourses = allCourses.filter((course) => course && course.courseTitle);
+  console.log("📚 CoursesSection - validCourses length:", validCourses.length);
+  console.log("📚 CoursesSection - validCourses sample:", validCourses.slice(0, 2));
+
+  if (validCourses.length === 0) {
+    return (
+      <section className="relative py-20 md:px-36 px-6 bg-gradient-to-b from-gray-50 via-white to-gray-100 overflow-hidden">
+        <div className="text-center">
+          <h2 className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 pb-5 via-purple-600 to-pink-500">
+            Projects That Shape the Future
+          </h2>
+          <p className="text-gray-600 mt-3 max-w-2xl mx-auto">
+            No projects available at the moment. Please check back later.
+          </p>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section
@@ -40,9 +60,9 @@ const CoursesSection = () => {
 
       {/* Courses Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 px-4 md:px-0">
-        {validCourses.slice(0, 4).map((course, index) => (
+        {validCourses.slice(0, 4).map((course) => (
           <div
-            key={index}
+            key={course._id || course.courseTitle}
             className="group transform transition-all duration-500 hover:-translate-y-3 hover:shadow-2xl hover:shadow-blue-200/50 rounded-2xl bg-white p-2"
           >
             <CourseCard course={course} />

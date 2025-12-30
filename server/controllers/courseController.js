@@ -10,6 +10,15 @@ import {
 // ------------------------- Get All Published Courses -------------------------
 export const getAllCourse = async (req, res) => {
   try {
+    console.log("📥 GET /api/course/all - Request received");
+    
+    // First check total courses in database
+    const totalCourses = await Course.countDocuments({});
+    console.log(`📊 Total courses in database: ${totalCourses}`);
+    
+    const publishedCount = await Course.countDocuments({ isPublished: true });
+    console.log(`📊 Published courses: ${publishedCount}`);
+    
     const courses = await Course.find({ isPublished: true })
       .select(["-courseContent", "-enrolledStudents"])
       .populate({ 
@@ -19,7 +28,7 @@ export const getAllCourse = async (req, res) => {
       })
       .lean();
 
-    console.log(`✅ Found ${courses.length} published courses`);
+    console.log(`✅ Found ${courses.length} published courses after query`);
 
     // Handle courses where educator might be null (educator user doesn't exist in DB)
     const coursesWithEducator = courses.map(course => {
@@ -34,9 +43,28 @@ export const getAllCourse = async (req, res) => {
       return course;
     });
 
-    res.json({ success: true, courses: coursesWithEducator });
+    console.log(`📤 Sending ${coursesWithEducator.length} courses to client`);
+    
+    // Ensure courses is always an array
+    const response = {
+      success: true,
+      courses: Array.isArray(coursesWithEducator) ? coursesWithEducator : []
+    };
+    
+    console.log("📤 Response structure:", {
+      success: response.success,
+      coursesCount: response.courses.length,
+      firstCourse: response.courses[0] ? {
+        id: response.courses[0]._id,
+        title: response.courses[0].courseTitle,
+        educator: response.courses[0].educator?.name
+      } : null
+    });
+    
+    res.json(response);
   } catch (error) {
     console.error("❌ Error fetching all courses:", error);
+    console.error("Error stack:", error.stack);
     res.status(500).json({ success: false, message: error.message });
   }
 };

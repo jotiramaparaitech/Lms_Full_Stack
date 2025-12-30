@@ -34,17 +34,30 @@ export const AppContextProvider = (props) => {
   // ✅ Fetch all courses (handles errors gracefully)
   const fetchAllCourses = async () => {
     try {
+      console.log("🔄 Fetching courses from:", `${backendUrl}/api/course/all`);
       const response = await axios.get(`${backendUrl}/api/course/all`, {
         timeout: 8000,
       });
 
+      console.log("📦 Courses API Response:", response.data);
+
       if (response?.data?.success) {
-        setAllCourses(response.data.courses);
+        const courses = response.data.courses || [];
+        console.log(`✅ Loaded ${courses.length} courses`);
+        setAllCourses(courses);
       } else {
+        console.error("❌ API returned success: false", response?.data);
         toast.error(response?.data?.message || "Failed to load courses.");
+        setAllCourses([]);
       }
     } catch (error) {
-      console.error("FetchAllCourses Error:", error);
+      console.error("❌ FetchAllCourses Error:", error);
+      console.error("Error details:", {
+        message: error.message,
+        code: error.code,
+        status: error.response?.status,
+        data: error.response?.data
+      });
 
       if (error.code === "ERR_NETWORK") {
         toast.error(
