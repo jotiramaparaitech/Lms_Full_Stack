@@ -2,6 +2,7 @@ import crypto from "crypto";
 import Course from "../models/Course.js";
 import User from "../models/User.js";
 import { Purchase } from "../models/Purchase.js";
+import { ensureUserExists } from "./userController.js";
 import {
   getRazorpayClient,
   RazorpayConfigError,
@@ -104,7 +105,7 @@ export const createOrder = async (req, res) => {
     }
 
     const course = await Course.findById(courseId);
-    const user = await User.findById(userId);
+    const user = await ensureUserExists(userId);
 
     if (!course || !user) {
       return res.status(404).json({
@@ -245,7 +246,7 @@ export const verifyPayment = async (req, res) => {
     const courseId = razorOrder.notes.courseId;
 
     const course = await Course.findById(courseId);
-    const user = await User.findById(userId);
+    const user = await ensureUserExists(userId);
 
     if (!course || !user) {
       return res.status(404).json({
@@ -284,12 +285,19 @@ export const verifyPayment = async (req, res) => {
       $addToSet: { enrolledCourses: courseId },
     });
 
-    const updatedUser = await User.findById(userId)
-      .populate({
-        path: "enrolledCourses",
-        options: { sort: { createdAt: -1 } },
-      })
-      .lean();
+    const user = await ensureUserExists(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+    
+    await user.populate({
+      path: "enrolledCourses",
+      options: { sort: { createdAt: -1 } },
+    });
+    const updatedUser = user.toObject();
 
     return res.json({
       success: true,

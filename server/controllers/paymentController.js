@@ -2,6 +2,7 @@ import crypto from "crypto";
 import Course from "../models/Course.js";
 import User from "../models/User.js";
 import { Purchase } from "../models/Purchase.js";
+import { ensureUserExists } from "./userController.js";
 import {
   getRazorpayClient,
   RazorpayConfigError,
@@ -40,7 +41,7 @@ export const createRazorpayOrder = async (req, res) => {
         .status(404)
         .json({ success: false, message: "Course not found" });
 
-    const user = await User.findById(userId);
+    const user = await ensureUserExists(userId);
     if (!user)
       return res
         .status(404)
@@ -124,7 +125,7 @@ export const verifyRazorpayPayment = async (req, res) => {
     const courseId = order.notes.courseId;
 
     const course = await Course.findById(courseId);
-    const user = await User.findById(userId);
+    const user = await ensureUserExists(userId);
 
     if (!course || !user) {
       return res.status(404).json({

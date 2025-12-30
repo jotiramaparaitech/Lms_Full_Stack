@@ -2,12 +2,42 @@ import Course from "../models/Course.js";
 import { CourseProgress } from "../models/CourseProgress.js";
 import { Purchase } from "../models/Purchase.js";
 import User from "../models/User.js";
+import { clerkClient } from "@clerk/express";
+
+// ---------------- Helper: Ensure User Exists in DB ----------------
+export const ensureUserExists = async (userId) => {
+  let user = await User.findById(userId);
+  
+  if (!user) {
+    // User doesn't exist in DB, fetch from Clerk and create
+    try {
+      const clerkUser = await clerkClient.users.getUser(userId);
+      
+      if (clerkUser) {
+        const userData = {
+          _id: clerkUser.id,
+          email: clerkUser.emailAddresses[0]?.emailAddress || "",
+          name: `${clerkUser.firstName || ""} ${clerkUser.lastName || ""}`.trim() || "User",
+          imageUrl: clerkUser.imageUrl || "",
+          role: clerkUser.publicMetadata?.role || "student",
+        };
+        
+        user = await User.create(userData);
+      }
+    } catch (error) {
+      console.error("Error creating user from Clerk:", error);
+      return null;
+    }
+  }
+  
+  return user;
+};
 
 // ---------------- Get User Data ----------------
 export const getUserData = async (req, res) => {
   try {
     const userId = req.auth.userId;
-    const user = await User.findById(userId);
+    const user = await ensureUserExists(userId);
 
     if (!user) {
       return res.json({ success: false, message: "User Not Found" });
@@ -23,9 +53,15 @@ export const getUserData = async (req, res) => {
 export const userEnrolledCourses = async (req, res) => {
   try {
     const userId = req.auth.userId;
-    const userData = await User.findById(userId).populate("enrolledCourses");
+    const userData = await ensureUserExists(userId);
 
-    res.json({ success: true, enrolledCourses: userData.enrolledCourses });
+    if (!userData) {
+      return res.json({ success: true, enrolledCourses: [] });
+    }
+
+    // Populate enrolled courses
+    await userData.populate("enrolledCourses");
+    res.json({ success: true, enrolledCourses: userData.enrolledCourses || [] });
   } catch (error) {
     res.json({ success: false, message: error.message });
   }
@@ -92,7 +128,7 @@ export const addUserRating = async (req, res) => {
       return res.json({ success: false, message: "Course not found." });
     }
 
-    const user = await User.findById(userId);
+    const user = await ensureUserExists(userId);
     if (!user || !user.enrolledCourses.includes(courseId)) {
       return res.json({
         success: false,
