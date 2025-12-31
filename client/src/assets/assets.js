@@ -117,7 +117,7 @@ export const assets = {
 export const dummyTestimonial = [
   {
     name: "Aditi Sharma",
-    role: "Promt Engineer",
+    role: "Prompt Engineer",
     image: assets.profile_img_1,
     rating: 5,
     feedback:

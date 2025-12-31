@@ -130,7 +130,7 @@ const Player = () => {
           {/* -------- Left Side: Course Structure -------- */}
           <div className="text-gray-800">
             <h2 className="text-2xl md:text-3xl font-bold mb-4">
-              Course Structure
+              Project Structure
             </h2>
 
             <div className="space-y-4">
