@@ -415,7 +415,7 @@ const CourseDetails = () => {
           {/* Description */}
           <div className="py-10 text-sm">
             <h3 className="text-xl font-semibold text-gray-800">
-              Course Description
+              Project Description
             </h3>
             <p
               className="rich-text pt-3"
