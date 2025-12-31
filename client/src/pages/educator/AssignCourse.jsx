@@ -80,7 +80,7 @@ const AssignCourse = () => {
       transition={{ duration: 0.5 }}
     >
       <h1 className="text-3xl font-bold text-gray-800 mb-6">
-        🎓 Assign Course to Student
+        🎓 Assign Projects to Student
       </h1>
 
       <motion.form
@@ -112,7 +112,7 @@ const AssignCourse = () => {
         {/* Course Dropdown */}
         <div>
           <label className="block text-gray-700 font-semibold mb-2">
-            Select Course
+            Select Projects
           </label>
           <select
             className="w-full border border-gray-300 rounded-lg p-3 text-gray-700 focus:ring-2 focus:ring-blue-400 focus:outline-none"
