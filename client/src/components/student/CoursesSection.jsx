@@ -6,21 +6,28 @@ import { Link } from "react-router-dom";
 const CoursesSection = () => {
   const { allCourses } = useContext(AppContext);
 
-  console.log("📚 CoursesSection - allCourses:", allCourses);
-  console.log("📚 CoursesSection - allCourses length:", allCourses?.length);
+  // console.log("📚 CoursesSection - allCourses:", allCourses);
+  // console.log("📚 CoursesSection - allCourses length:", allCourses?.length);
 
   if (!allCourses || allCourses.length === 0) {
     return (
       <div className="py-20 md:px-40 px-8 text-center text-gray-400 animate-pulse">
-        <p>No projects available. {allCourses?.length === 0 ? "No courses found in database." : "Loading projects..."}</p>
+        <p>
+          No projects available.{" "}
+          {allCourses?.length === 0
+            ? "No courses found in database."
+            : "Loading projects..."}
+        </p>
       </div>
     );
   }
 
   // Filter out invalid courses, but keep courses even if educator is missing (backend handles this)
-  const validCourses = allCourses.filter((course) => course && course.courseTitle);
-  console.log("📚 CoursesSection - validCourses length:", validCourses.length);
-  console.log("📚 CoursesSection - validCourses sample:", validCourses.slice(0, 2));
+  const validCourses = allCourses.filter(
+    (course) => course && course.courseTitle
+  );
+  // console.log("📚 CoursesSection - validCourses length:", validCourses.length);
+  // console.log("📚 CoursesSection - validCourses sample:", validCourses.slice(0, 2));
 
   if (validCourses.length === 0) {
     return (
