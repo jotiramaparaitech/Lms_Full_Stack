@@ -34,36 +34,18 @@ export const AppContextProvider = (props) => {
   // ✅ Fetch all courses (handles errors gracefully)
   const fetchAllCourses = async () => {
     try {
-      console.log("🔄 Fetching courses from:", `${backendUrl}/api/course/all`);
       const response = await axios.get(`${backendUrl}/api/course/all`, {
         timeout: 8000,
       });
 
-      console.log("📦 Courses API Response:", response.data);
-      console.log("📦 Response success:", response.data?.success);
-      console.log("📦 Response courses:", response.data?.courses);
-      console.log("📦 Courses type:", typeof response.data?.courses);
-      console.log("📦 Courses is array:", Array.isArray(response.data?.courses));
-
       if (response?.data?.success) {
         const courses = response.data.courses || [];
-        console.log(`✅ Loaded ${courses.length} courses`);
-        console.log("📦 Courses data:", courses);
         setAllCourses(courses);
       } else {
-        console.error("❌ API returned success: false", response?.data);
         toast.error(response?.data?.message || "Failed to load courses.");
         setAllCourses([]);
       }
     } catch (error) {
-      console.error("❌ FetchAllCourses Error:", error);
-      console.error("Error details:", {
-        message: error.message,
-        code: error.code,
-        status: error.response?.status,
-        data: error.response?.data
-      });
-
       if (error.code === "ERR_NETWORK") {
         toast.error(
           "Cannot connect to backend. Check your internet or backend deployment."
@@ -90,7 +72,6 @@ export const AppContextProvider = (props) => {
 
       const token = await getToken();
       if (!token) {
-        console.warn("fetchUserData: Missing auth token");
         return;
       }
 
@@ -108,8 +89,6 @@ export const AppContextProvider = (props) => {
         toast.error(response?.data?.message || "Failed to load user data.");
       }
     } catch (error) {
-      console.error("FetchUserData Error:", error);
-
       if (error.code === "ERR_NETWORK") {
         toast.error("Cannot reach backend. Check your network or CORS setup.");
       } else if (error.response?.status === 401) {
@@ -136,7 +115,6 @@ export const AppContextProvider = (props) => {
 
       const token = await getToken();
       if (!token) {
-        console.warn("fetchUserEnrolledCourses: Missing auth token");
         setEnrolledCourses([]);
         return;
       }
@@ -154,8 +132,6 @@ export const AppContextProvider = (props) => {
         );
       }
     } catch (error) {
-      console.error("FetchUserEnrolledCourses Error:", error);
-
       if (error.code === "ERR_NETWORK") {
         toast.error("Network error while fetching enrolled courses.");
       } else if (error.response?.status === 500) {
@@ -182,7 +158,6 @@ export const AppContextProvider = (props) => {
         return null;
       }
     } catch (error) {
-      console.error("FetchCourseById Error:", error);
       toast.error(error.message || "Error fetching course.");
       return null;
     }
