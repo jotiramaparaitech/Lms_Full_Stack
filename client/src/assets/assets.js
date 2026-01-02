@@ -1,5 +1,6 @@
 import logo from "./logo.png";
 import logo1 from "./logo1.png";
+import logof from "./logof.jpeg";
 import whatsappLogo from "./whatsappLogo.jpg";
 import whatsapplogos from "./whatsapplogos.svg";
 import check_icon from "./check_icon.svg";
@@ -57,6 +58,7 @@ import lesson_icon from "./lesson_icon.svg";
 
 export const assets = {
   whatsapplogos,
+  logof,
   whatsappLogo,
   meta_logo,
   oracle_logo,

@@ -1,4 +1,10 @@
-import React, { useContext, useRef, useState, useEffect, useCallback } from "react";
+import React, {
+  useContext,
+  useRef,
+  useState,
+  useEffect,
+  useCallback,
+} from "react";
 import { AppContext } from "../../context/AppContext";
 import CourseCard from "./CourseCard";
 import { Link } from "react-router-dom";
@@ -8,18 +14,22 @@ const CoursesSection = () => {
   const scrollContainerRef = useRef(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
+  const [mobileCardWidth, setMobileCardWidth] = useState(280);
+  const [isMobile, setIsMobile] = useState(false);
 
   // Filter out invalid courses, but keep courses even if educator is missing (backend handles this)
-  const validCourses = allCourses && allCourses.length > 0
-    ? allCourses.filter((course) => course && course.courseTitle)
-    : [];
+  const validCourses =
+    allCourses && allCourses.length > 0
+      ? allCourses.filter((course) => course && course.courseTitle)
+      : [];
 
   // Check scroll position - memoized with useCallback
   const checkScroll = useCallback(() => {
     if (scrollContainerRef.current) {
-      const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
-      // Always allow scrolling if there are more than 3 courses
-      if (validCourses.length > 3) {
+      const { scrollLeft, scrollWidth, clientWidth } =
+        scrollContainerRef.current;
+      // Always allow scrolling if there are more than 1 course
+      if (validCourses.length > 1) {
         setCanScrollLeft(scrollLeft > 10);
         setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10);
       } else {
@@ -29,11 +39,92 @@ const CoursesSection = () => {
     }
   }, [validCourses.length]);
 
+  // Calculate mobile card width based on container
+  useEffect(() => {
+    const updateMobileCardWidth = () => {
+      const mobile = window.innerWidth < 640;
+      setIsMobile(mobile);
+      if (scrollContainerRef.current && mobile) {
+        const container = scrollContainerRef.current;
+        // Get the exact client width of the scrollable container
+        // Use both clientWidth and getBoundingClientRect for accuracy
+        const containerWidth = container.clientWidth;
+        const rect = container.getBoundingClientRect();
+        const calculatedWidth = Math.min(containerWidth, rect.width);
+
+        if (calculatedWidth > 0) {
+          setMobileCardWidth(calculatedWidth);
+          // Reset scroll position after width is set
+          container.scrollLeft = 0;
+        }
+      }
+    };
+
+    // Use requestAnimationFrame for better timing
+    const rafId = requestAnimationFrame(() => {
+      updateMobileCardWidth();
+      // Multiple attempts to ensure container is rendered
+      setTimeout(() => {
+        updateMobileCardWidth();
+        if (scrollContainerRef.current) {
+          scrollContainerRef.current.scrollLeft = 0;
+        }
+      }, 50);
+      setTimeout(() => {
+        updateMobileCardWidth();
+        if (scrollContainerRef.current) {
+          scrollContainerRef.current.scrollLeft = 0;
+        }
+      }, 200);
+      setTimeout(() => {
+        updateMobileCardWidth();
+        if (scrollContainerRef.current) {
+          scrollContainerRef.current.scrollLeft = 0;
+        }
+      }, 500);
+    });
+
+    window.addEventListener("resize", updateMobileCardWidth);
+    return () => {
+      cancelAnimationFrame(rafId);
+      window.removeEventListener("resize", updateMobileCardWidth);
+    };
+  }, [validCourses.length]);
+
+  // Reset scroll position when courses change or component mounts
+  useEffect(() => {
+    const resetScroll = () => {
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollLeft = 0;
+        checkScroll();
+      }
+    };
+
+    // Reset immediately and after a short delay to ensure DOM is ready
+    resetScroll();
+    const timeoutId = setTimeout(resetScroll, 100);
+    const timeoutId2 = setTimeout(resetScroll, 300);
+
+    return () => {
+      clearTimeout(timeoutId);
+      clearTimeout(timeoutId2);
+    };
+  }, [validCourses.length, checkScroll]);
+
   // All hooks must be called before any early returns
   useEffect(() => {
     checkScroll();
     const container = scrollContainerRef.current;
     if (container) {
+      // Ensure we start at the beginning - multiple attempts
+      container.scrollLeft = 0;
+      setTimeout(() => {
+        if (container) container.scrollLeft = 0;
+      }, 0);
+      setTimeout(() => {
+        if (container) container.scrollLeft = 0;
+      }, 100);
+
       container.addEventListener("scroll", checkScroll);
       window.addEventListener("resize", checkScroll);
       return () => {
@@ -59,12 +150,16 @@ const CoursesSection = () => {
 
   // Scroll functions with proper loop handling
   const scrollLeft = () => {
-    if (scrollContainerRef.current && validCourses.length > 3) {
+    if (scrollContainerRef.current && validCourses.length > 1) {
       const container = scrollContainerRef.current;
-      const cardWidth = container.querySelector(".course-card")?.offsetWidth || 400;
-      const gap = 24;
+      const cardWidth =
+        container.querySelector(".course-card")?.offsetWidth || 400;
+      // Get computed gap from window size (0px mobile, 16px tablet, 24px desktop)
+      const isMobile = window.innerWidth < 640;
+      const isTablet = window.innerWidth >= 640 && window.innerWidth < 768;
+      const gap = isMobile ? 0 : isTablet ? 16 : 24;
       const scrollAmount = cardWidth + gap;
-      
+
       container.scrollBy({
         left: -scrollAmount,
         behavior: "smooth",
@@ -73,12 +168,16 @@ const CoursesSection = () => {
   };
 
   const scrollRight = () => {
-    if (scrollContainerRef.current && validCourses.length > 3) {
+    if (scrollContainerRef.current && validCourses.length > 1) {
       const container = scrollContainerRef.current;
-      const cardWidth = container.querySelector(".course-card")?.offsetWidth || 400;
-      const gap = 24;
+      const cardWidth =
+        container.querySelector(".course-card")?.offsetWidth || 400;
+      // Get computed gap from window size (0px mobile, 16px tablet, 24px desktop)
+      const isMobile = window.innerWidth < 640;
+      const isTablet = window.innerWidth >= 640 && window.innerWidth < 768;
+      const gap = isMobile ? 0 : isTablet ? 16 : 24;
       const scrollAmount = cardWidth + gap;
-      
+
       container.scrollBy({
         left: scrollAmount,
         behavior: "smooth",
@@ -104,7 +203,7 @@ const CoursesSection = () => {
   return (
     <section
       id="courses-section"
-      className="relative py-8 md:py-12 md:px-36 px-6 bg-gradient-to-b from-gray-50 via-white to-gray-100 overflow-hidden"
+      className="relative py-6 sm:py-8 md:py-12 px-4 sm:px-6 md:px-36 bg-gradient-to-b from-gray-50 via-white to-gray-100 overflow-hidden"
     >
       {/* Subtle floating background blobs */}
       <div className="absolute top-0 left-1/3 w-80 h-80 bg-blue-300/20 blur-3xl rounded-full -z-10 animate-pulse"></div>
@@ -112,10 +211,10 @@ const CoursesSection = () => {
 
       {/* Heading - Reduced Spacing */}
       <div className="text-center mb-4 md:mb-6">
-        <h2 className="text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 pb-2 via-purple-600 to-pink-500 animate-text">
+        <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 pb-2 via-purple-600 to-pink-500 animate-text px-2">
           Projects That Shape the Future
         </h2>
-        <p className="text-sm md:text-base text-gray-600 mt-2 max-w-2xl mx-auto">
+        <p className="text-xs sm:text-sm md:text-base text-gray-600 mt-2 max-w-2xl mx-auto px-2">
           Step into the world of next-gen innovation — explore live projects,
           engineered with precision and creativity. Learn, innovate, and push
           boundaries with every line of code.
@@ -123,17 +222,17 @@ const CoursesSection = () => {
       </div>
 
       {/* Courses Carousel with Arrows */}
-      <div className="relative px-12 md:px-16 lg:px-20">
+      <div className="relative px-12 sm:px-8 md:px-16 lg:px-20 overflow-visible">
         {/* Left Arrow */}
-        {validCourses.length > 3 && (
+        {validCourses.length > 1 && (
           <button
             onClick={scrollLeft}
-            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white rounded-full p-3 md:p-4 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white rounded-full p-2 sm:p-3 md:p-4 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={!canScrollLeft}
             aria-label="Scroll left"
           >
             <svg
-              className="w-6 h-6 md:w-7 md:h-7 text-gray-700"
+              className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 text-gray-700"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -148,19 +247,39 @@ const CoursesSection = () => {
           </button>
         )}
 
-        {/* Scrollable Container - Shows 3 cards on desktop */}
+        {/* Scrollable Container - Shows 1 card on mobile, 3 cards on desktop */}
         <div
           ref={scrollContainerRef}
-          className="flex gap-4 md:gap-6 overflow-x-auto scrollbar-hide scroll-smooth snap-x snap-mandatory pb-4"
+          className="courses-scroll-container flex gap-0 sm:gap-4 md:gap-6 overflow-x-auto scrollbar-hide scroll-smooth snap-x snap-mandatory pb-4"
           style={{
             scrollbarWidth: "none",
             msOverflowStyle: "none",
+            WebkitOverflowScrolling: "touch",
+            overflowX: "auto",
+            overflowY: "hidden",
+            scrollPaddingLeft: "0",
+            scrollPaddingRight: "0",
           }}
         >
           {validCourses.map((course, index) => (
             <div
               key={course._id || `${course.courseTitle}-${index}`}
-              className="course-card flex-shrink-0 w-[85vw] sm:w-[380px] md:w-[calc((100%-3rem)/3)] lg:w-[calc((100%-4rem)/3)] max-w-[450px] snap-start"
+              className="course-card flex-shrink-0 sm:w-[380px] md:w-[calc((100%-3rem)/3)] lg:w-[calc((100%-4rem)/3)] max-w-[450px] snap-start"
+              style={{
+                width:
+                  isMobile && mobileCardWidth > 0
+                    ? `${mobileCardWidth}px`
+                    : undefined,
+                minWidth:
+                  isMobile && mobileCardWidth > 0
+                    ? `${mobileCardWidth}px`
+                    : undefined,
+                maxWidth:
+                  isMobile && mobileCardWidth > 0
+                    ? `${mobileCardWidth}px`
+                    : undefined,
+                flexShrink: 0,
+              }}
             >
               <CourseCard course={course} />
             </div>
@@ -168,15 +287,15 @@ const CoursesSection = () => {
         </div>
 
         {/* Right Arrow */}
-        {validCourses.length > 3 && (
+        {validCourses.length > 1 && (
           <button
             onClick={scrollRight}
-            className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white rounded-full p-3 md:p-4 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white rounded-full p-2 sm:p-3 md:p-4 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={!canScrollRight}
             aria-label="Scroll right"
           >
             <svg
-              className="w-6 h-6 md:w-7 md:h-7 text-gray-700"
+              className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 text-gray-700"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -197,14 +316,19 @@ const CoursesSection = () => {
         .scrollbar-hide::-webkit-scrollbar {
           display: none;
         }
+        @media (max-width: 639px) {
+          .course-card {
+            flex: 0 0 auto !important;
+          }
+        }
       `}</style>
 
       {/* Show All Button */}
-      <div className="flex justify-center mt-12">
+      <div className="flex justify-center mt-6 sm:mt-8 md:mt-12 px-4">
         <Link
           to={"/course-list"}
           onClick={() => scrollTo(0, 0)}
-          className="relative inline-block px-10 py-3 font-medium text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg overflow-hidden group"
+          className="relative inline-block px-6 sm:px-8 md:px-10 py-2.5 sm:py-3 text-sm sm:text-base font-medium text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg overflow-hidden group w-full sm:w-auto text-center"
         >
           <span className="absolute inset-0 bg-gradient-to-r from-purple-600 to-blue-600 opacity-0 group-hover:opacity-100 transition-all duration-500"></span>
           <span className="relative z-10">Show All Projects</span>

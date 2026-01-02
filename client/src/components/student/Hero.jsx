@@ -7,6 +7,7 @@ import { Link } from "react-router-dom";
 const Hero = () => {
   return (
     <section
+      id="hero"
       className="relative w-full min-h-screen flex items-center bg-cover bg-center bg-no-repeat overflow-hidden"
       style={{
         backgroundImage: `url(${assets.hero_bg})`,

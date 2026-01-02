@@ -19,7 +19,7 @@ const Home = () => {
       <TestimonialsSection />
       <CallToAction />
       {/* ✅ Added ID for smooth scroll from Navbar */}
-      <div id="contact-section">
+      <div id="contact-section" className="w-full">
         <Footer />
       </div>
     </div>
