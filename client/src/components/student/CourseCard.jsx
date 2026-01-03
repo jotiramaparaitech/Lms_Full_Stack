@@ -14,151 +14,92 @@ const CourseCard = ({ course }) => {
   const courseTitle = course.courseTitle || "Untitled Course";
   const rating = calculateRating ? calculateRating(course) : 0;
   const ratingCount = course.courseRatings?.length || 0;
-  
-  // Strip HTML tags from description and truncate
-  const stripHtml = (html) => {
-    if (!html) return "";
-    // Remove HTML tags using regex
-    const text = html.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
-    return text;
-  };
-  
-  const fullDescription = course.courseDescription 
-    ? stripHtml(course.courseDescription).replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
-    : "No description available.";
-  // Description will be limited to 2 lines with CSS line-clamp-2
 
-  const handleButtonClick = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const stripHtml = (html) =>
+    html
+      ? html
+          .replace(/<[^>]*>/g, "")
+          .replace(/&nbsp;/g, " ")
+          .trim()
+      : "";
+
+  const description = stripHtml(course.courseDescription);
+
+  const handleClick = () => {
     navigate(`/course/${course._id}`);
     window.scrollTo(0, 0);
   };
 
   return (
-    <div className="relative group block rounded-xl overflow-hidden bg-white shadow-lg hover:shadow-2xl transition-all duration-500 w-full h-full flex flex-col">
-      {/* Thumbnail Section - Reduced Height */}
-      <div className="relative w-full overflow-hidden bg-gray-50">
-        {courseThumbnail && (
-          <img
-            src={courseThumbnail}
-            alt={courseTitle}
-            className="w-full h-32 sm:h-36 md:h-40 object-cover"
-          />
-        )}
-      </div>
+    <div
+      className="
+        bg-white rounded-xl shadow-md border border-gray-100
+        overflow-hidden flex flex-col
+        mx-auto
+        w-[90%]
+        min-h-[280px] max-h-[300px]
+        sm:w-full sm:min-h-0 sm:max-h-none
+      "
+    >
+      {/* IMAGE */}
+      <img
+        src={courseThumbnail}
+        alt={courseTitle}
+        className="
+          w-full object-cover
+          h-[110px]
+          sm:h-36
+          md:h-40
+        "
+      />
 
-      {/* White Content Section - Reduced Padding */}
-      <div className="p-3 md:p-4 bg-white flex-1 flex flex-col">
-        {/* Course Title with Graduation Cap Icon - Left Aligned */}
-        <div className="flex items-start gap-2 mb-1">
-          <svg
-            className="w-4 h-4 text-gray-800 flex-shrink-0 mt-0.5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 14l9-5-9-5-9 5 9 5z"
-            />
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"
-            />
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 14v7M5 12h14"
-            />
-          </svg>
-          <h4 className="text-sm md:text-base font-bold text-gray-900 break-words leading-tight text-left">{courseTitle}</h4>
-        </div>
+      {/* CONTENT */}
+      <div className="px-4 py-3 sm:p-3 md:p-4 flex flex-col flex-1 gap-1">
+        {/* TITLE */}
+        <h4 className="text-[14px] sm:text-sm md:text-base font-semibold leading-tight">
+          {courseTitle}
+        </h4>
 
-        {/* Educator Name with Person Icon - No Space, Left Aligned */}
-        <div className="flex items-center gap-2 mb-2">
-          <svg
-            className="w-4 h-4 text-gray-800 flex-shrink-0"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-            />
-          </svg>
-          <p className="text-xs md:text-sm font-medium text-orange-500 break-words text-left">{educatorName}</p>
-        </div>
-
-        {/* Course Description - Limited to 2 lines, Left Aligned */}
-        <p className="text-xs md:text-sm text-gray-700 mb-2 line-clamp-2 text-left">
-          {fullDescription}
+        {/* EDUCATOR */}
+        <p className="text-[12px] sm:text-xs md:text-sm text-orange-500">
+          {educatorName}
         </p>
 
-        {/* Rating Section - Left Aligned, Reduced Spacing */}
-        <div className="flex items-center gap-1 mb-2 text-left">
-          <span className="text-sm md:text-base font-semibold text-gray-900">
-            {rating.toFixed(1)}
-          </span>
-          <div className="flex items-center gap-0.5">
-            {[...Array(5)].map((_, i) => {
-              const starRating = rating - i;
-              const isFull = starRating >= 1;
-              const isPartial = starRating > 0 && starRating < 1;
-              
-              return (
-                <div key={i} className="relative w-3 h-3 md:w-4 md:h-4">
-                  <img
-                    src={assets.star_blank}
-                    alt="star"
-                    className="w-full h-full absolute"
-                  />
-                  {isFull && (
-                    <img
-                      src={assets.star}
-                      alt="star"
-                      className="w-full h-full absolute"
-                    />
-                  )}
-                  {isPartial && (
-                    <div className="absolute overflow-hidden" style={{ width: `${starRating * 100}%` }}>
-                      <img
-                        src={assets.star}
-                        alt="star"
-                        className="w-full h-full"
-                      />
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-          <span className="text-xs md:text-sm text-gray-600 ml-1">
-            ({ratingCount})
-          </span>
+        {/* DESCRIPTION */}
+        <p className="text-[12px] sm:text-xs md:text-sm text-gray-600 line-clamp-2">
+          {description || "No description available"}
+        </p>
+
+        {/* RATING */}
+        <div className="flex items-center gap-1 mt-auto">
+          <span className="text-[13px] font-semibold">{rating.toFixed(1)}</span>
+          <span className="text-[12px] text-gray-500">({ratingCount})</span>
         </div>
 
-        {/* Action Buttons - Reduced Padding */}
-        <div className="flex gap-2 mt-auto">
+        {/* BUTTONS */}
+        <div className="flex gap-3 mt-3">
           <button
-            onClick={handleButtonClick}
-            className="flex-1 bg-[#FF6B6B] hover:bg-[#FF5252] text-white font-semibold py-2 px-3 rounded-lg transition-colors duration-200 text-xs md:text-sm"
+            onClick={handleClick}
+            className="
+              flex-1 bg-[#FF6B6B] text-white
+              text-[12px]
+              py-2
+              rounded-md
+            "
           >
-            Register Now
+            Register
           </button>
+
           <button
-            onClick={handleButtonClick}
-            className="flex-1 bg-white border-2 border-gray-300 hover:border-gray-400 text-gray-800 font-semibold py-2 px-3 rounded-lg transition-colors duration-200 text-xs md:text-sm"
+            onClick={handleClick}
+            className="
+              flex-1 border border-gray-300 text-gray-800
+              text-[12px]
+              py-2
+              rounded-md
+            "
           >
-            View Project
+            View
           </button>
         </div>
       </div>
