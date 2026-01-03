@@ -31,7 +31,7 @@ const SideBar = () => {
     },
     // ✅ NEW MENU ITEM ADDED BELOW (no other changes)
     {
-      name: "Assign Course",
+      name: "Assign Projects",
       path: "/educator/assign-course",
       icon: assets.my_course_icon,
     },
