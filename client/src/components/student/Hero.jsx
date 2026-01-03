@@ -26,8 +26,8 @@ const Hero = () => {
             transition={{ duration: 0.8, type: "spring", stiffness: 100 }}
             className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-gray-800 leading-tight"
           >
-            Master <span className="text-cyan-700">Modern Learning</span> with{" "}
-            <span className="text-cyan-600">Aparaitech</span>
+            Shaping <span className="text-cyan-700">Future Developers</span>{" "}
+            Through <span className="text-cyan-600">Aparaitech</span>
           </motion.h1>
 
           <motion.p
@@ -36,8 +36,8 @@ const Hero = () => {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="text-gray-700 mt-5 text-base sm:text-lg max-w-lg"
           >
-            The comprehensive LMS platform to learn coding, design, and
-            technology — anytime, anywhere, and at your own pace.
+            Gain hands-on experience by working on live, industry-relevant
+            projects guided by Aparaitech.
           </motion.p>
 
           {/* CTA BUTTONS */}
