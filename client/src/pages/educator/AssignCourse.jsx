@@ -134,7 +134,7 @@ const AssignCourse = () => {
           disabled={loading}
           className="w-full bg-gradient-to-r from-cyan-400 to-blue-500 text-white font-semibold py-3 rounded-lg shadow-md hover:from-cyan-500 hover:to-blue-600 transition-all disabled:opacity-50"
         >
-          {loading ? "Assigning..." : "Assign Course"}
+          {loading ? "Assigning..." : "Assign Project"}
         </button>
       </motion.form>
     </motion.div>
