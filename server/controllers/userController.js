@@ -6,46 +6,110 @@ import { clerkClient } from "@clerk/express";
 
 // ---------------- Helper: Ensure User Exists in DB ----------------
 export const ensureUserExists = async (userId) => {
+  if (!userId) {
+    console.error("ensureUserExists: userId is missing");
+    return null;
+  }
+
   let user = await User.findById(userId);
-  
+
   if (!user) {
     // User doesn't exist in DB, fetch from Clerk and create
     try {
       const clerkUser = await clerkClient.users.getUser(userId);
-      
+
       if (clerkUser) {
+        const firstName = clerkUser.firstName || "";
+        const lastName = clerkUser.lastName || "";
+        const fullName = `${firstName} ${lastName}`.trim();
+
         const userData = {
           _id: clerkUser.id,
           email: clerkUser.emailAddresses[0]?.emailAddress || "",
-          name: `${clerkUser.firstName || ""} ${clerkUser.lastName || ""}`.trim() || "User",
+          name: fullName || clerkUser.username || "User",
           imageUrl: clerkUser.imageUrl || "",
           role: clerkUser.publicMetadata?.role || "student",
         };
-        
-        user = await User.create(userData);
+
+        try {
+          user = await User.create(userData);
+          console.log(`✅ User created in DB: ${userId}`);
+        } catch (createError) {
+          // Handle duplicate key error (user might have been created by webhook)
+          if (
+            createError.code === 11000 ||
+            createError.name === "MongoServerError"
+          ) {
+            console.log(
+              `⚠️ User might already exist, trying to fetch: ${userId}`
+            );
+            user = await User.findById(userId);
+            if (!user) {
+              // If still not found, try to update instead
+              user = await User.findByIdAndUpdate(userId, userData, {
+                new: true,
+                upsert: true,
+              });
+            }
+          } else {
+            console.error("Error creating user from Clerk:", createError);
+            throw createError;
+          }
+        }
+      } else {
+        console.error(`Clerk user not found for userId: ${userId}`);
       }
     } catch (error) {
-      console.error("Error creating user from Clerk:", error);
-      return null;
+      console.error("Error fetching/creating user from Clerk:", error);
+      // Don't return null immediately, try one more time to find the user
+      user = await User.findById(userId);
+      if (!user) {
+        console.error(`Failed to create user after retry: ${userId}`);
+        return null;
+      }
     }
   }
-  
+
   return user;
 };
 
 // ---------------- Get User Data ----------------
 export const getUserData = async (req, res) => {
   try {
-    const userId = req.auth.userId;
-    const user = await ensureUserExists(userId);
+    const userId = req.auth?.userId;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required. Please log in again.",
+      });
+    }
+
+    // Try to ensure user exists (will create if needed)
+    let user = await ensureUserExists(userId);
+
+    // If still not found, try one more time after a short delay
+    if (!user) {
+      console.log(`Retrying user creation for: ${userId}`);
+      await new Promise((resolve) => setTimeout(resolve, 500)); // Wait 500ms
+      user = await ensureUserExists(userId);
+    }
 
     if (!user) {
-      return res.json({ success: false, message: "User Not Found" });
+      return res.status(404).json({
+        success: false,
+        message:
+          "Unable to create user account. Please try logging in again or contact support.",
+      });
     }
 
     res.json({ success: true, user });
   } catch (error) {
-    res.json({ success: false, message: error.message });
+    console.error("Error in getUserData:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "An error occurred while fetching user data.",
+    });
   }
 };
 
@@ -61,7 +125,10 @@ export const userEnrolledCourses = async (req, res) => {
 
     // Populate enrolled courses
     await userData.populate("enrolledCourses");
-    res.json({ success: true, enrolledCourses: userData.enrolledCourses || [] });
+    res.json({
+      success: true,
+      enrolledCourses: userData.enrolledCourses || [],
+    });
   } catch (error) {
     res.json({ success: false, message: error.message });
   }

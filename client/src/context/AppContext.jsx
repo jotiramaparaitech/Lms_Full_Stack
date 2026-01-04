@@ -87,13 +87,76 @@ export const AppContextProvider = (props) => {
         const role = user?.publicMetadata?.role || "student";
         setIsEducator(role === "educator" || role === "admin");
       } else {
-        toast.error(response?.data?.message || "Failed to load user data.");
+        // For first-time users, retry once after a short delay
+        const errorMessage =
+          response?.data?.message || "Failed to load user data.";
+        if (
+          errorMessage.includes("User Not Found") ||
+          errorMessage.includes("Unable to create user")
+        ) {
+          // Retry after 1 second for first-time login
+          setTimeout(async () => {
+            try {
+              const retryToken = await getToken();
+              if (retryToken) {
+                const retryResponse = await axios.get(
+                  `${backendUrl}/api/user/data`,
+                  {
+                    headers: { Authorization: `Bearer ${retryToken}` },
+                    timeout: 8000,
+                  }
+                );
+                if (retryResponse?.data?.success) {
+                  setUserData(retryResponse.data.user);
+                  const role = user?.publicMetadata?.role || "student";
+                  setIsEducator(role === "educator" || role === "admin");
+                  return; // Success, don't show error
+                }
+              }
+            } catch (retryError) {
+              // If retry also fails, show error
+              console.error("Retry failed:", retryError);
+            }
+            toast.error(
+              "Setting up your account... Please refresh the page if this persists."
+            );
+          }, 1000);
+        } else {
+          toast.error(errorMessage);
+        }
       }
     } catch (error) {
       if (error.code === "ERR_NETWORK") {
         toast.error("Cannot reach backend. Check your network or CORS setup.");
       } else if (error.response?.status === 401) {
         toast.error("Unauthorized. Please log in again.");
+      } else if (error.response?.status === 404) {
+        // User not found - retry once
+        setTimeout(async () => {
+          try {
+            const retryToken = await getToken();
+            if (retryToken) {
+              const retryResponse = await axios.get(
+                `${backendUrl}/api/user/data`,
+                {
+                  headers: { Authorization: `Bearer ${retryToken}` },
+                  timeout: 8000,
+                }
+              );
+              if (retryResponse?.data?.success) {
+                setUserData(retryResponse.data.user);
+                const role = user?.publicMetadata?.role || "student";
+                setIsEducator(role === "educator" || role === "admin");
+                return;
+              }
+            }
+          } catch (retryError) {
+            console.error("Retry failed:", retryError);
+          }
+          toast.error(
+            "Setting up your account... Please refresh the page if this persists."
+          );
+        }, 1000);
       } else if (error.message?.includes("CORS")) {
         toast.error(
           "CORS error — backend not configured to allow this origin."
@@ -102,7 +165,10 @@ export const AppContextProvider = (props) => {
         toast.error(error.message || "Unknown error fetching user data.");
       }
 
-      setUserData(null);
+      // Don't set userData to null immediately - wait for retry
+      if (error.response?.status !== 404) {
+        setUserData(null);
+      }
     }
   };
 

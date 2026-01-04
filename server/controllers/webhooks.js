@@ -20,15 +20,37 @@ export const clerkWebhooks = async (req, res) => {
 
     switch (type) {
       case "user.created": {
-        const userData = {
-          _id: data.id,
-          email: data.email_addresses[0].email_address,
-          name: data.first_name + " " + data.last_name,
-          imageUrl: data.image_url,
-          resume: "",
-        };
-        await User.create(userData);
-        return res.json({});
+        try {
+          const firstName = data.first_name || "";
+          const lastName = data.last_name || "";
+          const fullName = `${firstName} ${lastName}`.trim();
+          
+          const userData = {
+            _id: data.id,
+            email: data.email_addresses[0]?.email_address || "",
+            name: fullName || data.username || "User",
+            imageUrl: data.image_url || "",
+            role: data.public_metadata?.role || "student",
+          };
+          
+          // Use findOneAndUpdate with upsert to avoid duplicate key errors
+          await User.findOneAndUpdate(
+            { _id: data.id },
+            userData,
+            { upsert: true, new: true, setDefaultsOnInsert: true }
+          );
+          
+          console.log(`✅ User created via webhook: ${data.id}`);
+          return res.json({ success: true, message: "User created successfully" });
+        } catch (error) {
+          console.error("Error in user.created webhook:", error);
+          // If user already exists, that's okay - webhook might have been called twice
+          if (error.code === 11000 || error.name === "MongoServerError") {
+            console.log(`User ${data.id} already exists, skipping creation`);
+            return res.json({ success: true, message: "User already exists" });
+          }
+          throw error;
+        }
       }
 
       case "user.updated": {
