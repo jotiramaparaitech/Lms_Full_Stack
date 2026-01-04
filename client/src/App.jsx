@@ -60,7 +60,7 @@ const AppContent = ({ isEducatorRoute, isEducator }) => {
       )}
 
       {/* ✅ Inquiry Modal */}
-      {!isEducatorRoute && <InquiryModal />}
+      {/* {!isEducatorRoute && <InquiryModal />} */}
 
       {/* ================= ROUTES ================= */}
       <Routes>
