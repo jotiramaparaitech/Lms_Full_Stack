@@ -277,9 +277,9 @@ export const AppContextProvider = (props) => {
     // Show login success message when user logs in (transition from null to user)
     if (!previousUserRef.current && user) {
       toast.success(
-        `Welcome back, ${
+        `Welcome back to ${
           user.firstName || user.emailAddresses[0]?.emailAddress || "User"
-        }! 🎉`
+        } 🎉`
       );
     }
 
