@@ -103,26 +103,34 @@ const Dashboard = () => {
               </tr>
             </thead>
             <tbody className="text-gray-700">
-              {dashboardData.enrolledStudentsData.map((item, index) => (
-                <motion.tr
-                  key={index}
-                  whileHover={{ scale: 1.02, backgroundColor: "#E0F2FE" }}
-                  className="border-b border-gray-200 transition-all"
-                >
-                  <td className="px-6 py-3 text-center hidden sm:table-cell">
-                    {index + 1}
-                  </td>
-                  <td className="px-6 py-3 flex items-center gap-3">
-                    <img
-                      src={item.student.imageUrl}
-                      alt="Profile"
-                      className="w-10 h-10 rounded-full shadow-md ring-2 ring-sky-300"
-                    />
-                    <span className="font-medium">{item.student.name}</span>
-                  </td>
-                  <td className="px-6 py-3 truncate">{item.courseTitle}</td>
-                </motion.tr>
-              ))}
+              {dashboardData.enrolledStudentsData
+                .filter(
+                  (item) =>
+                    item &&
+                    item.student &&
+                    item.student._id &&
+                    item.student.name
+                )
+                .map((item, index) => (
+                  <motion.tr
+                    key={index}
+                    whileHover={{ scale: 1.02, backgroundColor: "#E0F2FE" }}
+                    className="border-b border-gray-200 transition-all"
+                  >
+                    <td className="px-6 py-3 text-center hidden sm:table-cell">
+                      {index + 1}
+                    </td>
+                    <td className="px-6 py-3 flex items-center gap-3">
+                      <img
+                        src={item.student.imageUrl || "/default-avatar.png"}
+                        alt="Profile"
+                        className="w-10 h-10 rounded-full shadow-md ring-2 ring-sky-300"
+                      />
+                      <span className="font-medium">{item.student.name}</span>
+                    </td>
+                    <td className="px-6 py-3 truncate">{item.courseTitle}</td>
+                  </motion.tr>
+                ))}
             </tbody>
           </table>
         </div>

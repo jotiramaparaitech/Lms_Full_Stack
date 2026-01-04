@@ -113,7 +113,10 @@ const StudentsEnrolled = () => {
 
           <tbody className="text-gray-700">
             {enrolledStudents
-              ?.filter((item) => item && item.student)
+              ?.filter(
+                (item) =>
+                  item && item.student && item.student._id && item.student.name
+              )
               .map((item, index) => (
                 <motion.tr
                   key={`${item.student?._id}-${item.courseId}`}

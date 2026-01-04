@@ -423,12 +423,15 @@ export const educatorDashboardData = async (req, res) => {
         { _id: { $in: course.enrolledStudents } },
         "name imageUrl"
       );
-      students.forEach((s) => {
-        enrolledStudentsData.push({
-          courseTitle: course.courseTitle,
-          student: s,
+      // Filter out null/undefined students (deleted users)
+      students
+        .filter((s) => s && s._id) // Only include valid users
+        .forEach((s) => {
+          enrolledStudentsData.push({
+            courseTitle: course.courseTitle,
+            student: s,
+          });
         });
-      });
     }
 
     res.json({
@@ -461,12 +464,15 @@ export const getEnrolledStudentsData = async (req, res) => {
       .populate("userId", "name imageUrl")
       .populate("courseId", "courseTitle");
 
-    const enrolledStudents = purchases.map((p) => ({
-      student: p.userId,
-      courseId: p.courseId?._id,
-      courseTitle: p.courseId?.courseTitle,
-      purchaseDate: p.createdAt,
-    }));
+    // Filter out purchases where user has been deleted (userId is null or user doesn't exist)
+    const enrolledStudents = purchases
+      .filter((p) => p.userId && p.userId._id) // Only include purchases with valid users
+      .map((p) => ({
+        student: p.userId,
+        courseId: p.courseId?._id,
+        courseTitle: p.courseId?.courseTitle,
+        purchaseDate: p.createdAt,
+      }));
 
     res.json({ success: true, enrolledStudents });
   } catch (error) {

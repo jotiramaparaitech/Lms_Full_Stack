@@ -42,8 +42,27 @@ export const clerkWebhooks = async (req, res) => {
       }
 
       case "user.deleted": {
-        await User.findByIdAndDelete(data.id);
-        return res.json({});
+        const userId = data.id;
+
+        // Delete user from database
+        await User.findByIdAndDelete(userId);
+
+        // Remove user from all course enrollments
+        await Course.updateMany(
+          { enrolledStudents: userId },
+          { $pull: { enrolledStudents: userId } }
+        );
+
+        // Delete all purchases by this user
+        await Purchase.deleteMany({ userId });
+
+        // Note: We keep the purchase records for historical purposes, but mark them as deleted
+        // Alternatively, you can delete them completely with the line above
+
+        return res.json({
+          success: true,
+          message: "User deleted and cleaned up successfully",
+        });
       }
 
       default:

@@ -15,28 +15,70 @@
         const shouldSuppress = function (msg) {
           if (!msg) return false;
           const lower = String(msg).toLowerCase();
-          return (
+          const msgStr = String(msg);
+
+          // Filter Razorpay header warnings (various formats)
+          if (
             (lower.includes("refused to get unsafe header") &&
               lower.includes("x-rtb-fingerprint-id")) ||
+            msgStr.includes("x-rtb-fingerprint-id")
+          ) {
+            return true;
+          }
+
+          // Filter SVG warnings
+          if (
             (lower.includes("expected length") &&
-              lower.includes("height") &&
+              (lower.includes("height") || lower.includes("width")) &&
               lower.includes("auto")) ||
-            (lower.includes("expected length") &&
-              lower.includes("width") &&
+            (lower.includes("svg") &&
+              lower.includes("attribute") &&
               lower.includes("auto"))
-          );
+          ) {
+            return true;
+          }
+
+          // Filter permissions policy violations (harmless)
+          if (
+            lower.includes("permissions policy violation") ||
+            lower.includes("accelerometer is not allowed") ||
+            lower.includes("devicemotion events are blocked") ||
+            lower.includes("deviceorientation events are blocked")
+          ) {
+            return true;
+          }
+
+          // Filter CORS warnings from Razorpay (harmless)
+          if (
+            lower.includes("cors policy") &&
+            (lower.includes("razorpay") || lower.includes("api.razorpay.com"))
+          ) {
+            return true;
+          }
+
+          // Filter mixed content warnings (auto-upgraded)
+          if (
+            lower.includes("mixed content") &&
+            lower.includes("automatically upgraded")
+          ) {
+            return true;
+          }
+
+          return false;
         };
 
         const origError = console.error;
         console.error = function () {
-          if (!shouldSuppress(arguments[0])) {
+          const msg = arguments[0];
+          if (!shouldSuppress(msg)) {
             origError.apply(console, arguments);
           }
         };
 
         const origWarn = console.warn;
         console.warn = function () {
-          if (!shouldSuppress(arguments[0])) {
+          const msg = arguments[0];
+          if (!shouldSuppress(msg)) {
             origWarn.apply(console, arguments);
           }
         };

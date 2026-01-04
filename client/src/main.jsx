@@ -4,30 +4,47 @@
 const shouldSuppressWarning = (message) => {
   if (!message) return false;
   const msg = String(message).toLowerCase();
+  const msgStr = String(message);
 
-  // Filter out Razorpay's harmless "Refused to get unsafe header" warnings
+  // Filter out Razorpay's harmless "Refused to get unsafe header" warnings (various formats)
   if (
-    msg.includes("refused to get unsafe header") &&
-    msg.includes("x-rtb-fingerprint-id")
+    (msg.includes("refused to get unsafe header") &&
+      msg.includes("x-rtb-fingerprint-id")) ||
+    msgStr.includes("x-rtb-fingerprint-id")
   ) {
     return true;
   }
 
-  // Filter out SVG height="auto" warnings (these are handled by sanitizeHTML)
+  // Filter out SVG height/width="auto" warnings (these are handled by sanitizeHTML)
   if (
-    msg.includes("expected length") &&
-    msg.includes("height") &&
-    msg.includes("auto")
+    (msg.includes("expected length") &&
+      (msg.includes("height") || msg.includes("width")) &&
+      msg.includes("auto")) ||
+    (msg.includes("svg") && msg.includes("attribute") && msg.includes("auto"))
   ) {
     return true;
   }
 
-  // Filter out SVG width="auto" warnings
+  // Filter permissions policy violations (harmless)
   if (
-    msg.includes("expected length") &&
-    msg.includes("width") &&
-    msg.includes("auto")
+    msg.includes("permissions policy violation") ||
+    msg.includes("accelerometer is not allowed") ||
+    msg.includes("devicemotion events are blocked") ||
+    msg.includes("deviceorientation events are blocked")
   ) {
+    return true;
+  }
+
+  // Filter CORS warnings from Razorpay (harmless)
+  if (
+    msg.includes("cors policy") &&
+    (msg.includes("razorpay") || msg.includes("api.razorpay.com"))
+  ) {
+    return true;
+  }
+
+  // Filter mixed content warnings (auto-upgraded)
+  if (msg.includes("mixed content") && msg.includes("automatically upgraded")) {
     return true;
   }
 
