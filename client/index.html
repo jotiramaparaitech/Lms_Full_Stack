@@ -9,6 +9,40 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Aparaitech</title>
 
+    <!-- ✅ Suppress harmless Razorpay console warnings BEFORE Razorpay loads -->
+    <script>
+      (function () {
+        const shouldSuppress = function (msg) {
+          if (!msg) return false;
+          const lower = String(msg).toLowerCase();
+          return (
+            (lower.includes("refused to get unsafe header") &&
+              lower.includes("x-rtb-fingerprint-id")) ||
+            (lower.includes("expected length") &&
+              lower.includes("height") &&
+              lower.includes("auto")) ||
+            (lower.includes("expected length") &&
+              lower.includes("width") &&
+              lower.includes("auto"))
+          );
+        };
+
+        const origError = console.error;
+        console.error = function () {
+          if (!shouldSuppress(arguments[0])) {
+            origError.apply(console, arguments);
+          }
+        };
+
+        const origWarn = console.warn;
+        console.warn = function () {
+          if (!shouldSuppress(arguments[0])) {
+            origWarn.apply(console, arguments);
+          }
+        };
+      })();
+    </script>
+
     <!-- ✅ Add Razorpay checkout script -->
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
   </head>

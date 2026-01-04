@@ -30,6 +30,7 @@ export const AppContextProvider = (props) => {
   const [userData, setUserData] = useState(null);
   const [enrolledCourses, setEnrolledCourses] = useState([]);
   const roleRedirectedRef = useRef(false);
+  const previousUserRef = useRef(null);
 
   // ✅ Fetch all courses (handles errors gracefully)
   const fetchAllCourses = async () => {
@@ -197,14 +198,26 @@ export const AppContextProvider = (props) => {
     }, 0);
   };
 
-  // ✅ Role-based redirect + data fetch
+  // ✅ Role-based redirect + data fetch + login success message
   useEffect(() => {
     if (!isLoaded) return;
 
     if (!user) {
       roleRedirectedRef.current = false;
+      previousUserRef.current = null;
       return;
     }
+
+    // Show login success message when user logs in (transition from null to user)
+    if (!previousUserRef.current && user) {
+      toast.success(
+        `Welcome back, ${
+          user.firstName || user.emailAddresses[0]?.emailAddress || "User"
+        }! 🎉`
+      );
+    }
+
+    previousUserRef.current = user;
 
     const role = user.publicMetadata?.role || "student";
     fetchUserData();

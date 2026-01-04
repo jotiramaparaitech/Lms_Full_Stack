@@ -264,9 +264,17 @@ export const verifyPayment = async (req, res) => {
     }
 
     if (purchase.status === "completed") {
+      // Still return enrolled courses even if payment was already verified
+      await user.populate({
+        path: "enrolledCourses",
+        options: { sort: { createdAt: -1 } },
+      });
+      const updatedUser = user.toObject();
+
       return res.json({
         success: true,
         message: "Payment already verified",
+        enrolledCourses: updatedUser?.enrolledCourses || [],
       });
     }
 
