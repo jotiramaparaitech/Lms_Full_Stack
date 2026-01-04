@@ -29,6 +29,7 @@ const CourseDetails = () => {
     calculateCourseDuration,
     calculateRating,
     calculateNoOfLectures,
+    navigate,
   } = useContext(AppContext);
   const { getToken } = useAuth();
 
@@ -196,6 +197,10 @@ const CourseDetails = () => {
                 fetchUserEnrolledCourses(),
               ]);
               setIsAlreadyEnrolled(true);
+              // Redirect to my-enrollments page after successful payment
+              setTimeout(() => {
+                navigate("/my-enrollments");
+              }, 1500); // Small delay to show success message
             } else {
               toast.error(
                 verifyRes.data.message || "Payment verification failed."

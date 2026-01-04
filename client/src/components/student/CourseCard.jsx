@@ -36,9 +36,9 @@ const CourseCard = ({ course }) => {
         bg-white rounded-xl shadow-md border border-gray-100
         overflow-hidden flex flex-col
         mx-auto
-        w-[90%]
-        min-h-[280px] max-h-[300px]
-        sm:w-full sm:min-h-0 sm:max-h-none
+        w-[88%]
+        min-h-[310px]          /* INCREASED MOBILE HEIGHT */
+        sm:w-full sm:min-h-0
       "
     >
       {/* IMAGE */}
@@ -47,26 +47,32 @@ const CourseCard = ({ course }) => {
         alt={courseTitle}
         className="
           w-full object-cover
-          h-[110px]
-          sm:h-36
-          md:h-40
+          h-[120px]            /* TALLER MOBILE IMAGE */
+          sm:h-36 md:h-40
         "
       />
 
       {/* CONTENT */}
-      <div className="px-4 py-3 sm:p-3 md:p-4 flex flex-col flex-1 gap-1">
+      <div
+        className="
+          px-4 py-4            /* MORE VERTICAL SPACE */
+          sm:p-3 md:p-4
+          flex flex-col flex-1 gap-2
+          text-left            /* LEFT ALIGN TEXT */
+        "
+      >
         {/* TITLE */}
-        <h4 className="text-[14px] sm:text-sm md:text-base font-semibold leading-tight">
+        <h4 className="text-[15px] sm:text-sm md:text-base font-semibold leading-snug">
           {courseTitle}
         </h4>
 
         {/* EDUCATOR */}
-        <p className="text-[12px] sm:text-xs md:text-sm text-orange-500">
+        <p className="text-[13px] sm:text-xs md:text-sm text-orange-500">
           {educatorName}
         </p>
 
         {/* DESCRIPTION */}
-        <p className="text-[12px] sm:text-xs md:text-sm text-gray-600 line-clamp-2">
+        <p className="text-[13px] sm:text-xs md:text-sm text-gray-600 line-clamp-3">
           {description || "No description available"}
         </p>
 
@@ -77,13 +83,13 @@ const CourseCard = ({ course }) => {
         </div>
 
         {/* BUTTONS */}
-        <div className="flex gap-3 mt-3">
+        <div className="flex gap-3 mt-4">
           <button
             onClick={handleClick}
             className="
               flex-1 bg-[#FF6B6B] text-white
-              text-[12px]
-              py-2
+              text-[13px]
+              py-2.5
               rounded-md
             "
           >
@@ -94,8 +100,8 @@ const CourseCard = ({ course }) => {
             onClick={handleClick}
             className="
               flex-1 border border-gray-300 text-gray-800
-              text-[12px]
-              py-2
+              text-[13px]
+              py-2.5
               rounded-md
             "
           >
