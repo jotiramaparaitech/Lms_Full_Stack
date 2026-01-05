@@ -11,33 +11,35 @@ import {
 export const getAllCourse = async (req, res) => {
   try {
     const courses = await Course.find({ isPublished: true })
+      // ✅ Ensure trending projects appear first, then newest first
+      .sort({ isTrending: -1, createdAt: -1 })
       .select(["-courseContent", "-enrolledStudents"])
-      .populate({ 
-        path: "educator", 
+      .populate({
+        path: "educator",
         select: "name email imageUrl",
-        strictPopulate: false
+        strictPopulate: false,
       })
       .lean();
 
     // Handle courses where educator might be null (educator user doesn't exist in DB)
-    const coursesWithEducator = courses.map(course => {
+    const coursesWithEducator = courses.map((course) => {
       if (!course.educator) {
         // Set default educator info if educator user doesn't exist
         course.educator = {
           name: "Unknown Educator",
           email: "",
-          imageUrl: ""
+          imageUrl: "",
         };
       }
       return course;
     });
-    
+
     // Ensure courses is always an array
     const response = {
       success: true,
-      courses: Array.isArray(coursesWithEducator) ? coursesWithEducator : []
+      courses: Array.isArray(coursesWithEducator) ? coursesWithEducator : [],
     };
-    
+
     res.json(response);
   } catch (error) {
     console.error("❌ Error fetching all courses:", error);

@@ -236,6 +236,12 @@ export const updateCourse = async (req, res) => {
     if (parsedCourseData.discount !== undefined) {
       course.discount = Number(parsedCourseData.discount) || 0;
     }
+    if (parsedCourseData.isLocked !== undefined) {
+      course.isLocked = Boolean(parsedCourseData.isLocked);
+    }
+    if (parsedCourseData.isTrending !== undefined) {
+      course.isTrending = Boolean(parsedCourseData.isTrending);
+    }
     if (parsedCourseData.courseContent !== undefined) {
       course.courseContent = Array.isArray(parsedCourseData.courseContent)
         ? parsedCourseData.courseContent

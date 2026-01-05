@@ -32,7 +32,17 @@ const courseSchema = new mongoose.Schema(
     courseThumbnail: { type: String },
     coursePrice: { type: Number, required: true },
     isPublished: { type: Boolean, default: true },
+
+    // ✅ Pricing & visibility
     discount: { type: Number, required: true, min: 0, max: 100 },
+    isLocked: {
+      type: Boolean,
+      default: false, // When true, course can be viewed but NOT purchased
+    },
+    isTrending: {
+      type: Boolean,
+      default: false, // When true, course is prioritized in listings
+    },
 
     // ✅ Custom Domain (required)
     customDomain: {

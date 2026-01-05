@@ -41,16 +41,39 @@ const CourseCard = ({ course }) => {
         sm:w-full sm:min-h-0
       "
     >
-      {/* IMAGE */}
-      <img
-        src={courseThumbnail}
-        alt={courseTitle}
-        className="
-          w-full object-cover
-          h-[120px]            /* TALLER MOBILE IMAGE */
-          sm:h-36 md:h-40
-        "
-      />
+      {/* IMAGE + BADGES */}
+      <div className="relative">
+        <img
+          src={courseThumbnail}
+          alt={courseTitle}
+          className="
+            w-full object-cover
+            h-[120px]            /* TALLER MOBILE IMAGE */
+            sm:h-36 md:h-40
+          "
+        />
+
+        {/* Discount badge */}
+        {course.discount > 0 && (
+          <div className="absolute top-2 left-2 bg-red-500 text-white text-[11px] sm:text-xs font-semibold px-2 py-1 rounded-full shadow-md">
+            {course.discount}% OFF
+          </div>
+        )}
+
+        {/* Trending badge */}
+        {course.isTrending && (
+          <div className="absolute top-2 right-2 bg-yellow-400 text-black text-[11px] sm:text-xs font-semibold px-2 py-1 rounded-full shadow-md">
+            Trending
+          </div>
+        )}
+
+        {/* Locked badge */}
+        {course.isLocked && (
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-gray-900/80 text-white text-[11px] sm:text-xs font-medium px-3 py-1 rounded-full shadow-md">
+            Locked by Admin
+          </div>
+        )}
+      </div>
 
       {/* CONTENT */}
       <div

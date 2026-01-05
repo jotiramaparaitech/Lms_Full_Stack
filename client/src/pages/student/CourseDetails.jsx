@@ -17,6 +17,7 @@ const CourseDetails = () => {
   const [isAlreadyEnrolled, setIsAlreadyEnrolled] = useState(false);
   const [openSections, setOpenSections] = useState({});
   const [isLoading, setIsLoading] = useState(false); // Loader for payment
+  const [isLocked, setIsLocked] = useState(false); // Locked by admin
 
   const {
     backendUrl,
@@ -41,6 +42,7 @@ const CourseDetails = () => {
       const { data } = await axios.get(`${backendUrl}/api/course/${id}`);
       if (data.success) {
         setCourseData(data.courseData);
+        setIsLocked(Boolean(data.courseData?.isLocked));
       } else {
         toast.error(data.message || "Failed to fetch course data.");
       }
@@ -93,6 +95,11 @@ const CourseDetails = () => {
 
     if (!id) {
       toast.error("Course ID is missing");
+      return;
+    }
+
+    if (isLocked) {
+      toast.error("This project is currently locked by the admin.");
       return;
     }
 
@@ -471,6 +478,13 @@ const CourseDetails = () => {
               </p>
             </div>
 
+            {isLocked && (
+              <div className="mt-3 text-sm text-red-600 font-medium">
+                This project is locked by the admin. Enrollment is temporarily
+                disabled, but you can still explore all the details.
+              </div>
+            )}
+
             {/* Stats */}
             <div className="flex items-center text-sm gap-4 pt-4 text-gray-500">
               <div className="flex items-center gap-1">
@@ -496,15 +510,17 @@ const CourseDetails = () => {
             {/* ENROLL BUTTON */}
             <button
               onClick={enrollCourse}
-              disabled={isLoading || isAlreadyEnrolled}
+              disabled={isLoading || isAlreadyEnrolled || isLocked}
               className={`mt-6 w-full py-3 rounded font-medium transition ${
-                isAlreadyEnrolled
+                isAlreadyEnrolled || isLocked
                   ? "bg-gray-400 cursor-not-allowed"
                   : "bg-blue-600 hover:bg-blue-700 text-white"
               }`}
             >
               {isAlreadyEnrolled
                 ? "Already Enrolled"
+                : isLocked
+                ? "Project Locked"
                 : isLoading
                 ? "Processing..."
                 : "Enroll Now"}

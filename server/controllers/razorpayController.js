@@ -114,6 +114,16 @@ export const createOrder = async (req, res) => {
       });
     }
 
+    // ⛔ Block purchase when course is locked by admin
+    if (course.isLocked) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "This project is currently locked by the admin and cannot be purchased.",
+        error: "COURSE_LOCKED",
+      });
+    }
+
     const alreadyEnrolled =
       user.enrolledCourses?.some(
         (enrolledCourseId) =>

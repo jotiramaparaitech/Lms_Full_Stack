@@ -15,6 +15,8 @@ const AddCourse = () => {
   const [customDomain, setCustomDomain] = useState("");
   const [coursePrice, setCoursePrice] = useState(0);
   const [discount, setDiscount] = useState(0);
+  const [isLocked, setIsLocked] = useState(false);
+  const [isTrending, setIsTrending] = useState(false);
   const [image, setImage] = useState(null);
   const [chapters, setChapters] = useState([]);
   const [showPopup, setShowPopup] = useState(false);
@@ -164,6 +166,8 @@ const AddCourse = () => {
         courseDescription: quillRef.current?.root?.innerHTML || "",
         coursePrice: Number(coursePrice),
         discount: Number(discount),
+        isLocked,
+        isTrending,
         courseContent: chapters,
         pdfResources: pdfs,
         customDomain,
@@ -188,6 +192,8 @@ const AddCourse = () => {
         setCourseTitle("");
         setCoursePrice(0);
         setDiscount(0);
+        setIsLocked(false);
+        setIsTrending(false);
         setImage(null);
         setChapters([]);
         setPdfs([]);
@@ -296,17 +302,38 @@ const AddCourse = () => {
           </div>
         </div>
 
-        {/* Discount */}
-        <div className="flex flex-col mb-5">
-          <label className="text-gray-700 font-semibold">Discount %</label>
-          <input
-            type="number"
-            min={0}
-            max={100}
-            value={discount}
-            onChange={(e) => setDiscount(e.target.value)}
-            className="mt-2 bg-white/80 text-gray-800 border border-gray-300 rounded-xl px-4 py-2.5 w-32 focus:outline-none focus:ring-2 focus:ring-[#80cbc4] shadow-inner"
-          />
+        {/* Discount & Flags */}
+        <div className="flex flex-wrap items-center gap-6 mb-5">
+          <div className="flex flex-col">
+            <label className="text-gray-700 font-semibold">Discount %</label>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              value={discount}
+              onChange={(e) => setDiscount(e.target.value)}
+              className="mt-2 bg-white/80 text-gray-800 border border-gray-300 rounded-xl px-4 py-2.5 w-32 focus:outline-none focus:ring-2 focus:ring-[#80cbc4] shadow-inner"
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="flex items-center gap-2 text-gray-700 font-semibold">
+              <input
+                type="checkbox"
+                checked={isLocked}
+                onChange={(e) => setIsLocked(e.target.checked)}
+              />
+              Lock Project (show details but disable purchase)
+            </label>
+            <label className="flex items-center gap-2 text-gray-700 font-semibold">
+              <input
+                type="checkbox"
+                checked={isTrending}
+                onChange={(e) => setIsTrending(e.target.checked)}
+              />
+              Mark as Trending (show at top)
+            </label>
+          </div>
         </div>
 
         {/* Chapters */}
