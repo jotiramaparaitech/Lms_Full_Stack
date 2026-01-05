@@ -19,12 +19,12 @@ const Hero = () => {
       {/* CONTENT */}
       <div className="relative w-full max-w-[1400px] mx-auto flex flex-col-reverse md:flex-row items-center justify-between px-6 sm:px-10 md:px-16 lg:px-24 py-16 md:py-24 lg:py-32">
         {/* LEFT SECTION */}
-        <div className="flex-1 text-left z-10">
+        <div className="flex-[1.2] text-left z-10">
           <motion.h1
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.8, type: "spring", stiffness: 100 }}
-            className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-gray-800 leading-tight"
+            className="text-[1.65rem] sm:text-4xl lg:text-5xl font-extrabold text-gray-800 leading-tight"
           >
             Shaping <span className="text-cyan-700">Future Developers</span>{" "}
             Through <span className="text-cyan-600">Aparaitech</span>
