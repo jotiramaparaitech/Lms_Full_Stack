@@ -55,8 +55,14 @@ import profile_img from "./profile_img.png";
 import profile_img2 from "./profile_img2.png";
 import profile_img3 from "./profile_img3.png";
 import lesson_icon from "./lesson_icon.svg";
+import microsoftTeamsIcon from "./microsoftTeamsIcon.svg";
+import supportIcon from "./supportIcon.png";
+import connect_img from "./connect_img.jpeg";
 
 export const assets = {
+  connect_img,
+  supportIcon,
+  microsoftTeamsIcon,
   whatsapplogos,
   logof,
   whatsappLogo,

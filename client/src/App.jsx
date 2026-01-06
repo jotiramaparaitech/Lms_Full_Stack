@@ -28,6 +28,9 @@ import Contact from "./pages/student/Contact";
 import AllProjectsModal from "./components/student/AllProjectsModal";
 import { AllProjectsContext } from "./components/student/Navbar";
 import InquiryModal from "./components/common/InquiryModal";
+import Connect from "./pages/student/Connect";
+
+import ScrollToTop from "./components/ScrollToTop";
 
 const App = () => {
   const { isEducator } = useContext(AppContext);
@@ -63,6 +66,7 @@ const AppContent = ({ isEducatorRoute, isEducator }) => {
       {/* {!isEducatorRoute && <InquiryModal />} */}
 
       {/* ================= ROUTES ================= */}
+      <ScrollToTop />
       <Routes>
         {/* 🧩 Student Routes */}
         <Route path="/" element={<Home />} />
@@ -74,6 +78,7 @@ const AppContent = ({ isEducatorRoute, isEducator }) => {
         <Route path="/loading/:path" element={<Loading />} />
         <Route path="/about" element={<About />} />
         <Route path="/contact" element={<Contact />} />
+        <Route path="/connect" element={<Connect />} />
 
         {/* 🧑‍🏫 Educator Routes (Protected) */}
         <Route

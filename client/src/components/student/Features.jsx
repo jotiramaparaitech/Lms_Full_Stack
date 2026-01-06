@@ -1,54 +1,49 @@
 import React, { useRef, useEffect, useState } from "react";
 import { assets } from "../../assets/assets";
 import { motion, useAnimation, useInView } from "framer-motion";
+import { Link } from "react-router-dom";
 
 const features = [
   {
-    title: "Experienced Tutors",
-    desc: "Learn from mentors who are experts in their own fields.",
-    icon: assets.lesson_icon,
-  },
-  {
-    title: "Interactive Live Classes",
-    desc: "Interact in live classes with renowned, expert faculty.",
-    icon: assets.play_icon,
-  },
-  {
-    title: "Pre-recorded Lectures",
-    desc: "Learn with simple, high-quality videos for better clarity.",
-    icon: assets.course_4_thumbnail,
-  },
-  {
-    title: "One-on-One Mentorship",
-    desc: "Get 24x7 support with mentors and your peer group.",
-    icon: assets.profile_img,
-  },
-  {
     title: "Globalized Certificates",
-    desc: "Earn professional certificates to showcase your skills.",
+    desc: "Earn professional certificates to showcase your industry-ready skills.",
     icon: assets.logo,
+    pdf: "/sample.pdf",
+    external: true, 
   },
   {
-    title: "Live Doubt Solving",
-    desc: "Connect with mentors directly and clarify doubts instantly.",
-    icon: assets.appointments_icon,
-  },
-  {
-    title: "Alerts & Notifications",
-    desc: "Stay updated with real-time alerts and course updates.",
+    title: "Connect With Us",
+    desc: "Follow our journey and never miss an important announcement.",
     icon: assets.blue_tick_icon,
+    link: "/connect",
+  },
+  {
+    title: "Microsoft Teams",
+    desc: "Collaborate with the community and work on live projects together.",
+    icon: assets.microsoftTeamsIcon,
+    link: "https://teams.live.com/l/community/FEAn5w7MQEcTVIEBQI",
+    external: true, // mark external links
   },
   {
     title: "Learn on the Go",
-    desc: "Study anytime, anywhere with our mobile-friendly platform.",
+    desc: "Study anytime, anywhere with our mobile-friendly platform and exclusive WhatsApp community.",
     icon: assets.whatsapplogos,
+    link: "https://whatsapp.com/channel/0029VbAqzsdCXC3IWPf3uG1O",
+    external: true,
+  },
+  {
+    title: "Support Query",
+    desc: "Ask your questions and get support instantly from our dedicated team.",
+    icon: assets.supportIcon,
+    link: "https://forms.gle/KMPcsShqiW1MCSLdA",
+    external: true,
   },
 ];
 
 const cardVariants = {
   offscreen: (i) => ({ y: 120, opacity: 0, scale: 0.98 }),
   onscreen: (i) => {
-    const cols = 4;
+    const cols = 5;
     const col = i % cols;
     const row = Math.floor(i / cols);
     const delay = col * 0.06 + row * 0.12;
@@ -78,20 +73,14 @@ const Features = () => {
   const headingInView = useInView(headingRef, { amount: 0.45, once: false });
   const gridInView = useInView(gridRef, { amount: 0.2, once: false });
 
-  // ✅ Title animation re-triggers every time
   useEffect(() => {
     if (headingInView) {
-      headingControls.start({
-        y: 0,
-        opacity: 1,
-        transition: { duration: 0.7, ease: "easeOut" },
-      });
+      headingControls.start({ y: 0, opacity: 1, transition: { duration: 0.7, ease: "easeOut" } });
     } else {
       headingControls.set({ y: -40, opacity: 0 });
     }
   }, [headingInView, headingControls]);
 
-  // ✅ Grid animation re-triggers every time
   useEffect(() => {
     if (gridInView) {
       gridControls.start("onscreen");
@@ -111,9 +100,72 @@ const Features = () => {
     };
   }, []);
 
+  // --- DESKTOP CARD RENDER LOGIC (Modified for alignment) ---
+  const renderCard = (f, idx) => {
+    const handleClick = () => {
+      if (f.pdf) {
+        window.open(f.pdf, "_blank"); // open PDF in new tab
+      }
+    };
+
+    const Card = (
+      <motion.div
+        custom={idx}
+        variants={cardVariants}
+        onClick={handleClick}
+        // Removed 'justify-between', added 'items-center' and removed 'min-h' reliance for layout
+        className="group relative bg-white rounded-2xl p-4 sm:p-5 lg:p-6 transform-gpu transition-all duration-400 ease-out cursor-pointer shadow-md hover:shadow-2xl md:hover:-translate-y-2
+                  flex flex-col items-center text-center min-h-[260px]"
+        style={{
+          willChange: "transform, box-shadow",
+          transformStyle: "preserve-3d",
+          transformOrigin: "center center",
+        }}
+      >
+        {/* 1. Fixed Icon Height Container */}
+        <div className="w-20 h-20 mb-4 bg-white rounded-lg flex items-center justify-center shadow-sm flex-shrink-0">
+          <img
+            src={f.icon}
+            alt={f.title}
+            className="w-12 h-12 object-contain"
+          />
+        </div>
+
+        {/* 2. Fixed Title Height Container (forces description alignment) */}
+        <div className="w-full min-h-[3.5rem] flex items-start justify-center mb-2">
+          <h3 className="text-base sm:text-lg font-semibold text-[#123168] leading-snug line-clamp-2">
+            {f.title}
+          </h3>
+        </div>
+
+        {/* 3. Description */}
+        <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
+          {f.desc}
+        </p>
+      </motion.div>
+    );
+
+    if (f.external && !f.pdf) {
+      return (
+        <a key={f.title} href={f.link} target="_blank" rel="noopener noreferrer" className="block h-full">
+          {Card}
+        </a>
+      );
+    } else if (f.link && !f.pdf) {
+      return (
+        <Link key={f.title} to={f.link} className="block h-full">
+          {Card}
+        </Link>
+      );
+    } else {
+      return <div key={f.title} className="h-full">{Card}</div>;
+    }
+  };
+
+
   return (
     <section className="w-full bg-[#eaf4fb] py-12 sm:py-16 lg:py-20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8">
         {isDesktop ? (
           <>
             <motion.h2
@@ -128,45 +180,17 @@ const Features = () => {
 
             <motion.div
               ref={gridRef}
-              className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 sm:gap-6 md:gap-8"
+              className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-5 md:gap-6"
               initial="offscreen"
               animate={gridControls}
-              viewport={{ once: false, amount: 0.2 }}
               variants={{ onscreen: {}, offscreen: {} }}
               style={{ perspective: 1200 }}
             >
-              {features.map((f, idx) => (
-                <motion.div
-                  key={f.title}
-                  custom={idx}
-                  variants={cardVariants}
-                  className="group relative bg-white rounded-2xl p-6 md:p-8 lg:p-10 transform-gpu transition-all duration-400 ease-out cursor-pointer shadow-md hover:shadow-2xl md:hover:-translate-y-2"
-                  style={{
-                    willChange: "transform, box-shadow",
-                    transformStyle: "preserve-3d",
-                    transformOrigin: "center center",
-                  }}
-                >
-                  <div className="flex flex-col items-center gap-4 sm:gap-5 h-full text-center">
-                    <div className="w-14 h-14 sm:w-16 sm:h-16 bg-white rounded-lg flex items-center justify-center shadow-sm">
-                      <img
-                        src={f.icon}
-                        alt={f.title}
-                        className="w-10 h-10 sm:w-12 sm:h-12 object-contain"
-                      />
-                    </div>
-                    <h3 className="text-lg sm:text-xl font-semibold text-[#123168] leading-6">
-                      {f.title}
-                    </h3>
-                    <p className="text-xs sm:text-sm md:text-sm text-gray-600 max-w-none md:max-w-xs">
-                      {f.desc}
-                    </p>
-                  </div>
-                </motion.div>
-              ))}
+              {features.map(renderCard)}
             </motion.div>
           </>
         ) : (
+          // --- MOBILE VIEW (Unchanged) ---
           <>
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-center text-[#1f3a8a] mb-8 sm:mb-12">
               Our Features
@@ -176,33 +200,57 @@ const Features = () => {
               className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 sm:gap-6 md:gap-8"
               style={{ perspective: 1200 }}
             >
-              {features.map((f) => (
-                <div
-                  key={f.title}
-                  className="group relative bg-white rounded-2xl p-6 md:p-8 lg:p-10 transform-gpu transition-all duration-400 ease-out cursor-pointer shadow-md"
-                  style={{
-                    willChange: "transform, box-shadow",
-                    transformStyle: "preserve-3d",
-                    transformOrigin: "center center",
-                  }}
-                >
-                  <div className="flex flex-col items-center gap-4 sm:gap-5 h-full text-center">
-                    <div className="w-14 h-14 sm:w-16 sm:h-16 bg-white rounded-lg flex items-center justify-center shadow-sm">
-                      <img
-                        src={f.icon}
-                        alt={f.title}
-                        className="w-10 h-10 sm:w-12 sm:h-12 object-contain"
-                      />
+              {features.map((f) => {
+                const handleClick = () => {
+                  if (f.pdf) {
+                    window.open(f.pdf, "_blank");
+                  }
+                };
+
+                const CardContent = (
+                  <div
+                    className="group relative bg-white rounded-2xl p-6 md:p-8 lg:p-10 transform-gpu transition-all duration-400 ease-out cursor-pointer shadow-md"
+                    style={{
+                      willChange: "transform, box-shadow",
+                      transformStyle: "preserve-3d",
+                      transformOrigin: "center center",
+                    }}
+                    onClick={handleClick}
+                  >
+                    <div className="flex flex-col items-center gap-4 sm:gap-5 h-full text-center">
+                      <div className="w-14 h-14 sm:w-16 sm:h-16 bg-white rounded-lg flex items-center justify-center shadow-sm">
+                        <img
+                          src={f.icon}
+                          alt={f.title}
+                          className="w-10 h-10 sm:w-12 sm:h-12 object-contain"
+                        />
+                      </div>
+                      <h3 className="text-lg sm:text-xl font-semibold text-[#123168] leading-6">
+                        {f.title}
+                      </h3>
+                      <p className="text-xs sm:text-sm md:text-sm text-gray-600 max-w-none md:max-w-xs">
+                        {f.desc}
+                      </p>
                     </div>
-                    <h3 className="text-lg sm:text-xl font-semibold text-[#123168] leading-6">
-                      {f.title}
-                    </h3>
-                    <p className="text-xs sm:text-sm md:text-sm text-gray-600 max-w-none md:max-w-xs">
-                      {f.desc}
-                    </p>
                   </div>
-                </div>
-              ))}
+                );
+
+                if (f.external && !f.pdf) {
+                  return (
+                    <a key={f.title} href={f.link} target="_blank" rel="noopener noreferrer">
+                      {CardContent}
+                    </a>
+                  );
+                } else if (f.link && !f.pdf) {
+                  return (
+                    <Link key={f.title} to={f.link}>
+                      {CardContent}
+                    </Link>
+                  );
+                } else {
+                  return <div key={f.title}>{CardContent}</div>;
+                }
+              })}
             </div>
           </>
         )}
