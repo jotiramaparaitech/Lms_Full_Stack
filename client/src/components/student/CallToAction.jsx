@@ -67,7 +67,7 @@ const CallToAction = () => {
         className="relative z-10 w-full md:w-1/2 flex justify-center mt-12 md:mt-0"
       >
         <img
-          src="https://res.cloudinary.com/dfytp36ni/image/upload/v1760176931/Gemini_Generated_Image_51un2h51un2h51un_aqv1tx.png"
+          src="https://res.cloudinary.com/dfytp36ni/image/upload/v1767678590/Gemini_Generated_Image_ldu3tb.png"
           alt="Company innovation illustration"
           className="w-3/4 max-w-lg drop-shadow-2xl rounded-3xl hover:scale-105 transition-transform duration-500"
         />
