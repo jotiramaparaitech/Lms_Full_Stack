@@ -44,7 +44,7 @@ const SearchBar = ({ data }) => {
         onChange={(e) => setInput(e.target.value)}
         value={input}
         type="text"
-        placeholder="Search for courses..."
+        placeholder="Search for Projects..."
         className="w-full h-full bg-transparent outline-none px-3 text-gray-700 placeholder-gray-400"
       />
 
