@@ -12,6 +12,7 @@ import {
   FaEnvelope,
   FaMapMarkerAlt,
 } from "react-icons/fa";
+import { FaXTwitter } from "react-icons/fa6";
 import emailjs from "@emailjs/browser";
 
 const Footer = () => {
@@ -381,11 +382,11 @@ const Footer = () => {
                   glow: "group-hover:shadow-blue-500/30",
                 },
                 {
-                  Icon: FaTwitter,
+                  Icon: FaXTwitter,
                   link: "https://x.com/Aparaitech",
-                  color: "group-hover:text-sky-400",
-                  bg: "group-hover:bg-sky-500/20",
-                  glow: "group-hover:shadow-sky-500/30",
+                  color: "text-white group-hover:text-white",
+                  bg: "bg-black/30 group-hover:bg-black/50",
+                  glow: "group-hover:shadow-black/50",
                 },
               ].map(({ Icon, link, color, bg, glow }, idx) => (
                 <a
