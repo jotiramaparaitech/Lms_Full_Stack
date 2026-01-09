@@ -31,6 +31,7 @@ import InquiryModal from "./components/common/InquiryModal";
 import Connect from "./pages/student/Connect";
 
 import ScrollToTop from "./components/ScrollToTop";
+import AllTestimonials from "./components/student/AllTestimonials";
 
 const App = () => {
   const { isEducator } = useContext(AppContext);
@@ -79,6 +80,7 @@ const AppContent = ({ isEducatorRoute, isEducator }) => {
         <Route path="/about" element={<About />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/connect" element={<Connect />} />
+        <Route path="/AllTestimonials" element={<AllTestimonials />} />
 
         {/* 🧑‍🏫 Educator Routes (Protected) */}
         <Route
