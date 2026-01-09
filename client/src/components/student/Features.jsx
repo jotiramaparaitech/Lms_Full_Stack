@@ -88,45 +88,53 @@ const cardVariants = {
 };
 
 // --- Reusable Card Content Component ---
-const CardContent = ({ f }) => (
-  // Added 'group' here to control hover states for children
+// UPDATED: Now accepts 'isDesktop' to conditionally disable hover effects
+const CardContent = ({ f, isDesktop }) => (
   <motion.div 
-    className="relative h-full flex flex-col justify-between p-6 z-10 overflow-hidden group bg-white rounded-2xl border border-gray-50 shadow-md hover:shadow-xl transition-shadow duration-300"
+    className="relative h-full flex flex-col justify-between p-6 z-10 overflow-hidden group bg-white rounded-2xl border border-gray-50 shadow-md transition-shadow duration-300"
+    // Apply hover shadow only on desktop
+    style={{
+        boxShadow: isDesktop ? undefined : "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)" 
+    }}
     initial="initial"
-    whileHover="hover"
+    // Only trigger hover variant if on Desktop. On mobile, trigger 'tap' for feedback.
+    whileHover={isDesktop ? "hover" : undefined}
+    whileTap={!isDesktop ? { scale: 0.98 } : undefined}
   >
     
-    {/* --- THE EXPANDING BLOB --- */}
-    {/* This sits behind the text (z-0) but above the white bg. Expands on hover. */}
-    <motion.div 
-      variants={{
-        initial: { scale: 2, opacity: 0.1 },
-        hover: { scale: 25, opacity: 5 }
-      }}
-      transition={{ duration: 1, ease: "easeOut" }}
-      className="absolute -bottom-10 -right-10 w-24 h-24 bg-gradient-to-br from-indigo-600 to-violet-600 rounded-full z-0 pointer-events-none"
-    ></motion.div>
+    {/* --- THE EXPANDING BLOB (Desktop Only) --- */}
+    {isDesktop && (
+        <motion.div 
+        variants={{
+            initial: { scale: 2, opacity: 0.1 },
+            hover: { scale: 25, opacity: 1 } // Fixed opacity from 5 to 1 (CSS max is 1)
+        }}
+        transition={{ duration: 1, ease: "easeOut" }}
+        className="absolute -bottom-10 -right-10 w-24 h-24 bg-gradient-to-br from-indigo-600 to-violet-600 rounded-full z-0 pointer-events-none"
+        ></motion.div>
+    )}
 
-
-    {/* --- TEXT CONTENT (Z-10 to stay on top) --- */}
+    {/* --- TEXT CONTENT --- */}
     <div className="flex flex-col items-start text-left z-10 relative">
-      <h3 className="text-2xl font-bold text-[#032d60] mb-3 group-hover:text-white transition-colors duration-300">
+      {/* Conditionally apply group-hover:text-white only if isDesktop is true */}
+      <h3 className={`text-2xl font-bold mb-3 transition-colors duration-300 ${isDesktop ? "text-[#032d60] group-hover:text-white" : "text-[#032d60]"}`}>
         {f.title}
       </h3>
-      <p className="text-base text-gray-600 leading-relaxed max-w-[85%] group-hover:text-indigo-100 transition-colors duration-300">
+      <p className={`text-base leading-relaxed max-w-[85%] transition-colors duration-300 ${isDesktop ? "text-gray-600 group-hover:text-indigo-100" : "text-gray-600"}`}>
         {f.desc}
       </p>
     </div>
 
-    {/* --- BOTTOM SECTION (Z-10) --- */}
+    {/* --- BOTTOM SECTION --- */}
     <div className="mt-8 pt-4 flex items-center z-10 relative">
-      <span className="text-sm font-semibold text-[#032d60] border-b border-[#032d60]/30 pb-0.5 group-hover:text-white group-hover:border-white transition-all duration-300 flex items-center">
+      <span className={`text-sm font-semibold border-b pb-0.5 transition-all duration-300 flex items-center ${isDesktop ? "text-[#032d60] border-[#032d60]/30 group-hover:text-white group-hover:border-white" : "text-[#032d60] border-[#032d60]/30"}`}>
         {f.cta || "Explore More"}
       </span>
     </div>
     
     {/* --- ICON CONTAINER --- */}
-    <div className="absolute bottom-5 right-5 w-14 h-14 bg-white rounded-full shadow-lg flex items-center justify-center z-10 group-hover:shadow-2xl group-hover:scale-110 transition-all duration-300">
+    {/* On mobile, we keep it static. On desktop, it animates. */}
+    <div className={`absolute bottom-5 right-5 w-14 h-14 bg-white rounded-full shadow-lg flex items-center justify-center z-10 transition-all duration-300 ${isDesktop ? "group-hover:shadow-2xl group-hover:scale-110" : ""}`}>
        <img src={f.icon} alt={f.title} className="w-7 h-7 object-contain" />
     </div>
 
@@ -143,12 +151,12 @@ const Features = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeFeature, setActiveFeature] = useState(null);
 
+  // Initialize state based on current window width to avoid hydration mismatch
   const [isDesktop, setIsDesktop] = useState(() => {
-    try {
+    if (typeof window !== "undefined") {
       return window.matchMedia("(min-width: 768px)").matches;
-    } catch {
-      return false;
     }
+    return false;
   });
 
   const headingInView = useInView(headingRef, { amount: 0.45, once: false });
@@ -173,10 +181,10 @@ const Features = () => {
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 768px)");
     const onChange = (e) => setIsDesktop(e.matches);
-    mq.addEventListener ? mq.addEventListener("change", onChange) : mq.addListener(onChange);
-    return () => {
-      mq.removeEventListener ? mq.removeEventListener("change", onChange) : mq.removeListener(onChange);
-    };
+    
+    // Modern event listener handling
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
   }, []);
 
   const openModal = (feature) => {
@@ -201,7 +209,7 @@ const Features = () => {
           onClick={handleCardClick}
           className={cardWrapperClass}
         >
-          <CardContent f={f} />
+          <CardContent f={f} isDesktop={true} />
         </motion.div>
       );
     }
@@ -210,7 +218,7 @@ const Features = () => {
       return (
         <a key={f.title} href={f.link} target="_blank" rel="noopener noreferrer" className="block h-full">
           <motion.div custom={idx} variants={cardVariants} className={cardWrapperClass}>
-            <CardContent f={f} />
+            <CardContent f={f} isDesktop={true} />
           </motion.div>
         </a>
       );
@@ -220,12 +228,12 @@ const Features = () => {
       return (
         <Link key={f.title} to={f.link} className="block h-full">
           <motion.div custom={idx} variants={cardVariants} className={cardWrapperClass}>
-            <CardContent f={f} />
+            <CardContent f={f} isDesktop={true} />
           </motion.div>
         </Link>
       );
     }
-    return <div key={f.title} className={cardWrapperClass}><CardContent f={f} /></div>;
+    return <div key={f.title} className={cardWrapperClass}><CardContent f={f} isDesktop={true} /></div>;
   };
 
   const renderMobileCard = (f) => {
@@ -237,21 +245,22 @@ const Features = () => {
     if (f.actions || f.pdf) {
       return (
         <div key={f.title} onClick={handleCardClick} className={cardWrapperClass}>
-          <CardContent f={f} />
+          {/* Passed isDesktop={false} to disable hover effects */}
+          <CardContent f={f} isDesktop={false} />
         </div>
       );
     }
     if (f.external) {
       return (
         <a key={f.title} href={f.link} target="_blank" rel="noopener noreferrer" className={cardWrapperClass}>
-          <CardContent f={f} />
+          <CardContent f={f} isDesktop={false} />
         </a>
       );
     }
     if (f.link) {
-      return <Link key={f.title} to={f.link} className={cardWrapperClass}><CardContent f={f} /></Link>;
+      return <Link key={f.title} to={f.link} className={cardWrapperClass}><CardContent f={f} isDesktop={false} /></Link>;
     }
-    return <div key={f.title} className={cardWrapperClass}><CardContent f={f} /></div>;
+    return <div key={f.title} className={cardWrapperClass}><CardContent f={f} isDesktop={false} /></div>;
   };
 
   return (
