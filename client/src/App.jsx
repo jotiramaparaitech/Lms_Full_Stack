@@ -29,6 +29,7 @@ import AllProjectsModal from "./components/student/AllProjectsModal";
 import { AllProjectsContext } from "./components/student/Navbar";
 import InquiryModal from "./components/common/InquiryModal";
 import Connect from "./pages/student/Connect";
+import AiAssistant from "./components/AiAssistant";
 
 import ScrollToTop from "./components/ScrollToTop";
 
@@ -97,8 +98,16 @@ const AppContent = ({ isEducatorRoute, isEducator }) => {
       {/* ✅ GLOBAL FOOTER (hidden on educator routes) */}
       {/* {!isEducatorRoute && <Footer />} */}
 
-      {/* 💬 Floating WhatsApp Button */}
-      <WhatsAppButton />
+      {/* 🤖 AI Assistant -> BOTTOM LEFT */}
+      <div className="fixed bottom-6 right-6 z-50">
+        <AiAssistant />
+      </div>
+
+      {/* 💬 WhatsApp -> BOTTOM RIGHT */}
+      {/* Wrapped in a div to force it to the right side if it doesn't do it automatically */}
+      <div className="fixed bottom-6 right-6 z-50">
+        <WhatsAppButton />
+      </div>
       {/* <ChatbotWidget /> */}
     </div>
   );

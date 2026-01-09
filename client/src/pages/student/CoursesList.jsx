@@ -296,13 +296,14 @@ const CoursesList = () => {
                 >
                   {courses.map((course, index) => (
                     <motion.div
-                      key={index}
-                      variants={cardVariants}
-                      initial="hidden"
-                      animate="visible"
-                      whileHover="hover"
-                      className="w-full flex justify-center relative"
-                    >
+                       key={index}
+                       variants={cardVariants}
+                       initial="hidden"
+                       animate="visible"
+                       whileHover="hover"
+                       onClick={() => navigate(`/course/${course._id}`)}
+                       className="w-full flex justify-center relative cursor-pointer"
+                     >
                       {/* Elegant hover overlay */}
                       <motion.div
                         className="absolute -inset-2 bg-gradient-to-r from-blue-500/5 via-cyan-500/5 to-blue-500/5 rounded-2xl opacity-0"
