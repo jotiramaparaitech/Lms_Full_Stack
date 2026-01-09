@@ -58,9 +58,19 @@ import lesson_icon from "./lesson_icon.svg";
 import microsoftTeamsIcon from "./microsoftTeamsIcon.svg";
 import supportIcon from "./supportIcon.png";
 import connect_img from "./connect_img.jpeg";
+import connect_icon from "./connect_icon.png";
+import registrationIcon from "./registrationIcon.png";
+import Job_apply from "./Job_apply.png";
+import enquiryIcon from "./enquiryIcon.png";
+import logo_s from "./logo_s.png";
 
 
 export const assets = {
+  logo_s,
+  enquiryIcon,
+  Job_apply,
+  registrationIcon,
+  connect_icon,
   connect_img,
   supportIcon,
   microsoftTeamsIcon,

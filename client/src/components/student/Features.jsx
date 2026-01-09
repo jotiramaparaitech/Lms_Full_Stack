@@ -1,83 +1,172 @@
 import React, { useRef, useEffect, useState } from "react";
 import { assets } from "../../assets/assets";
 import { motion, useAnimation, useInView } from "framer-motion";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 const features = [
   {
     title: "Globalized Certificates",
     desc: "Earn professional certificates to showcase your industry-ready skills.",
-    icon: assets.logo,
+    icon: assets.logo_s,
     pdf: "/sample.pdf",
-    external: true, 
+    external: true
   },
   {
     title: "Connect With Us",
     desc: "Follow our journey and never miss an important announcement.",
-    icon: assets.blue_tick_icon,
+    icon: assets.connect_icon,
     link: "/connect",
+    cta: "Follow Now"
   },
   {
     title: "Microsoft Teams",
     desc: "Collaborate with the community and work on live projects together.",
     icon: assets.microsoftTeamsIcon,
     link: "https://teams.live.com/l/community/FEAn5w7MQEcTVIEBQI",
-    external: true, // mark external links
+    external: true,
+    cta: "Join Team"
   },
   {
     title: "Learn on the Go",
-    desc: "Study anytime, anywhere with our mobile-friendly platform and exclusive WhatsApp community.",
+    desc: "Study anytime, anywhere with our mobile-friendly platform.",
     icon: assets.whatsapplogos,
     link: "https://whatsapp.com/channel/0029VbAqzsdCXC3IWPf3uG1O",
     external: true,
+    cta: "Join Channel"
+  },
+  {
+    title: "Registration",
+    desc: "Complete your registration to access live projects and exclusive opportunities.",
+    icon: assets.registrationIcon,
+    link: "https://forms.gle/Qmoio93xjaZsSGHy7",
+    external: true,
+    cta: "Register Now"
+  },
+  {
+    title: "Apply for Job",
+    desc: "Explore open positions and apply for roles that match your skills.",
+    icon: assets.Job_apply,
+    actions: [
+      { label: "Software Developer", type: "external", target: "https://forms.gle/duaAAf3ToFTqCFNL7" },
+      { label: "Business Development Associate", type: "external", target: "https://forms.gle/VhKk9GjBqD5jZ3uPA" }
+    ],
+    cta: "Apply Now"
+  },
+  {
+    title: "Enquiry Form",
+    desc: "Have questions? Submit an enquiry and we will get back to you.",
+    icon: assets.enquiryIcon,
+    link: "https://forms.gle/6uAMoSrHvsa82fx9A",
+    external: true,
+    cta: "Contact Us"
   },
   {
     title: "Support Query",
-    desc: "Ask your questions and get support instantly from our dedicated team.",
+    desc: "Ask your questions and get support instantly from our team.",
     icon: assets.supportIcon,
     link: "https://forms.gle/KMPcsShqiW1MCSLdA",
     external: true,
+    cta: "Get Help"
   },
 ];
 
 const cardVariants = {
-  offscreen: (i) => ({ y: 120, opacity: 0, scale: 0.98 }),
+  offscreen: (i) => ({ y: 50, opacity: 0 }),
   onscreen: (i) => {
-    const cols = 5;
-    const col = i % cols;
-    const row = Math.floor(i / cols);
-    const delay = col * 0.06 + row * 0.12;
+    const delay = i * 0.05;
     return {
       y: 0,
       opacity: 1,
-      scale: 1,
-      transition: { delay, type: "spring", stiffness: 120, damping: 14 },
+      transition: {
+        delay,
+        type: "spring",
+        stiffness: 50,
+        damping: 10,
+      },
     };
   },
 };
+
+// --- Reusable Card Content Component ---
+// UPDATED: Now accepts 'isDesktop' to conditionally disable hover effects
+const CardContent = ({ f, isDesktop }) => (
+  <motion.div 
+    className="relative h-full flex flex-col justify-between p-6 z-10 overflow-hidden group bg-white rounded-2xl border border-gray-50 shadow-md transition-shadow duration-300"
+    // Apply hover shadow only on desktop
+    style={{
+        boxShadow: isDesktop ? undefined : "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)" 
+    }}
+    initial="initial"
+    // Only trigger hover variant if on Desktop. On mobile, trigger 'tap' for feedback.
+    whileHover={isDesktop ? "hover" : undefined}
+    whileTap={!isDesktop ? { scale: 0.98 } : undefined}
+  >
+    
+    {/* --- THE EXPANDING BLOB (Desktop Only) --- */}
+    {isDesktop && (
+        <motion.div 
+        variants={{
+            initial: { scale: 2, opacity: 0.1 },
+            hover: { scale: 25, opacity: 1 } // Fixed opacity from 5 to 1 (CSS max is 1)
+        }}
+        transition={{ duration: 1, ease: "easeOut" }}
+        className="absolute -bottom-10 -right-10 w-24 h-24 bg-gradient-to-br from-indigo-600 to-violet-600 rounded-full z-0 pointer-events-none"
+        ></motion.div>
+    )}
+
+    {/* --- TEXT CONTENT --- */}
+    <div className="flex flex-col items-start text-left z-10 relative">
+      {/* Conditionally apply group-hover:text-white only if isDesktop is true */}
+      <h3 className={`text-2xl font-bold mb-3 transition-colors duration-300 ${isDesktop ? "text-[#032d60] group-hover:text-white" : "text-[#032d60]"}`}>
+        {f.title}
+      </h3>
+      <p className={`text-base leading-relaxed max-w-[85%] transition-colors duration-300 ${isDesktop ? "text-gray-600 group-hover:text-indigo-100" : "text-gray-600"}`}>
+        {f.desc}
+      </p>
+    </div>
+
+    {/* --- BOTTOM SECTION --- */}
+    <div className="mt-8 pt-4 flex items-center z-10 relative">
+      <span className={`text-sm font-semibold border-b pb-0.5 transition-all duration-300 flex items-center ${isDesktop ? "text-[#032d60] border-[#032d60]/30 group-hover:text-white group-hover:border-white" : "text-[#032d60] border-[#032d60]/30"}`}>
+        {f.cta || "Explore More"}
+      </span>
+    </div>
+    
+    {/* --- ICON CONTAINER --- */}
+    {/* On mobile, we keep it static. On desktop, it animates. */}
+    <div className={`absolute bottom-5 right-5 w-14 h-14 bg-white rounded-full shadow-lg flex items-center justify-center z-10 transition-all duration-300 ${isDesktop ? "group-hover:shadow-2xl group-hover:scale-110" : ""}`}>
+       <img src={f.icon} alt={f.title} className="w-7 h-7 object-contain" />
+    </div>
+
+  </motion.div>
+);
 
 const Features = () => {
   const headingRef = useRef(null);
   const gridRef = useRef(null);
   const headingControls = useAnimation();
   const gridControls = useAnimation();
+  const navigate = useNavigate();
 
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [activeFeature, setActiveFeature] = useState(null);
+
+  // Initialize state based on current window width to avoid hydration mismatch
   const [isDesktop, setIsDesktop] = useState(() => {
-    try {
+    if (typeof window !== "undefined") {
       return window.matchMedia("(min-width: 768px)").matches;
-    } catch (e) {
-      return false;
     }
+    return false;
   });
 
   const headingInView = useInView(headingRef, { amount: 0.45, once: false });
-  const gridInView = useInView(gridRef, { amount: 0.2, once: false });
+  const gridInView = useInView(gridRef, { amount: 0.1, once: false });
 
   useEffect(() => {
     if (headingInView) {
-      headingControls.start({ y: 0, opacity: 1, transition: { duration: 0.7, ease: "easeOut" } });
+      headingControls.start({ opacity: 1, y: 0, transition: { duration: 0.7 } });
     } else {
-      headingControls.set({ y: -40, opacity: 0 });
+      headingControls.set({ opacity: 0, y: -20 });
     }
   }, [headingInView, headingControls]);
 
@@ -92,169 +181,175 @@ const Features = () => {
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 768px)");
     const onChange = (e) => setIsDesktop(e.matches);
-    if (mq.addEventListener) mq.addEventListener("change", onChange);
-    else mq.addListener(onChange);
-    return () => {
-      if (mq.removeEventListener) mq.removeEventListener("change", onChange);
-      else mq.removeListener(onChange);
-    };
+    
+    // Modern event listener handling
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
   }, []);
 
-  // --- DESKTOP CARD RENDER LOGIC (Modified for alignment) ---
-  const renderCard = (f, idx) => {
-    const handleClick = () => {
-      if (f.pdf) {
-        window.open(f.pdf, "_blank"); // open PDF in new tab
-      }
-    };
-
-    const Card = (
-      <motion.div
-        custom={idx}
-        variants={cardVariants}
-        onClick={handleClick}
-        // Removed 'justify-between', added 'items-center' and removed 'min-h' reliance for layout
-        className="group relative bg-white rounded-2xl p-4 sm:p-5 lg:p-6 transform-gpu transition-all duration-400 ease-out cursor-pointer shadow-md hover:shadow-2xl md:hover:-translate-y-2
-                  flex flex-col items-center text-center min-h-[260px]"
-        style={{
-          willChange: "transform, box-shadow",
-          transformStyle: "preserve-3d",
-          transformOrigin: "center center",
-        }}
-      >
-        {/* 1. Fixed Icon Height Container */}
-        <div className="w-20 h-20 mb-4 bg-white rounded-lg flex items-center justify-center shadow-sm flex-shrink-0">
-          <img
-            src={f.icon}
-            alt={f.title}
-            className="w-12 h-12 object-contain"
-          />
-        </div>
-
-        {/* 2. Fixed Title Height Container (forces description alignment) */}
-        <div className="w-full min-h-[3.5rem] flex items-start justify-center mb-2">
-          <h3 className="text-base sm:text-lg font-semibold text-[#123168] leading-snug line-clamp-2">
-            {f.title}
-          </h3>
-        </div>
-
-        {/* 3. Description */}
-        <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
-          {f.desc}
-        </p>
-      </motion.div>
-    );
-
-    if (f.external && !f.pdf) {
-      return (
-        <a key={f.title} href={f.link} target="_blank" rel="noopener noreferrer" className="block h-full">
-          {Card}
-        </a>
-      );
-    } else if (f.link && !f.pdf) {
-      return (
-        <Link key={f.title} to={f.link} className="block h-full">
-          {Card}
-        </Link>
-      );
-    } else {
-      return <div key={f.title} className="h-full">{Card}</div>;
-    }
+  const openModal = (feature) => {
+    setActiveFeature(feature);
+    setIsModalOpen(true);
   };
 
+  const cardWrapperClass = "h-[280px] w-full block cursor-pointer";
+
+  const renderCard = (f, idx) => {
+    const handleCardClick = () => {
+      if (f.pdf) window.open(f.pdf, "_blank");
+      else if (f.actions) openModal(f);
+    };
+
+    if (f.actions || f.pdf) {
+      return (
+        <motion.div
+          key={f.title}
+          custom={idx}
+          variants={cardVariants}
+          onClick={handleCardClick}
+          className={cardWrapperClass}
+        >
+          <CardContent f={f} isDesktop={true} />
+        </motion.div>
+      );
+    }
+
+    if (f.external) {
+      return (
+        <a key={f.title} href={f.link} target="_blank" rel="noopener noreferrer" className="block h-full">
+          <motion.div custom={idx} variants={cardVariants} className={cardWrapperClass}>
+            <CardContent f={f} isDesktop={true} />
+          </motion.div>
+        </a>
+      );
+    }
+
+    if (f.link) {
+      return (
+        <Link key={f.title} to={f.link} className="block h-full">
+          <motion.div custom={idx} variants={cardVariants} className={cardWrapperClass}>
+            <CardContent f={f} isDesktop={true} />
+          </motion.div>
+        </Link>
+      );
+    }
+    return <div key={f.title} className={cardWrapperClass}><CardContent f={f} isDesktop={true} /></div>;
+  };
+
+  const renderMobileCard = (f) => {
+    const handleCardClick = () => {
+      if (f.pdf) window.open(f.pdf, "_blank");
+      else if (f.actions) openModal(f);
+    };
+
+    if (f.actions || f.pdf) {
+      return (
+        <div key={f.title} onClick={handleCardClick} className={cardWrapperClass}>
+          {/* Passed isDesktop={false} to disable hover effects */}
+          <CardContent f={f} isDesktop={false} />
+        </div>
+      );
+    }
+    if (f.external) {
+      return (
+        <a key={f.title} href={f.link} target="_blank" rel="noopener noreferrer" className={cardWrapperClass}>
+          <CardContent f={f} isDesktop={false} />
+        </a>
+      );
+    }
+    if (f.link) {
+      return <Link key={f.title} to={f.link} className={cardWrapperClass}><CardContent f={f} isDesktop={false} /></Link>;
+    }
+    return <div key={f.title} className={cardWrapperClass}><CardContent f={f} isDesktop={false} /></div>;
+  };
 
   return (
-    <section className="w-full bg-[#eaf4fb] py-12 sm:py-16 lg:py-20">
-      <div className="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8">
-        {isDesktop ? (
-          <>
-            <motion.h2
-              ref={headingRef}
-              initial={{ opacity: 0, y: -40 }}
-              animate={headingControls}
-              viewport={{ once: false, amount: 0.5 }}
-              className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-center text-[#1f3a8a] mb-8 sm:mb-12"
-            >
-              Our Features
-            </motion.h2>
+    <section className="w-full bg-[#f8fbfe] py-16 lg:py-24">
+      <div className="max-w-[85rem] mx-auto px-4 sm:px-6 lg:px-8">
+        
+        {/* Header Section */}
+        <motion.div 
+           ref={headingRef}
+           animate={headingControls}
+           initial={{opacity:0, y:-20}}
+           className="text-center mb-16"
+        >
+          <h2 className="text-3xl md:text-5xl font-extrabold text-[#032d60] tracking-tight mb-4">
+            Everything you need to grow
+          </h2>
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            Connect, learn, and accelerate your career with our comprehensive ecosystem.
+          </p>
+        </motion.div>
 
+        {/* Desktop Grid */}
+        {isDesktop ? (
             <motion.div
               ref={gridRef}
-              className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-5 md:gap-6"
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8"
               initial="offscreen"
               animate={gridControls}
-              variants={{ onscreen: {}, offscreen: {} }}
-              style={{ perspective: 1200 }}
             >
               {features.map(renderCard)}
             </motion.div>
-          </>
         ) : (
-          // --- MOBILE VIEW (Unchanged) ---
-          <>
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-center text-[#1f3a8a] mb-8 sm:mb-12">
-              Our Features
-            </h2>
-
-            <div
-              className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 sm:gap-6 md:gap-8"
-              style={{ perspective: 1200 }}
-            >
-              {features.map((f) => {
-                const handleClick = () => {
-                  if (f.pdf) {
-                    window.open(f.pdf, "_blank");
-                  }
-                };
-
-                const CardContent = (
-                  <div
-                    className="group relative bg-white rounded-2xl p-6 md:p-8 lg:p-10 transform-gpu transition-all duration-400 ease-out cursor-pointer shadow-md"
-                    style={{
-                      willChange: "transform, box-shadow",
-                      transformStyle: "preserve-3d",
-                      transformOrigin: "center center",
-                    }}
-                    onClick={handleClick}
-                  >
-                    <div className="flex flex-col items-center gap-4 sm:gap-5 h-full text-center">
-                      <div className="w-14 h-14 sm:w-16 sm:h-16 bg-white rounded-lg flex items-center justify-center shadow-sm">
-                        <img
-                          src={f.icon}
-                          alt={f.title}
-                          className="w-10 h-10 sm:w-12 sm:h-12 object-contain"
-                        />
-                      </div>
-                      <h3 className="text-lg sm:text-xl font-semibold text-[#123168] leading-6">
-                        {f.title}
-                      </h3>
-                      <p className="text-xs sm:text-sm md:text-sm text-gray-600 max-w-none md:max-w-xs">
-                        {f.desc}
-                      </p>
-                    </div>
-                  </div>
-                );
-
-                if (f.external && !f.pdf) {
-                  return (
-                    <a key={f.title} href={f.link} target="_blank" rel="noopener noreferrer">
-                      {CardContent}
-                    </a>
-                  );
-                } else if (f.link && !f.pdf) {
-                  return (
-                    <Link key={f.title} to={f.link}>
-                      {CardContent}
-                    </Link>
-                  );
-                } else {
-                  return <div key={f.title}>{CardContent}</div>;
-                }
-              })}
+          /* Mobile Grid */
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              {features.map(renderMobileCard)}
             </div>
-          </>
         )}
       </div>
+
+      {/* ========================= MODAL ========================= */}
+      {isModalOpen && activeFeature && (
+        <div className="fixed inset-0 z-50 bg-[#032d60]/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl relative overflow-hidden"
+          >
+             {/* Decorative top bar */}
+             <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-indigo-500 to-purple-600"></div>
+
+            <div className="flex flex-col items-center mb-6 mt-2">
+                <div className="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center mb-3">
+                    <img src={activeFeature.icon} alt={activeFeature.title} className="w-8 h-8" />
+                </div>
+                <h3 className="text-xl font-bold text-[#032d60] text-center">
+                {activeFeature.title}
+                </h3>
+            </div>
+
+            <div className="space-y-3">
+              {activeFeature.actions?.map((a, i) => (
+                <button
+                  key={i}
+                  className="w-full py-3.5 px-4 rounded-xl bg-gray-50 text-gray-700 font-semibold hover:bg-indigo-600 hover:text-white transition-all duration-200 flex items-center justify-between group"
+                  onClick={() => {
+                    if (a.type === "internal") navigate(a.target);
+                    if (a.type === "external") window.open(a.target, "_blank");
+                    setIsModalOpen(false);
+                    setActiveFeature(null);
+                  }}
+                >
+                  {a.label}
+                  <span className="opacity-0 group-hover:opacity-100 transition-opacity">→</span>
+                </button>
+              ))}
+            </div>
+
+            <button
+              className="mt-6 w-full py-2 text-sm text-gray-400 hover:text-gray-700 transition-colors"
+              onClick={() => {
+                setIsModalOpen(false);
+                setActiveFeature(null);
+              }}
+            >
+              Close
+            </button>
+          </motion.div>
+        </div>
+      )}
     </section>
   );
 };
