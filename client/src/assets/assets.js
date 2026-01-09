@@ -64,6 +64,7 @@ import Job_apply from "./Job_apply.png";
 import enquiryIcon from "./enquiryIcon.png";
 import logo_s from "./logo_s.png";
 
+
 export const assets = {
   logo_s,
   enquiryIcon,
@@ -156,6 +157,78 @@ export const dummyTestimonial = [
     rating: 4.5,
     feedback:
       "Aparaitech’s training made everything so practical. I worked on real-time vulnerability analysis and learned tools I never touched before. This course finally gave direction to my career.",
+  },
+  {
+    name: "Suraj Patil",
+    role: "Software Trainee",
+    rating: 5,
+    image: "", // NO PHOTO
+    feedback:
+      "Aparaitech is a fast-growing technology company known for its strong industry collaboration, professional work culture, and quality-driven approach. The company focuses on delivering innovative IT solutions, live industry projects, and practical learning opportunities aligned with real-world business needs.",
+  },
+  {
+    name: "Mahevish Pathan",
+    role: "Intern",
+    rating: 5,
+    image: "",
+    feedback:
+      "My first day at Aparaitech Company was an exciting and memorable experience. The HR team warmly welcomed us and introduced the company vision, work culture, and technologies. The positive atmosphere motivated me to grow professionally, and English communication is strongly encouraged.",
+  },
+  {
+    name: "Fardin Dange",
+    role: "Developer",
+    rating: 5,
+    image: "",
+    feedback:
+      "Joined Aparaitech as a Developer and my first-day experience was really great. The work environment is extremely cooperative, with a quality office setup and very positive staff support.",
+  },
+  {
+    name: "Jotiram Shinde",
+    role: "Software Engineer",
+    rating: 5,
+    image: "",
+    feedback:
+      "I am extremely proud to be a part of Aparaitech Software. The work environment is highly positive, friendly, and motivating, providing excellent opportunities for continuous learning and growth.",
+  },
+  {
+    name: "Kranti Chavan",
+    role: "Trainee",
+    rating: 5,
+    image: "",
+    feedback:
+      "My first day went well. The environment was clean and comfortable. The induction program helped me understand software training and the BDA domain, making me confident about my role.",
+  },
+  {
+    name: "Samiksha More",
+    role: "Intern",
+    rating: 5,
+    image: "",
+    feedback:
+      "Thank you Aparaitech for giving me this excellent opportunity. The experience has been truly enriching with hands-on learning and valuable guidance from a supportive professional team.",
+  },
+  {
+    name: "Seema Dhope",
+    role: "Trainee",
+    rating: 4,
+    image: "",
+    feedback:
+      "The first day at Aparaitech was informative and well-organized. Trainers clearly explained the course structure and expectations, giving a positive start to the training program.",
+  },
+  {
+    name: "Diba Shaikh",
+    role: "Software Associate",
+    rating: 5,
+    image: "",
+    feedback:
+      "Aparaitech is a growing software company known for innovative digital solutions, skilled professionals, and a supportive learning environment. Great place to work and collaborate.",
+  },
+  {
+    name: "Sudarshan Patil",
+    role: "Intern",
+    rating: 5,
+    image: "",
+    feedback:
+      "My first day was a great experience. The onboarding was smooth, the team was welcoming, and the work environment felt positive and professional. Excited for this journey.",
   },
 ];
 
