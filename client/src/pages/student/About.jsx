@@ -50,8 +50,9 @@ const About = () => {
               Our Mission
             </h3>
             <p className="text-gray-600 text-sm">
-              To provide a smart learning environment that empowers both
-              students and educators with the right tools for success.
+              To provide real-world, industry-level project experience that
+              helps learners build practical skills and become job-ready across
+              30+ technology domains.
             </p>
           </div>
 
@@ -60,8 +61,10 @@ const About = () => {
               Our Vision
             </h3>
             <p className="text-gray-600 text-sm">
-              To revolutionize education by integrating innovation and
-              technology into every aspect of the learning experience.
+              To lead the future of technology by delivering AI-driven solutions
+              and learning experiences that empower individuals and
+              organizations to innovate, grow, and succeed in a rapidly evolving
+              digital world.
             </p>
           </div>
         </motion.div>
