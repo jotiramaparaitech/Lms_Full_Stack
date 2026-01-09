@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, useAnimation } from "framer-motion";
 import { assets, dummyTestimonial } from "../../assets/assets";
+import { Link } from "react-router-dom";
+
 
 const SCROLL_DURATION = 60; // desktop speed
 
@@ -103,14 +105,15 @@ const TestimonialsSection = () => {
 
         {/* CTA */}
         <div className="flex justify-center mt-16">
-          <button
-            className="inline-block px-8 py-3 text-base font-semibold
-                       bg-gradient-to-r from-blue-600 to-purple-600
-                       text-white rounded-xl shadow-md
-                       hover:scale-105 hover:shadow-lg transition-all duration-300"
-          >
-            View All Testimonials
-          </button>
+          <Link
+             to="/AllTestimonials"
+             className="inline-block px-8 py-3 text-base font-semibold
+                        bg-gradient-to-r from-blue-600 to-purple-600
+                        text-white rounded-xl shadow-md
+                        hover:scale-105 hover:shadow-lg transition-all duration-300"
+           >
+             View All Testimonials
+           </Link>
         </div>
       </div>
     </section>
