@@ -32,10 +32,11 @@ const About = () => {
           transition={{ delay: 0.5 }}
           className="max-w-3xl text-gray-600 leading-relaxed text-lg"
         >
-          Aparaitech LMS is an advanced learning management system designed to
-          connect educators and students seamlessly. Our mission is to make
-          learning more interactive, efficient, and accessible through modern
-          technology and intuitive design.
+          Aparaitech is a technology-driven software company focused on building
+          skilled professionals through live, industry-level projects. We
+          provide real-world learning experiences across 30+ domains, bridging
+          the gap between academic knowledge and practical industry
+          requirements.
         </motion.p>
 
         <motion.div
