@@ -67,11 +67,11 @@ const AiAssistant = () => {
         speak("Going home");
         navigate("/");
       } 
-      else if (transcript.includes("courses") || transcript.includes("library")) {
-        speak("Opening courses");
+      else if (transcript.includes("Projects") || transcript.includes("library")) {
+        speak("Opening Live Projects");
         navigate("/course-list");
       } 
-      else if (transcript.includes("my courses") || transcript.includes("dashboard")) {
+      else if (transcript.includes("my Projects") || transcript.includes("dashboard")) {
         speak("Opening dashboard");
         navigate("/my-enrollments");
       } 
