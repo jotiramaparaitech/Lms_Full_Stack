@@ -114,25 +114,6 @@ const CallToAction = () => {
                 alt="Learning illustration"
                 className="w-full h-auto"
               />
-              {/* Overlay text on image */}
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-6">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                  <div>
-                    <p className="text-white font-semibold text-lg">
-                      Complete registration for exclusive opportunities
-                    </p>
-                    <p className="text-gray-300 text-sm mt-1">
-                      Need Help? <span className="text-blue-300 cursor-pointer">Chat with us</span>
-                    </p>
-                  </div>
-                  <button 
-                    onClick={() => window.open("https://docs.google.com/forms/d/e/1FAIpQLSdV28Z8FaTpOCm54BpChAh0tleDwQaoWWsSBNUI4uCNSbsQMA/viewform", "_blank")}
-                    className="text-blue-300 hover:text-white text-sm font-medium px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors whitespace-nowrap"
-                  >
-                    Apply Now →
-                  </button>
-                </div>
-              </div>
             </div>
           </div>
         </motion.div>
