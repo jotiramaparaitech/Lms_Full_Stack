@@ -6,10 +6,10 @@ import {
   FaFacebookF, 
   FaInstagram, 
   FaLinkedinIn, 
-  FaTwitter, 
   FaYoutube,
   FaChevronRight 
 } from "react-icons/fa";
+import { FaXTwitter } from "react-icons/fa6";
 
 const Connect = () => {
   const socialLinks = [
@@ -24,7 +24,7 @@ const Connect = () => {
     {
       name: "X (Twitter)",
       url: "https://x.com/Aparaitech/with_replies",
-      icon: <FaTwitter className="text-2xl text-black" />,
+      icon: <FaXTwitter className="text-2xl text-black" />,
       iconBg: "bg-gray-100",
       desc: "Real-time updates & discussions.",
     },

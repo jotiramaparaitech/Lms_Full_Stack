@@ -100,13 +100,10 @@ const AppContent = ({ isEducatorRoute, isEducator }) => {
       {/* ✅ GLOBAL FOOTER (hidden on educator routes) */}
       {/* {!isEducatorRoute && <Footer />} */}
 
-      {/* 🤖 AI Assistant -> BOTTOM LEFT */}
-      <div className="fixed bottom-6 right-6 z-50">
+      <div className="fixed bottom-6 left-6 z-50">
         <AiAssistant />
       </div>
 
-      {/* 💬 WhatsApp -> BOTTOM RIGHT */}
-      {/* Wrapped in a div to force it to the right side if it doesn't do it automatically */}
       <div className="fixed bottom-6 right-6 z-50">
         <WhatsAppButton />
       </div>
