@@ -292,7 +292,7 @@ const CoursesList = () => {
                   variants={containerVariants}
                   initial="hidden"
                   animate="visible"
-                  className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-6 md:gap-8 place-items-center"
+                  className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-6 md:gap-8 place-items-start"
                 >
                   {courses.map((course, index) => (
                     <motion.div
