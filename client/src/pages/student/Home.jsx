@@ -10,15 +10,35 @@ import CallToAction from "../../components/student/CallToAction";
 const Home = () => {
   return (
     <div className="flex flex-col items-center text-center">
-      <Hero id="hero" />
-      <Features />
-      <Companies />
-      <div id="courses">
+      
+      {/* Hero Section */}
+      <div id="hero" className="w-full">
+        <Hero />
+      </div>
+
+      {/* Features / Services Section */}
+      <div id="features" className="w-full">
+        <Features />
+      </div>
+
+      {/* Companies Section */}
+      <div id="companies" className="w-full">
+        <Companies />
+      </div>
+
+      {/* Courses Section */}
+      <div id="courses" className="w-full">
         <CoursesSection />
       </div>
-      <TestimonialsSection />
+
+      {/* Testimonials Section */}
+      <div id="testimonials" className="w-full">
+        <TestimonialsSection />
+      </div>
+
       <CallToAction />
-      {/* ✅ Added ID for smooth scroll from Navbar */}
+
+      {/* Footer / Contact Section */}
       <div id="contact-section" className="w-full">
         <Footer />
       </div>
