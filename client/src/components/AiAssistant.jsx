@@ -67,8 +67,8 @@ const AiAssistant = () => {
         speak("Going home");
         navigate("/");
       } 
-      else if (transcript.includes("courses") || transcript.includes("library")) {
-        speak("Opening courses");
+      else if (transcript.includes("projects") || transcript.includes("library")) {
+        speak("Opening projects");
         navigate("/course-list");
       } 
       else if (transcript.includes("my courses") || transcript.includes("dashboard")) {
