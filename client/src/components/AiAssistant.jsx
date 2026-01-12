@@ -199,33 +199,7 @@ const AiAssistant = () => {
         window.scrollTo({ top: 0, behavior: "smooth" });
       } else {
         navigate("/");
-<<<<<<< HEAD
-      } 
-      else if (transcript.includes("projects") || transcript.includes("library")) {
-        speak("Opening projects");
-        navigate("/course-list");
-      } 
-      else if (transcript.includes("my courses") || transcript.includes("dashboard")) {
-        speak("Opening dashboard");
-        navigate("/my-enrollments");
-      } 
-      else if (transcript.includes("educator")) {
-        speak("Switching to educator mode");
-        navigate("/educator");
-      } 
-      else if (transcript.includes("about")) {
-        speak("Opening about page");
-        navigate("/about");
-      } 
-      else if (transcript.includes("contact")) {
-        speak("Opening contact page");
-        navigate("/contact");
-      } 
-      else {
-        speak("I didn't quite catch that.");
-=======
         setTimeout(() => window.scrollTo(0, 0), 100);
->>>>>>> cbcac0de6c3da65da7a908d8876dff9b36ca6b84
       }
       return;
     }
