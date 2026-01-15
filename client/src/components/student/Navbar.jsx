@@ -154,10 +154,10 @@ const Navbar = () => {
 
               {userRole === "student" && (
                 <Link
-                  to="/my-enrollments"
+                  to="/student-dashboard"
                   className="hover:text-cyan-700 transition-colors duration-200"
                 >
-                  My Enrollments
+                  Student Dashboard
                 </Link>
               )}
             </div>
@@ -243,11 +243,11 @@ const Navbar = () => {
 
                 {userRole === "student" && (
                   <Link
-                    to="/my-enrollments"
+                    to="/student-dashboard"
                     onClick={() => setMenuOpen(false)}
                     className="hover:text-cyan-700 transition-colors"
                   >
-                    My Enrollments
+                    Student Dashboard
                   </Link>
                 )}
               </>

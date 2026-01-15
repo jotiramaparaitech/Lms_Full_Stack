@@ -63,9 +63,11 @@ import registrationIcon from "./registrationIcon.png";
 import Job_apply from "./Job_apply.png";
 import enquiryIcon from "./enquiryIcon.png";
 import logo_s from "./logo_s.png";
+import support from "./support.png";
 
 
 export const assets = {
+  support,
   logo_s,
   enquiryIcon,
   Job_apply,
