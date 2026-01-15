@@ -10,7 +10,8 @@ import { clerkClient } from "@clerk/express";
 // -----------------------------
 export const updateRoleToEducator = async (req, res) => {
   try {
-    const userId = req.auth?.userId;
+    const auth = req.auth();
+    const userId = auth?.userId;
 
     if (!userId)
       return res
@@ -37,7 +38,8 @@ export const addCourse = async (req, res) => {
     const { courseData } = req.body;
     const imageFile = req.files?.image?.[0];
     const pdfFiles = req.files?.pdfs || [];
-    const educatorId = req.auth?.userId;
+    const auth = req.auth();
+    const educatorId = auth?.userId;
 
     if (!educatorId)
       return res
@@ -116,7 +118,8 @@ export const addCourse = async (req, res) => {
 // -----------------------------
 export const getEducatorCourses = async (req, res) => {
   try {
-    const educator = req.auth?.userId;
+    const auth = req.auth();
+    const educator = auth?.userId;
     if (!educator)
       return res
         .status(401)
@@ -134,7 +137,8 @@ export const getEducatorCourses = async (req, res) => {
 // -----------------------------
 export const getEducatorCourseById = async (req, res) => {
   try {
-    const educator = req.auth?.userId;
+    const auth = req.auth();
+    const educator = auth?.userId;
     const { id } = req.params;
 
     if (!educator)
@@ -162,7 +166,8 @@ export const getEducatorCourseById = async (req, res) => {
 export const updateCourse = async (req, res) => {
   try {
     const courseId = req.params.id;
-    const educatorId = req.auth?.userId;
+    const auth = req.auth();
+    const educatorId = auth?.userId;
 
     if (!educatorId) {
       return res
@@ -380,7 +385,8 @@ export const updateCourse = async (req, res) => {
 export const deleteCourse = async (req, res) => {
   try {
     const courseId = req.params.id;
-    const educatorId = req.auth?.userId;
+    const auth = req.auth();
+    const educatorId = auth?.userId;
 
     const course = await Course.findOne({
       _id: courseId,
@@ -403,7 +409,8 @@ export const deleteCourse = async (req, res) => {
 // -----------------------------
 export const educatorDashboardData = async (req, res) => {
   try {
-    const educator = req.auth?.userId;
+    const auth = req.auth();
+    const educator = auth?.userId;
     if (!educator)
       return res
         .status(401)
@@ -454,7 +461,8 @@ export const educatorDashboardData = async (req, res) => {
 // -----------------------------
 export const getEnrolledStudentsData = async (req, res) => {
   try {
-    const educator = req.auth?.userId;
+    const auth = req.auth();
+    const educator = auth?.userId;
     if (!educator)
       return res
         .status(401)
@@ -492,7 +500,8 @@ export const getEnrolledStudentsData = async (req, res) => {
 export const removeStudentAccess = async (req, res) => {
   try {
     const { courseId, studentId } = req.params;
-    const educatorId = req.auth?.userId;
+    const auth = req.auth();
+    const educatorId = auth?.userId;
 
     const course = await Course.findOne({
       _id: courseId,
@@ -542,7 +551,8 @@ export const getAllStudents = async (req, res) => {
 export const assignCourse = async (req, res) => {
   try {
     const { studentId, courseId } = req.body;
-    const educatorId = req.auth?.userId;
+    const auth = req.auth();
+    const educatorId = auth?.userId;
 
     const course = await Course.findOne({
       _id: courseId,

@@ -13,7 +13,8 @@ import {
 // ============================================================
 export const createRazorpayOrder = async (req, res) => {
   try {
-    const userId = req.auth.userId; // Clerk user
+    const auth = req.auth();
+    const userId = auth.userId; // Clerk user
     const { courseId } = req.body;
 
     let razorpay;

@@ -3,7 +3,8 @@ import { clerkClient } from "@clerk/express";
 // ✅ Middleware: Protect General Authenticated Routes
 export const protect = async (req, res, next) => {
   try {
-    const userId = req.auth?.userId;
+    const auth = req.auth();
+    const userId = auth?.userId;
 
     if (!userId) {
       return res
@@ -41,7 +42,8 @@ export const protect = async (req, res, next) => {
 // ✅ Middleware: Protect Educator Routes
 export const protectEducator = async (req, res, next) => {
   try {
-    const userId = req.auth?.userId;
+    const auth = req.auth();
+    const userId = auth?.userId;
 
     if (!userId) {
       return res

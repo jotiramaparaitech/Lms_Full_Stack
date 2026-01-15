@@ -76,7 +76,8 @@ export const ensureUserExists = async (userId) => {
 // ---------------- Get User Data ----------------
 export const getUserData = async (req, res) => {
   try {
-    const userId = req.auth?.userId;
+    const auth = req.auth();
+    const userId = auth?.userId;
 
     if (!userId) {
       return res.status(401).json({
@@ -116,7 +117,8 @@ export const getUserData = async (req, res) => {
 // ---------------- Users Enrolled Courses ----------------
 export const userEnrolledCourses = async (req, res) => {
   try {
-    const userId = req.auth.userId;
+    const auth = req.auth();
+    const userId = auth.userId;
     const userData = await ensureUserExists(userId);
 
     if (!userData) {
@@ -137,7 +139,8 @@ export const userEnrolledCourses = async (req, res) => {
 // ---------------- Update User Course Progress ----------------
 export const updateUserCourseProgress = async (req, res) => {
   try {
-    const userId = req.auth.userId;
+    const auth = req.auth();
+    const userId = auth.userId;
     const { courseId, lectureId } = req.body;
 
     const progressData = await CourseProgress.findOne({ userId, courseId });
@@ -169,7 +172,8 @@ export const updateUserCourseProgress = async (req, res) => {
 // ---------------- Get User Course Progress ----------------
 export const getUserCourseProgress = async (req, res) => {
   try {
-    const userId = req.auth.userId;
+    const auth = req.auth();
+    const userId = auth.userId;
     const { courseId } = req.body;
 
     const progressData = await CourseProgress.findOne({ userId, courseId });
@@ -182,7 +186,8 @@ export const getUserCourseProgress = async (req, res) => {
 
 // ---------------- Add User Ratings ----------------
 export const addUserRating = async (req, res) => {
-  const userId = req.auth.userId;
+  const auth = req.auth();
+  const userId = auth.userId;
   const { courseId, rating } = req.body;
 
   if (!courseId || !userId || !rating || rating < 1 || rating > 5) {
