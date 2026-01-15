@@ -18,14 +18,12 @@
           if (!msg) return false;
           const lower = String(msg).toLowerCase();
           const msgStr = String(msg);
-          const fullMsg = JSON.stringify(arguments).toLowerCase();
 
           // Filter Razorpay header warnings (various formats)
           if (
             (lower.includes("refused to get unsafe header") &&
               (lower.includes("x-rtb-fingerprint-id") || lower.includes("fingerprint"))) ||
-            msgStr.includes("x-rtb-fingerprint-id") ||
-            fullMsg.includes("x-rtb-fingerprint-id")
+            msgStr.includes("x-rtb-fingerprint-id")
           ) {
             return true;
           }
@@ -51,13 +49,12 @@
             lower.includes("accelerometer is not allowed") ||
             lower.includes("devicemotion events are blocked") ||
             lower.includes("deviceorientation events are blocked") ||
-            lower.includes("[violation] permissions policy") ||
-            fullMsg.includes("permissions policy")
+            lower.includes("[violation] permissions policy")
           ) {
             return true;
           }
 
-          // Filter CORS warnings from Razorpay (harmless)
+          // Filter CORS warnings from Razorpay (harmless) - only if it's Razorpay related
           if (
             (lower.includes("cors policy") || lower.includes("cross-origin")) &&
             (lower.includes("razorpay") || lower.includes("api.razorpay.com") || lower.includes("checkout.razorpay.com"))
@@ -73,53 +70,74 @@
             return true;
           }
 
-          // Filter Razorpay script errors (from their internal scripts)
+          // Filter Razorpay script errors (from their internal scripts) - be very specific
           if (
-            msgStr.includes("v2-entry") ||
-            msgStr.includes("checkout-static") ||
-            msgStr.includes("razorpay") && (lower.includes("error") || lower.includes("warning"))
-          ) {
-            // Only suppress if it's a known harmless error
-            if (
-              lower.includes("svg") ||
+            (msgStr.includes("v2-entry") || msgStr.includes("checkout-static")) &&
+            (lower.includes("svg") ||
               lower.includes("auto") ||
               lower.includes("fingerprint") ||
               lower.includes("permissions policy") ||
               lower.includes("accelerometer") ||
               lower.includes("devicemotion") ||
-              lower.includes("deviceorientation")
-            ) {
-              return true;
-            }
+              lower.includes("deviceorientation"))
+          ) {
+            return true;
           }
 
           return false;
         };
 
-        const origError = console.error;
+        // Store original console methods
+        const origError = console.error.bind(console);
+        const origWarn = console.warn.bind(console);
+
+        // Override console.error - be careful not to break other libraries
         console.error = function () {
-          const msg = arguments[0];
-          if (!shouldSuppress(msg)) {
+          try {
+            // Get first argument as message
+            const msg = arguments[0];
+            // Only suppress if it's a Razorpay-related warning
+            if (shouldSuppress(msg)) {
+              return; // Suppress this warning
+            }
+            // Otherwise, call original
+            origError.apply(console, arguments);
+          } catch (e) {
+            // If anything goes wrong, fall back to original
             origError.apply(console, arguments);
           }
         };
 
-        const origWarn = console.warn;
+        // Override console.warn
         console.warn = function () {
-          const msg = arguments[0];
-          if (!shouldSuppress(msg)) {
+          try {
+            const msg = arguments[0];
+            if (shouldSuppress(msg)) {
+              return; // Suppress this warning
+            }
+            origWarn.apply(console, arguments);
+          } catch (e) {
             origWarn.apply(console, arguments);
           }
         };
 
-        // Also suppress errors from window.onerror
+        // Also suppress errors from window.onerror - but only Razorpay ones
         const origOnError = window.onerror;
         window.onerror = function (message, source, lineno, colno, error) {
-          if (shouldSuppress(message)) {
-            return true; // Suppress the error
-          }
-          if (origOnError) {
-            return origOnError.apply(window, arguments);
+          try {
+            // Only suppress if it's Razorpay-related
+            if (message && shouldSuppress(String(message))) {
+              return true; // Suppress the error
+            }
+            // Call original handler if it exists
+            if (origOnError) {
+              return origOnError.apply(window, arguments);
+            }
+          } catch (e) {
+            // If error handler fails, don't suppress
+            if (origOnError) {
+              return origOnError.apply(window, arguments);
+            }
           }
           return false;
         };
