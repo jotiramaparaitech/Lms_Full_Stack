@@ -71,8 +71,8 @@ export const checkRazorpayConfig = async (req, res) => {
 // ====================== CREATE ORDER ======================
 export const createOrder = async (req, res) => {
   try {
-    const userId = req.auth?.userId || req.user?.id;
-    const { courseId } = req.body;
+    // Get userId from either Clerk auth or protect middleware
+    const userId = req.auth?.userId || req.user?.id || req.user?._id;
     let razorpay;
     try {
       razorpay = getRazorpayClient();
@@ -97,10 +97,17 @@ export const createOrder = async (req, res) => {
       });
     }
 
-    if (!courseId || !userId) {
+    if (!courseId) {
       return res.status(400).json({
         success: false,
-        message: "Missing courseId or userId",
+        message: "Missing courseId",
+      });
+    }
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "User not authenticated. Please login again.",
       });
     }
 
@@ -316,6 +323,17 @@ export const verifyPayment = async (req, res) => {
       enrolledCourses: updatedUser?.enrolledCourses || [],
     });
   } catch (error) {
+    console.error("❌ Razorpay verification error:", error);
+    
+    // Handle Razorpay API errors
+    if (error.statusCode || error.error) {
+      return res.status(error.statusCode || 500).json({
+        success: false,
+        message: error.error?.description || error.message || "Razorpay API error",
+        error: "RAZORPAY_API_ERROR",
+      });
+    }
+
     res.status(500).json({
       success: false,
       message: error.message || "Internal server error",

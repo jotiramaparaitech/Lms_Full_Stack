@@ -108,8 +108,11 @@ const CourseDetails = () => {
       return;
     }
 
+    // Check if Razorpay SDK is loaded
     if (!window.Razorpay) {
       toast.error("Payment SDK not loaded. Please refresh and try again.");
+      console.error("Razorpay SDK not found. Make sure the script is loaded in index.html");
+      setIsLoading(false);
       return;
     }
 
@@ -136,6 +139,7 @@ const CourseDetails = () => {
           "Failed to create payment order. Please try again later.";
         toast.error(errorMessage);
         console.error("Razorpay order creation failed:", orderData);
+        setIsLoading(false);
         return;
       }
 
@@ -151,6 +155,7 @@ const CourseDetails = () => {
         console.error(
           "VITE_RAZORPAY_KEY_ID is not set in environment variables"
         );
+        setIsLoading(false);
         return;
       }
 
@@ -234,9 +239,22 @@ const CourseDetails = () => {
       };
 
       // 4️⃣ Open Razorpay Popup
-      const rzp = new window.Razorpay(options);
-      rzp.open();
-      checkoutLaunched = true;
+      try {
+        const rzp = new window.Razorpay(options);
+        rzp.on("payment.failed", function (response) {
+          toast.error(
+            `Payment failed: ${response.error?.description || response.error?.reason || "Unknown error"}`
+          );
+          setIsLoading(false);
+        });
+        rzp.open();
+        checkoutLaunched = true;
+      } catch (rzpError) {
+        console.error("Failed to initialize Razorpay checkout:", rzpError);
+        toast.error("Failed to open payment window. Please try again.");
+        setIsLoading(false);
+        checkoutLaunched = false;
+      }
     } catch (error) {
       // Handle configuration errors (503) and other errors
       const serverMessage =

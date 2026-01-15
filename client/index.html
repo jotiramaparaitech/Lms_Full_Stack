@@ -7,6 +7,8 @@
     <!-- <link rel="icon" type="image/png" sizes="32x32" href="/ALogo-32.png" /> -->
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Permissions Policy to reduce warnings (optional, but helps) -->
+    <meta http-equiv="Permissions-Policy" content="accelerometer=(), gyroscope=(), magnetometer=(), payment=*" />
     <title>Aparaitech</title>
 
     <!-- ✅ Suppress harmless Razorpay console warnings BEFORE Razorpay loads -->
@@ -16,24 +18,29 @@
           if (!msg) return false;
           const lower = String(msg).toLowerCase();
           const msgStr = String(msg);
+          const fullMsg = JSON.stringify(arguments).toLowerCase();
 
           // Filter Razorpay header warnings (various formats)
           if (
             (lower.includes("refused to get unsafe header") &&
-              lower.includes("x-rtb-fingerprint-id")) ||
-            msgStr.includes("x-rtb-fingerprint-id")
+              (lower.includes("x-rtb-fingerprint-id") || lower.includes("fingerprint"))) ||
+            msgStr.includes("x-rtb-fingerprint-id") ||
+            fullMsg.includes("x-rtb-fingerprint-id")
           ) {
             return true;
           }
 
-          // Filter SVG warnings
+          // Filter SVG warnings - catch all variations
           if (
             (lower.includes("expected length") &&
               (lower.includes("height") || lower.includes("width")) &&
-              lower.includes("auto")) ||
+              (lower.includes("auto") || lower.includes('"auto"'))) ||
             (lower.includes("svg") &&
               lower.includes("attribute") &&
-              lower.includes("auto"))
+              (lower.includes("auto") || lower.includes("width") || lower.includes("height"))) ||
+            (msgStr.includes("<svg>") && msgStr.includes("auto")) ||
+            (msgStr.includes("attribute width") && msgStr.includes("auto")) ||
+            (msgStr.includes("attribute height") && msgStr.includes("auto"))
           ) {
             return true;
           }
@@ -43,25 +50,47 @@
             lower.includes("permissions policy violation") ||
             lower.includes("accelerometer is not allowed") ||
             lower.includes("devicemotion events are blocked") ||
-            lower.includes("deviceorientation events are blocked")
+            lower.includes("deviceorientation events are blocked") ||
+            lower.includes("[violation] permissions policy") ||
+            fullMsg.includes("permissions policy")
           ) {
             return true;
           }
 
           // Filter CORS warnings from Razorpay (harmless)
           if (
-            lower.includes("cors policy") &&
-            (lower.includes("razorpay") || lower.includes("api.razorpay.com"))
+            (lower.includes("cors policy") || lower.includes("cross-origin")) &&
+            (lower.includes("razorpay") || lower.includes("api.razorpay.com") || lower.includes("checkout.razorpay.com"))
           ) {
             return true;
           }
 
           // Filter mixed content warnings (auto-upgraded)
           if (
-            lower.includes("mixed content") &&
-            lower.includes("automatically upgraded")
+            (lower.includes("mixed content") || lower.includes("insecure element")) &&
+            (lower.includes("automatically upgraded") || lower.includes("upgraded to https"))
           ) {
             return true;
+          }
+
+          // Filter Razorpay script errors (from their internal scripts)
+          if (
+            msgStr.includes("v2-entry") ||
+            msgStr.includes("checkout-static") ||
+            msgStr.includes("razorpay") && (lower.includes("error") || lower.includes("warning"))
+          ) {
+            // Only suppress if it's a known harmless error
+            if (
+              lower.includes("svg") ||
+              lower.includes("auto") ||
+              lower.includes("fingerprint") ||
+              lower.includes("permissions policy") ||
+              lower.includes("accelerometer") ||
+              lower.includes("devicemotion") ||
+              lower.includes("deviceorientation")
+            ) {
+              return true;
+            }
           }
 
           return false;
@@ -82,11 +111,27 @@
             origWarn.apply(console, arguments);
           }
         };
+
+        // Also suppress errors from window.onerror
+        const origOnError = window.onerror;
+        window.onerror = function (message, source, lineno, colno, error) {
+          if (shouldSuppress(message)) {
+            return true; // Suppress the error
+          }
+          if (origOnError) {
+            return origOnError.apply(window, arguments);
+          }
+          return false;
+        };
       })();
     </script>
 
     <!-- ✅ Add Razorpay checkout script -->
-    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <script 
+      src="https://checkout.razorpay.com/v1/checkout.js"
+      onerror="console.error('Failed to load Razorpay SDK')"
+      onload="console.log('Razorpay SDK loaded successfully')"
+    ></script>
   </head>
 
   <body>
