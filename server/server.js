@@ -13,6 +13,12 @@ import courseRouter from "./routes/courseRoute.js";
 // ⬅️ NEW — Razorpay Route
 import razorpayRoute from "./routes/razorpayRoute.js";
 
+import ticketRoutes from "./routes/ticketRoutes.js";
+
+
+
+
+
 // Initialize Express
 const app = express();
 
@@ -85,6 +91,8 @@ app.use("/api/course", express.json(), courseRouter);
 
 // ⬅️ NEW — Razorpay Payment Routes
 app.use("/api/razorpay", express.json(), razorpayRoute);
+
+app.use("/api/tickets", express.json(), ticketRoutes);
 
 // Debug network
 app.get("/api/network", (req, res) => res.json(os.networkInterfaces()));

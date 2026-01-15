@@ -36,6 +36,11 @@ const SideBar = () => {
       icon: assets.my_course_icon,
     },
     {
+      name: "Support Tickets",
+      path: "/educator/tickets",
+      icon: assets.support, 
+    },
+    {
       name: "My Enrollments",
       path: "/my-enrollments",
       icon: assets.lesson_icon,

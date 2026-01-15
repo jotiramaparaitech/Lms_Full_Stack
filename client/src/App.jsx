@@ -34,6 +34,9 @@ import AiAssistant from "./components/AiAssistant";
 import ScrollToTop from "./components/ScrollToTop";
 import AllTestimonials from "./components/student/AllTestimonials";
 import StudentDashboard from "./pages/student/StudentDashboard";
+import SupportTicketButton from "./components/common/SupportTicketButton";
+import SupportTickets from './pages/educator/SupportTickets';
+
 
 const App = () => {
   const { isEducator } = useContext(AppContext);
@@ -100,6 +103,7 @@ const AppContent = ({ isEducatorRoute, isEducator }) => {
           <Route path="course/:courseId/edit" element={<EditCourse />} />
           <Route path="student-enrolled" element={<StudentsEnrolled />} />
           <Route path="assign-course" element={<AssignCourse />} />
+          <Route path="tickets" element={<SupportTickets />} />
         </Route>
       </Routes>
 
@@ -109,10 +113,14 @@ const AppContent = ({ isEducatorRoute, isEducator }) => {
       <div className="fixed bottom-6 left-6 z-50">
         <AiAssistant />
       </div>
+      <div className="fixed bottom-24 right-6 z-50">
+  <SupportTicketButton />
+</div>
 
-      <div className="fixed bottom-6 right-6 z-50">
-        <WhatsAppButton />
-      </div>
+<div className="fixed bottom-6 right-6 z-50">
+  <WhatsAppButton />
+</div>
+
       {/* <ChatbotWidget /> */}
     </div>
   );

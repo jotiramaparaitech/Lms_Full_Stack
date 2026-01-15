@@ -279,7 +279,7 @@ const AiAssistant = () => {
 
   return (
     <div 
-      className="fixed bottom-6 left-6 z-50 group cursor-pointer"
+      className="fixed bottom-16 left-4 z-50 group cursor-pointer"
       onClick={handleInteraction}
       title="Tap to Speak"
     >
