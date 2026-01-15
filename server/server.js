@@ -40,6 +40,7 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
       "https://lms-full-stack-mcq7.vercel.app",
       "https://www.aparaitech.org",
       "https://aparaitech.org",
+      "https://lms.aparaitech.org",
     ];
 
 app.use(
