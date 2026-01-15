@@ -33,6 +33,7 @@ import AiAssistant from "./components/AiAssistant";
 
 import ScrollToTop from "./components/ScrollToTop";
 import AllTestimonials from "./components/student/AllTestimonials";
+import StudentDashboard from "./pages/student/StudentDashboard";
 
 const App = () => {
   const { isEducator } = useContext(AppContext);
@@ -82,6 +83,11 @@ const AppContent = ({ isEducatorRoute, isEducator }) => {
         <Route path="/contact" element={<Contact />} />
         <Route path="/connect" element={<Connect />} />
         <Route path="/AllTestimonials" element={<AllTestimonials />} />
+        {/* ✅ Student Dashboard Route */}
+  <Route
+    path="/student-dashboard"
+    element={<StudentDashboard />}
+  />
 
         {/* 🧑‍🏫 Educator Routes (Protected) */}
         <Route
