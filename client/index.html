@@ -11,76 +11,31 @@
     <meta http-equiv="Permissions-Policy" content="accelerometer=(), gyroscope=(), magnetometer=(), payment=*" />
     <title>Aparaitech</title>
 
-    <!-- ✅ Suppress harmless Razorpay console warnings BEFORE Razorpay loads -->
+    <!-- ✅ Suppress specific harmless Razorpay console errors -->
     <script>
       (function () {
         const shouldSuppress = function (msg) {
           if (!msg) return false;
-          const lower = String(msg).toLowerCase();
-          const msgStr = String(msg);
+          const msgStr = String(msg).toLowerCase();
 
-          // Filter Razorpay header warnings (various formats)
-          if (
-            (lower.includes("refused to get unsafe header") &&
-              (lower.includes("x-rtb-fingerprint-id") || lower.includes("fingerprint"))) ||
-            msgStr.includes("x-rtb-fingerprint-id")
-          ) {
+          // Only suppress these specific errors:
+          // 1. "Refused to get unsafe header "x-rtb-fingerprint-id""
+          if (msgStr.includes("refused to get unsafe header") && msgStr.includes("x-rtb-fingerprint-id")) {
             return true;
           }
 
-          // Filter SVG warnings - catch all variations
-          if (
-            (lower.includes("expected length") &&
-              (lower.includes("height") || lower.includes("width")) &&
-              (lower.includes("auto") || lower.includes('"auto"'))) ||
-            (lower.includes("svg") &&
-              lower.includes("attribute") &&
-              (lower.includes("auto") || lower.includes("width") || lower.includes("height"))) ||
-            (msgStr.includes("<svg>") && msgStr.includes("auto")) ||
-            (msgStr.includes("attribute width") && msgStr.includes("auto")) ||
-            (msgStr.includes("attribute height") && msgStr.includes("auto"))
-          ) {
+          // 2. "Error: <svg> attribute width: Expected length, "auto"."
+          if (msgStr.includes("svg") && msgStr.includes("attribute") && msgStr.includes("width") && msgStr.includes("expected length") && msgStr.includes("auto")) {
             return true;
           }
 
-          // Filter permissions policy violations (harmless)
-          if (
-            lower.includes("permissions policy violation") ||
-            lower.includes("accelerometer is not allowed") ||
-            lower.includes("devicemotion events are blocked") ||
-            lower.includes("deviceorientation events are blocked") ||
-            lower.includes("[violation] permissions policy")
-          ) {
+          // 3. "Error: <svg> attribute height: Expected length, "auto"."
+          if (msgStr.includes("svg") && msgStr.includes("attribute") && msgStr.includes("height") && msgStr.includes("expected length") && msgStr.includes("auto")) {
             return true;
           }
 
-          // Filter CORS warnings from Razorpay (harmless) - only if it's Razorpay related
-          if (
-            (lower.includes("cors policy") || lower.includes("cross-origin")) &&
-            (lower.includes("razorpay") || lower.includes("api.razorpay.com") || lower.includes("checkout.razorpay.com"))
-          ) {
-            return true;
-          }
-
-          // Filter mixed content warnings (auto-upgraded)
-          if (
-            (lower.includes("mixed content") || lower.includes("insecure element")) &&
-            (lower.includes("automatically upgraded") || lower.includes("upgraded to https"))
-          ) {
-            return true;
-          }
-
-          // Filter Razorpay script errors (from their internal scripts) - be very specific
-          if (
-            (msgStr.includes("v2-entry") || msgStr.includes("checkout-static")) &&
-            (lower.includes("svg") ||
-              lower.includes("auto") ||
-              lower.includes("fingerprint") ||
-              lower.includes("permissions policy") ||
-              lower.includes("accelerometer") ||
-              lower.includes("devicemotion") ||
-              lower.includes("deviceorientation"))
-          ) {
+          // 4. Mixed Content warnings (harmless, auto-upgraded)
+          if (msgStr.includes("mixed content") && msgStr.includes("automatically upgraded")) {
             return true;
           }
 
@@ -91,29 +46,44 @@
         const origError = console.error.bind(console);
         const origWarn = console.warn.bind(console);
 
-        // Override console.error - be careful not to break other libraries
+        // Override console.error - check all arguments, including Error objects
         console.error = function () {
           try {
-            // Get first argument as message
-            const msg = arguments[0];
-            // Only suppress if it's a Razorpay-related warning
-            if (shouldSuppress(msg)) {
-              return; // Suppress this warning
+            // Check all arguments for the error message
+            for (let i = 0; i < arguments.length; i++) {
+              const arg = arguments[i];
+              if (arg && shouldSuppress(arg)) {
+                return; // Suppress this error
+              }
+              // Also check Error object's message property
+              if (arg && typeof arg === 'object' && arg.message && shouldSuppress(arg.message)) {
+                return; // Suppress this error
+              }
+              // Check toString() representation
+              if (arg && shouldSuppress(String(arg))) {
+                return; // Suppress this error
+              }
             }
-            // Otherwise, call original
             origError.apply(console, arguments);
           } catch (e) {
-            // If anything goes wrong, fall back to original
             origError.apply(console, arguments);
           }
         };
 
-        // Override console.warn
+        // Override console.warn as well (some browsers log errors as warnings)
         console.warn = function () {
           try {
-            const msg = arguments[0];
-            if (shouldSuppress(msg)) {
-              return; // Suppress this warning
+            for (let i = 0; i < arguments.length; i++) {
+              const arg = arguments[i];
+              if (arg && shouldSuppress(arg)) {
+                return;
+              }
+              if (arg && typeof arg === 'object' && arg.message && shouldSuppress(arg.message)) {
+                return;
+              }
+              if (arg && shouldSuppress(String(arg))) {
+                return;
+              }
             }
             origWarn.apply(console, arguments);
           } catch (e) {
@@ -121,12 +91,17 @@
           }
         };
 
-        // Also suppress errors from window.onerror - but only Razorpay ones
+        // Catch errors thrown from scripts via window.onerror
         const origOnError = window.onerror;
         window.onerror = function (message, source, lineno, colno, error) {
           try {
-            // Only suppress if it's Razorpay-related
             if (message && shouldSuppress(String(message))) {
+              return true; // Suppress the error
+            }
+            if (error && error.message && shouldSuppress(error.message)) {
+              return true; // Suppress the error
+            }
+            if (error && error.toString && shouldSuppress(error.toString())) {
               return true; // Suppress the error
             }
             // Call original handler if it exists
@@ -134,13 +109,83 @@
               return origOnError.apply(window, arguments);
             }
           } catch (e) {
-            // If error handler fails, don't suppress
             if (origOnError) {
               return origOnError.apply(window, arguments);
             }
           }
           return false;
         };
+
+        // Also catch unhandled promise rejections
+        const origUnhandledRejection = window.onunhandledrejection;
+        window.onunhandledrejection = function (event) {
+          try {
+            const reason = event.reason;
+            if (reason && shouldSuppress(String(reason))) {
+              event.preventDefault();
+              return false;
+            }
+            if (reason && reason.message && shouldSuppress(reason.message)) {
+              event.preventDefault();
+              return false;
+            }
+            if (reason && reason.toString && shouldSuppress(reason.toString())) {
+              event.preventDefault();
+              return false;
+            }
+            if (origUnhandledRejection) {
+              return origUnhandledRejection.call(window, event);
+            }
+          } catch (e) {
+            if (origUnhandledRejection) {
+              return origUnhandledRejection.call(window, event);
+            }
+          }
+        };
+
+        // Also use addEventListener for error events (catches more error types)
+        window.addEventListener('error', function(event) {
+          try {
+            if (event.message && shouldSuppress(String(event.message))) {
+              event.preventDefault();
+              event.stopPropagation();
+              return false;
+            }
+            if (event.error && event.error.message && shouldSuppress(event.error.message)) {
+              event.preventDefault();
+              event.stopPropagation();
+              return false;
+            }
+            if (event.error && event.error.toString && shouldSuppress(event.error.toString())) {
+              event.preventDefault();
+              event.stopPropagation();
+              return false;
+            }
+          } catch (e) {
+            // Ignore errors in error handler
+          }
+        }, true); // Use capture phase to catch early
+
+        // Also listen for unhandled promise rejections via addEventListener
+        window.addEventListener('unhandledrejection', function(event) {
+          try {
+            const reason = event.reason;
+            if (reason && shouldSuppress(String(reason))) {
+              event.preventDefault();
+              return false;
+            }
+            if (reason && reason.message && shouldSuppress(reason.message)) {
+              event.preventDefault();
+              return false;
+            }
+            if (reason && reason.toString && shouldSuppress(reason.toString())) {
+              event.preventDefault();
+              return false;
+            }
+          } catch (e) {
+            // Ignore errors in error handler
+          }
+        });
       })();
     </script>
 

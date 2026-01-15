@@ -1,96 +1,166 @@
-// Suppress harmless Razorpay SDK console warnings EARLY
-// These are browser security warnings that cannot be fixed from our side
-// Must be set up before any other code runs
-const shouldSuppressWarning = (message) => {
+// Suppress only specific harmless Razorpay console errors
+const shouldSuppressError = (message) => {
   if (!message) return false;
-  const msg = String(message).toLowerCase();
-  const msgStr = String(message);
+  const msgStr = String(message).toLowerCase();
 
-  // Filter out Razorpay's harmless "Refused to get unsafe header" warnings (various formats)
-  if (
-    (msg.includes("refused to get unsafe header") &&
-      (msg.includes("x-rtb-fingerprint-id") || msg.includes("fingerprint"))) ||
-    msgStr.includes("x-rtb-fingerprint-id")
-  ) {
+  // Only suppress these specific errors:
+  // 1. "Refused to get unsafe header "x-rtb-fingerprint-id""
+  if (msgStr.includes("refused to get unsafe header") && msgStr.includes("x-rtb-fingerprint-id")) {
     return true;
   }
 
-  // Filter out SVG height/width="auto" warnings (these are handled by sanitizeHTML)
-  if (
-    (msg.includes("expected length") &&
-      (msg.includes("height") || msg.includes("width")) &&
-      (msg.includes("auto") || msg.includes('"auto"'))) ||
-    (msg.includes("svg") && msg.includes("attribute") && (msg.includes("auto") || msg.includes("width") || msg.includes("height"))) ||
-    (msgStr.includes("<svg>") && msgStr.includes("auto")) ||
-    (msgStr.includes("attribute width") && msgStr.includes("auto")) ||
-    (msgStr.includes("attribute height") && msgStr.includes("auto"))
-  ) {
+  // 2. "Error: <svg> attribute width: Expected length, "auto"."
+  if (msgStr.includes("svg") && msgStr.includes("attribute") && msgStr.includes("width") && msgStr.includes("expected length") && msgStr.includes("auto")) {
     return true;
   }
 
-  // Filter permissions policy violations (harmless)
-  if (
-    msg.includes("permissions policy violation") ||
-    msg.includes("accelerometer is not allowed") ||
-    msg.includes("devicemotion events are blocked") ||
-    msg.includes("deviceorientation events are blocked") ||
-    msg.includes("[violation] permissions policy")
-  ) {
+  // 3. "Error: <svg> attribute height: Expected length, "auto"."
+  if (msgStr.includes("svg") && msgStr.includes("attribute") && msgStr.includes("height") && msgStr.includes("expected length") && msgStr.includes("auto")) {
     return true;
   }
 
-  // Filter CORS warnings from Razorpay (harmless) - only if Razorpay related
-  if (
-    (msg.includes("cors policy") || msg.includes("cross-origin")) &&
-    (msg.includes("razorpay") || msg.includes("api.razorpay.com") || msg.includes("checkout.razorpay.com"))
-  ) {
-    return true;
-  }
-
-  // Filter mixed content warnings (auto-upgraded)
-  if (
-    (msg.includes("mixed content") || msg.includes("insecure element")) &&
-    (msg.includes("automatically upgraded") || msg.includes("upgraded to https"))
-  ) {
-    return true;
-  }
-
-  // Filter Razorpay script errors (from their internal scripts) - be very specific
-  if (
-    (msgStr.includes("v2-entry") || msgStr.includes("checkout-static")) &&
-    (msg.includes("svg") ||
-      msg.includes("auto") ||
-      msg.includes("fingerprint") ||
-      msg.includes("permissions policy") ||
-      msg.includes("accelerometer") ||
-      msg.includes("devicemotion") ||
-      msg.includes("deviceorientation"))
-  ) {
+  // 4. Mixed Content warnings (harmless, auto-upgraded)
+  if (msgStr.includes("mixed content") && msgStr.includes("automatically upgraded")) {
     return true;
   }
 
   return false;
 };
 
-// Override console.error
+// Override console.error - check all arguments, including Error objects
 const originalError = console.error;
 console.error = function (...args) {
-  const message = args[0]?.toString() || "";
-  if (shouldSuppressWarning(message)) {
-    return; // Suppress this warning
+  // Check all arguments for the error message
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (arg && shouldSuppressError(arg)) {
+      return; // Suppress this error
+    }
+    // Also check Error object's message property
+    if (arg && typeof arg === 'object' && arg.message && shouldSuppressError(arg.message)) {
+      return; // Suppress this error
+    }
+    // Check toString() representation
+    if (arg && shouldSuppressError(String(arg))) {
+      return; // Suppress this error
+    }
   }
   originalError.apply(console, args);
 };
 
-// Override console.warn (Razorpay might use warn instead of error)
+// Override console.warn as well (some browsers log errors as warnings)
 const originalWarn = console.warn;
 console.warn = function (...args) {
-  const message = args[0]?.toString() || "";
-  if (shouldSuppressWarning(message)) {
-    return; // Suppress this warning
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (arg && shouldSuppressError(arg)) {
+      return;
+    }
+    if (arg && typeof arg === 'object' && arg.message && shouldSuppressError(arg.message)) {
+      return;
+    }
+    if (arg && shouldSuppressError(String(arg))) {
+      return;
+    }
   }
   originalWarn.apply(console, args);
 };
+
+// Also catch errors thrown from scripts via window.onerror
+const origOnError = window.onerror;
+window.onerror = function (message, source, lineno, colno, error) {
+  try {
+    if (message && shouldSuppressError(String(message))) {
+      return true; // Suppress the error
+    }
+    if (error && error.message && shouldSuppressError(error.message)) {
+      return true; // Suppress the error
+    }
+    if (error && error.toString && shouldSuppressError(error.toString())) {
+      return true; // Suppress the error
+    }
+    // Call original handler if it exists
+    if (origOnError) {
+      return origOnError.apply(window, arguments);
+    }
+  } catch (e) {
+    if (origOnError) {
+      return origOnError.apply(window, arguments);
+    }
+  }
+  return false;
+};
+
+// Also catch unhandled promise rejections
+const origUnhandledRejection = window.onunhandledrejection;
+window.onunhandledrejection = function (event) {
+  try {
+    const reason = event.reason;
+    if (reason && shouldSuppressError(String(reason))) {
+      event.preventDefault();
+      return false;
+    }
+    if (reason && reason.message && shouldSuppressError(reason.message)) {
+      event.preventDefault();
+      return false;
+    }
+    if (reason && reason.toString && shouldSuppressError(reason.toString())) {
+      event.preventDefault();
+      return false;
+    }
+    if (origUnhandledRejection) {
+      return origUnhandledRejection.call(window, event);
+    }
+  } catch (e) {
+    if (origUnhandledRejection) {
+      return origUnhandledRejection.call(window, event);
+    }
+  }
+};
+
+// Also use addEventListener for error events (catches more error types)
+window.addEventListener('error', function(event) {
+  try {
+    if (event.message && shouldSuppressError(String(event.message))) {
+      event.preventDefault();
+      event.stopPropagation();
+      return false;
+    }
+    if (event.error && event.error.message && shouldSuppressError(event.error.message)) {
+      event.preventDefault();
+      event.stopPropagation();
+      return false;
+    }
+    if (event.error && event.error.toString && shouldSuppressError(event.error.toString())) {
+      event.preventDefault();
+      event.stopPropagation();
+      return false;
+    }
+  } catch (e) {
+    // Ignore errors in error handler
+  }
+}, true); // Use capture phase to catch early
+
+// Also listen for unhandled promise rejections via addEventListener
+window.addEventListener('unhandledrejection', function(event) {
+  try {
+    const reason = event.reason;
+    if (reason && shouldSuppressError(String(reason))) {
+      event.preventDefault();
+      return false;
+    }
+    if (reason && reason.message && shouldSuppressError(reason.message)) {
+      event.preventDefault();
+      return false;
+    }
+    if (reason && reason.toString && shouldSuppressError(reason.toString())) {
+      event.preventDefault();
+      return false;
+    }
+  } catch (e) {
+    // Ignore errors in error handler
+  }
+});
 
 import { createRoot } from "react-dom/client";
 import "./index.css";
