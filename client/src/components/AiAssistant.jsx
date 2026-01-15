@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
-import aiImage from "../assets/ai.png"; 
+import aiImage from "../assets/ai.png";
 
 // --- 1. CONFIGURATION: Centralized Command List ---
 const COMMANDS = [
@@ -10,63 +10,63 @@ const COMMANDS = [
     keywords: ["linkedin"],
     type: "external",
     url: "https://www.linkedin.com/company/aparaitech",
-    message: "Opening LinkedIn."
+    message: "Opening LinkedIn.",
   },
   {
-    keywords: ["twitter", " x "], 
+    keywords: ["twitter", " x "],
     type: "external",
     url: "https://x.com/Aparaitech/with_replies",
-    message: "Opening X Twitter."
+    message: "Opening X Twitter.",
   },
   {
     keywords: ["instagram", "insta"],
     type: "external",
     url: "https://www.instagram.com/aparaitech_global/",
-    message: "Opening Instagram."
+    message: "Opening Instagram.",
   },
   {
     keywords: ["youtube"],
     type: "external",
     url: "https://www.youtube.com/@Aparaitech",
-    message: "Opening YouTube."
+    message: "Opening YouTube.",
   },
   {
     keywords: ["facebook"],
     type: "external",
     url: "https://www.facebook.com/yourpage",
-    message: "Opening Facebook."
+    message: "Opening Facebook.",
   },
 
   // --- INTERNAL PAGES ---
   {
-    keywords: ["project", "library"], 
+    keywords: ["project", "library"],
     type: "navigate",
     path: "/course-list",
-    message: "Opening Projects library."
+    message: "Opening Projects library.",
   },
   {
     keywords: ["dashboard", "enrollment"],
     type: "navigate",
     path: "/my-enrollments",
-    message: "Opening Dashboard."
+    message: "Opening Dashboard.",
   },
   {
     keywords: ["about"],
     type: "navigate",
     path: "/about",
-    message: "Opening About page."
+    message: "Opening About page.",
   },
   {
     keywords: ["connect", "social media", "contact us"],
     type: "navigate",
     path: "/connect",
-    message: "Opening Connect page."
+    message: "Opening Connect page.",
   },
   {
-    keywords: ["contact"], 
+    keywords: ["contact"],
     type: "navigate",
     path: "/contact",
-    message: "Opening Contact page."
+    message: "Opening Contact page.",
   },
 
   // --- SCROLL SECTIONS ---
@@ -75,29 +75,29 @@ const COMMANDS = [
     type: "scroll",
     id: "testimonials",
     label: "testimonials",
-    message: "Here are the testimonials."
+    message: "Here are the testimonials.",
   },
   {
     keywords: ["feature", "service"],
     type: "scroll",
     id: "features",
     label: "features",
-    message: "Here are our features."
+    message: "Here are our features.",
   },
   {
     keywords: ["company", "companies", "partner"],
     type: "scroll",
     id: "companies",
     label: "companies",
-    message: "Here are our partners."
+    message: "Here are our partners.",
   },
   {
     keywords: ["footer", "bottom"],
     type: "scroll",
     id: "contact-section",
     label: "contact area",
-    message: "Taking you to the bottom."
-  }
+    message: "Taking you to the bottom.",
+  },
 ];
 
 const AiAssistant = () => {
@@ -113,9 +113,10 @@ const AiAssistant = () => {
   // --- AUDIO SETUP ---
   const getAudioContext = () => {
     if (!audioCtxRef.current) {
-      audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      audioCtxRef.current = new (window.AudioContext ||
+        window.webkitAudioContext)();
     }
-    if (audioCtxRef.current.state === 'suspended') {
+    if (audioCtxRef.current.state === "suspended") {
       audioCtxRef.current.resume();
     }
     return audioCtxRef.current;
@@ -137,7 +138,9 @@ const AiAssistant = () => {
 
       oscillator.start();
       oscillator.stop(ctx.currentTime + 0.15);
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const speak = (message, onEndCallback = null) => {
@@ -147,7 +150,9 @@ const AiAssistant = () => {
     utterance.pitch = 1;
     utterance.lang = "en-US";
     const voices = window.speechSynthesis.getVoices();
-    const preferredVoice = voices.find(v => v.name.includes("Google US English") || v.name.includes("Female"));
+    const preferredVoice = voices.find(
+      (v) => v.name.includes("Google US English") || v.name.includes("Female")
+    );
     if (preferredVoice) utterance.voice = preferredVoice;
     if (onEndCallback) utterance.onend = onEndCallback;
     window.speechSynthesis.speak(utterance);
@@ -175,21 +180,26 @@ const AiAssistant = () => {
 
   // --- EXECUTE COMMAND ---
   const executeCommand = (transcript) => {
-    
     // 1. SEARCH
     if (transcript.includes("search for") || transcript.includes("find")) {
-        const triggerWord = transcript.includes("search for") ? "search for" : "find";
-        let query = transcript.split(triggerWord)[1];
-        if (query) {
-            query = query.replace("projects", "").replace("project", "").replace(/[?.]/g, "").trim();
-        }
-        if (query && query.length > 0) {
-          speak(`Searching for ${query}`);
-          navigate(`/course-list/${query}`);
-        } else {
-          speak("Please say a topic to search.");
-        }
-        return; 
+      const triggerWord = transcript.includes("search for")
+        ? "search for"
+        : "find";
+      let query = transcript.split(triggerWord)[1];
+      if (query) {
+        query = query
+          .replace("projects", "")
+          .replace("project", "")
+          .replace(/[?.]/g, "")
+          .trim();
+      }
+      if (query && query.length > 0) {
+        speak(`Searching for ${query}`);
+        navigate(`/course-list/${query}`);
+      } else {
+        speak("Please say a topic to search.");
+      }
+      return;
     }
 
     // 2. HOME
@@ -205,28 +215,30 @@ const AiAssistant = () => {
     }
 
     // 3. ARRAY LOGIC (Socials, Pages, Sections)
-    const matchedCommand = COMMANDS.find(cmd => 
-        cmd.keywords.some(keyword => transcript.includes(keyword))
+    const matchedCommand = COMMANDS.find((cmd) =>
+      cmd.keywords.some((keyword) => transcript.includes(keyword))
     );
 
     if (matchedCommand) {
-        speak(matchedCommand.message);
-        
-        if (matchedCommand.type === "external") {
-            // ✅ FIX: Try new tab first, fallback to same tab if blocked
-            const newWindow = window.open(matchedCommand.url, "_blank");
-            if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-                console.log("Pop-up blocked. Opening in current tab.");
-                window.location.href = matchedCommand.url;
-            }
-        } 
-        else if (matchedCommand.type === "navigate") {
-            navigate(matchedCommand.path);
-        } 
-        else if (matchedCommand.type === "scroll") {
-            scrollToSection(matchedCommand.id, matchedCommand.label);
+      speak(matchedCommand.message);
+
+      if (matchedCommand.type === "external") {
+        // ✅ FIX: Try new tab first, fallback to same tab if blocked
+        const newWindow = window.open(matchedCommand.url, "_blank");
+        if (
+          !newWindow ||
+          newWindow.closed ||
+          typeof newWindow.closed === "undefined"
+        ) {
+          console.log("Pop-up blocked. Opening in current tab.");
+          window.location.href = matchedCommand.url;
         }
-        return;
+      } else if (matchedCommand.type === "navigate") {
+        navigate(matchedCommand.path);
+      } else if (matchedCommand.type === "scroll") {
+        scrollToSection(matchedCommand.id, matchedCommand.label);
+      }
+      return;
     }
 
     // 4. FALLBACK
@@ -239,7 +251,8 @@ const AiAssistant = () => {
 
   // --- LISTENING ---
   const startListening = () => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
       toast.error("Voice assistant not supported.");
       return;
@@ -250,7 +263,10 @@ const AiAssistant = () => {
     recognition.lang = "en-US";
     recognition.interimResults = false;
 
-    recognition.onstart = () => { setActiveAi(true); playActivationSound(); };
+    recognition.onstart = () => {
+      setActiveAi(true);
+      playActivationSound();
+    };
     recognition.onend = () => setActiveAi(false);
     recognition.onresult = (e) => {
       const transcript = e.results[0][0].transcript.trim().toLowerCase();
@@ -269,13 +285,18 @@ const AiAssistant = () => {
     }
     if (!hasGreeted) {
       setHasGreeted(true);
-      speak("Welcome to Aparaitech. We Focus on AI Solutions. How can I help you?", () => startListening());
+      speak(
+        "Hello! Welcome to Aparaitech Software Solution.We provide smart AI-powered solutions to help students learn, grow, and automate their work.I am the Aparaitech AI Assistant, and I will guide you through the system.Please follow the instructions:You can give simple voice commands.For example, say: ‘Please open all projects.’You give me just voice commands,ok now, how may I assist you today?",
+        () => startListening()
+      );
     } else {
       startListening();
     }
   };
 
-  useEffect(() => { window.speechSynthesis.getVoices(); }, []);
+  useEffect(() => {
+    window.speechSynthesis.getVoices();
+  }, []);
 
   return (
     <div 
@@ -290,8 +311,20 @@ const AiAssistant = () => {
             <span className="absolute -inset-2 rounded-full bg-blue-400 opacity-50 animate-pulse"></span>
           </>
         )}
-        <div className={`relative flex items-center justify-center h-16 w-16 bg-white rounded-full shadow-2xl border-2 transition-transform duration-300 ${activeAi ? "scale-110 border-blue-500" : "hover:scale-105 border-gray-200"}`}>
-            <img src={aiImage} alt="AI" className={`w-9 h-9 object-contain transition-opacity duration-300 ${activeAi ? "opacity-100" : "opacity-80"}`} />
+        <div
+          className={`relative flex items-center justify-center h-16 w-16 bg-white rounded-full shadow-2xl border-2 transition-transform duration-300 ${
+            activeAi
+              ? "scale-110 border-blue-500"
+              : "hover:scale-105 border-gray-200"
+          }`}
+        >
+          <img
+            src={aiImage}
+            alt="AI"
+            className={`w-9 h-9 object-contain transition-opacity duration-300 ${
+              activeAi ? "opacity-100" : "opacity-80"
+            }`}
+          />
         </div>
       </div>
     </div>
