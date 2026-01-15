@@ -73,6 +73,8 @@ export const createOrder = async (req, res) => {
   try {
     // Get userId from either Clerk auth or protect middleware
     const userId = req.auth?.userId || req.user?.id || req.user?._id;
+    // Extract courseId from request body
+    const { courseId } = req.body;
     let razorpay;
     try {
       razorpay = getRazorpayClient();
