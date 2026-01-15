@@ -70,7 +70,7 @@ const MyEnrollments = () => {
           <table className="min-w-full rounded-xl overflow-hidden backdrop-blur-sm bg-white/70 shadow-[0_10px_30px_rgba(0,0,0,0.1)]">
             <thead className="bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm text-left hidden sm:table-header-group">
               <tr>
-                <th className="px-6 py-3 font-semibold">Course</th>
+                <th className="px-6 py-3 font-semibold">Projects</th>
                 <th className="px-6 py-3 font-semibold">Duration</th>
                 <th className="px-6 py-3 font-semibold">Completed</th>
                 <th className="px-6 py-3 font-semibold">Status</th>
