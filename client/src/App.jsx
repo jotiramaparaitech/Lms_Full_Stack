@@ -29,8 +29,10 @@ import AllProjectsModal from "./components/student/AllProjectsModal";
 import { AllProjectsContext } from "./components/student/Navbar";
 import InquiryModal from "./components/common/InquiryModal";
 import Connect from "./pages/student/Connect";
+import AiAssistant from "./components/AiAssistant";
 
 import ScrollToTop from "./components/ScrollToTop";
+import AllTestimonials from "./components/student/AllTestimonials";
 
 const App = () => {
   const { isEducator } = useContext(AppContext);
@@ -79,6 +81,7 @@ const AppContent = ({ isEducatorRoute, isEducator }) => {
         <Route path="/about" element={<About />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/connect" element={<Connect />} />
+        <Route path="/AllTestimonials" element={<AllTestimonials />} />
 
         {/* 🧑‍🏫 Educator Routes (Protected) */}
         <Route
@@ -97,8 +100,13 @@ const AppContent = ({ isEducatorRoute, isEducator }) => {
       {/* ✅ GLOBAL FOOTER (hidden on educator routes) */}
       {/* {!isEducatorRoute && <Footer />} */}
 
-      {/* 💬 Floating WhatsApp Button */}
-      <WhatsAppButton />
+      <div className="fixed bottom-6 left-6 z-50">
+        <AiAssistant />
+      </div>
+
+      <div className="fixed bottom-6 right-6 z-50">
+        <WhatsAppButton />
+      </div>
       {/* <ChatbotWidget /> */}
     </div>
   );

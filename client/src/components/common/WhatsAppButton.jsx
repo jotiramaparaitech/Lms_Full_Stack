@@ -21,7 +21,7 @@ const WhatsAppButton = () => {
 
   return (
     <motion.div
-      className="fixed bottom-20 right-5 sm:bottom-24 sm:right-4 z-[9999] flex items-center gap-3 px-2"
+      className="fixed bottom-6 right-5 sm:bottom-6 sm:right-4 z-[9999] flex items-center gap-3 px-2"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.8, ease: "easeOut" }}
@@ -47,7 +47,7 @@ const WhatsAppButton = () => {
         <img
           src={assets.whatsappLogo}
           alt="WhatsApp"
-          className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16"
+          className="w-14 h-14 sm:w-14 sm:h-14 md:w-16 md:h-16"
           style={{
             borderRadius: "50%",
             boxShadow: "0px 4px 6px rgba(0,0,0,0.25)",

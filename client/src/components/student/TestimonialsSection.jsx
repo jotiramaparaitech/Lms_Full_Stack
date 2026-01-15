@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, useAnimation } from "framer-motion";
 import { assets, dummyTestimonial } from "../../assets/assets";
+import { Link } from "react-router-dom";
 
 const SCROLL_DURATION = 60; // desktop speed
+let scrollTimeout;
 
 const TestimonialsSection = () => {
   const [expandedIndex, setExpandedIndex] = useState(null);
@@ -30,6 +32,21 @@ const TestimonialsSection = () => {
     });
   };
 
+  // ✅ Mouse / Trackpad Scroll Support
+  const handleWheel = (e) => {
+    if (!trackRef.current) return;
+
+    e.preventDefault();
+    controls.stop();
+
+    trackRef.current.scrollLeft += e.deltaY * 1.2;
+
+    clearTimeout(scrollTimeout);
+    scrollTimeout = setTimeout(() => {
+      startScroll();
+    }, 600);
+  };
+
   useEffect(() => {
     if (window.innerWidth >= 768) {
       startScroll();
@@ -48,8 +65,11 @@ const TestimonialsSection = () => {
           success, and how our platform has made a difference in their lives.
         </p>
 
-        {/* ================= DESKTOP (AUTO SCROLL) ================= */}
-        <div className="relative mt-16 overflow-hidden hidden md:block">
+        {/* ================= DESKTOP ================= */}
+        <div
+          className="relative mt-16 overflow-hidden hidden md:block"
+          onWheel={handleWheel}
+        >
           {/* Fade edges */}
           <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-white to-transparent z-10" />
           <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-white to-transparent z-10" />
@@ -81,15 +101,10 @@ const TestimonialsSection = () => {
           </motion.div>
         </div>
 
-        {/* ================= MOBILE (VERTICAL – SAME AS PROJECTS) ================= */}
-        <div
-          className="grid md:hidden grid-cols-1 gap-10 mt-16 px-3 sm:px-10"
-        >
+        {/* ================= MOBILE ================= */}
+        <div className="grid md:hidden grid-cols-1 gap-10 mt-16 px-3 sm:px-10">
           {dummyTestimonial.slice(0, 3).map((testimonial, index) => (
-            <div
-              key={index}
-              className="bg-white rounded-2xl shadow-lg"
-            >
+            <div key={index} className="bg-white rounded-2xl shadow-lg">
               <TestimonialCard
                 testimonial={testimonial}
                 index={index}
@@ -103,14 +118,15 @@ const TestimonialsSection = () => {
 
         {/* CTA */}
         <div className="flex justify-center mt-16">
-          <button
+          <Link
+            to="/AllTestimonials"
             className="inline-block px-8 py-3 text-base font-semibold
                        bg-gradient-to-r from-blue-600 to-purple-600
                        text-white rounded-xl shadow-md
                        hover:scale-105 hover:shadow-lg transition-all duration-300"
           >
             View All Testimonials
-          </button>
+          </Link>
         </div>
       </div>
     </section>

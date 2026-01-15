@@ -17,10 +17,7 @@ const CourseCard = ({ course }) => {
 
   const stripHtml = (html) =>
     html
-      ? html
-          .replace(/<[^>]*>/g, "")
-          .replace(/&nbsp;/g, " ")
-          .trim()
+      ? html.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim()
       : "";
 
   const description = stripHtml(course.courseDescription);
@@ -32,20 +29,30 @@ const CourseCard = ({ course }) => {
 
   return (
     <div
+      onClick={handleClick}
       className="
-        bg-white rounded-xl shadow-md border border-gray-100
-        overflow-hidden flex flex-col
-        w-full max-w-[380px]
-        mx-auto
-        hover:shadow-lg transition
-      "
+          bg-white rounded-xl border border-gray-100
+          overflow-hidden flex flex-col
+          w-full max-w-[380px]
+          mx-auto
+          cursor-pointer
+          transition-all duration-300 ease-out
+          hover:-translate-y-2
+          hover:scale-[1.02]
+          hover:shadow-2xl
+          group
+        "
     >
       {/* IMAGE */}
       <div className="relative">
         <img
           src={courseThumbnail}
           alt={courseTitle}
-          className="w-full h-[160px] object-cover"
+          className="
+               w-full h-[160px] object-cover
+               transition-transform duration-500 ease-out
+               group-hover:scale-110 
+             "
         />
 
         {course.discount > 0 && (
@@ -63,7 +70,9 @@ const CourseCard = ({ course }) => {
 
       {/* CONTENT */}
       <div className="flex flex-col flex-1 p-4 gap-2 text-left">
-        <h4 className="font-semibold text-base leading-snug">{courseTitle}</h4>
+        <h4 className="font-semibold text-base leading-snug">
+          {courseTitle}
+        </h4>
 
         <p className="text-sm text-orange-500">{educatorName}</p>
 
@@ -71,7 +80,7 @@ const CourseCard = ({ course }) => {
           {description || "No description available"}
         </p>
 
-        {/* ⭐ RATING WITH STARS (LEFT ALIGNED) */}
+        {/* ⭐ RATING */}
         <div className="flex items-center gap-1 mt-auto">
           {[...Array(5)].map((_, index) => (
             <img
@@ -90,14 +99,20 @@ const CourseCard = ({ course }) => {
         {/* BUTTONS */}
         <div className="flex gap-3 mt-4">
           <button
-            onClick={handleClick}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleClick();
+            }}
             className="flex-1 bg-[#FF6B6B] text-white py-2 rounded-md text-sm"
           >
             Register
           </button>
 
           <button
-            onClick={handleClick}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleClick();
+            }}
             className="flex-1 border py-2 rounded-md text-sm"
           >
             View
