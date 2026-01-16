@@ -226,7 +226,7 @@ const HelpCenter = ({ onClose }) => {
                 icon={<MessageSquare className="w-6 h-6 text-white" />}
                 color="bg-emerald-500"
                 title="WhatsApp Chat"
-                desc="Instant support (10 AM - 7 PM)"
+                desc="Instant support (24/7)"
                 onClick={handleChat}
               />
               <ContactOption
