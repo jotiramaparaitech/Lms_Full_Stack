@@ -66,7 +66,7 @@ const SideBar = () => {
     <>
       {/* ✅ Mobile Toggle Button (bottom-right floating button) */}
       <button
-        className="md:hidden fixed bottom-5 left-5 z-50 bg-blue-600 text-white p-3 rounded-full shadow-lg active:scale-95 transition-transform"
+        className="md:hidden fixed bottom-20 left-5 z-50 bg-blue-600 text-white p-3 rounded-full shadow-lg active:scale-95 transition-transform"
         onClick={() => setIsMobileOpen(true)}
       >
         ☰
