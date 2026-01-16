@@ -113,3 +113,58 @@ export const markTicketSolved = async (req, res) => {
     });
   }
 };
+
+/**
+ * @desc    Delete a ticket
+ * @route   DELETE /api/tickets/:id
+ * @access  Protected (Owner or Educator)
+ */
+export const deleteTicket = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // 1. Verify Authentication
+    const auth = req.auth();
+    const clerkUserId = auth?.userId;
+
+    if (!clerkUserId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    // 2. Find the Ticket
+    const ticket = await Ticket.findById(id);
+    if (!ticket) {
+      return res.status(404).json({ success: false, message: "Ticket not found" });
+    }
+
+    // 3. Fetch User details to check role (using your existing helper)
+    const user = await ensureUserExists(clerkUserId);
+
+    // 4. Check Permissions: 
+    // Allow if User is the Owner OR User is an Educator/Admin
+    const isOwner = ticket.userId === clerkUserId;
+    const isAdmin = user.role === "educator" || user.role === "admin"; // Adjust "educator" to match your exact DB role string
+
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. You can only delete your own tickets.",
+      });
+    }
+
+    // 5. Delete the ticket
+    await ticket.deleteOne();
+
+    res.status(200).json({
+      success: true,
+      message: "Ticket deleted successfully",
+    });
+
+  } catch (error) {
+    console.error("Delete Ticket Error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
