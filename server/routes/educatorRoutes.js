@@ -1,16 +1,16 @@
 import express from "express";
 import {
-  addCourse,
-  updateCourse,
-  deleteCourse,
+  addProject,
+  updateProject,
+  deleteProject,
   educatorDashboardData,
-  getEducatorCourses,
-  getEducatorCourseById,
+  getEducatorProjects,
+  getEducatorProjectById,
   getEnrolledStudentsData,
   updateRoleToEducator,
   removeStudentAccess,
   getAllStudents,
-  assignCourse,
+  assignProject,
 } from "../controllers/educatorController.js";
 import upload from "../configs/multer.js";
 import { requireAuth } from "@clerk/express"; // ✅ FIXED IMPORT
@@ -23,45 +23,45 @@ const educatorRouter = express.Router();
 educatorRouter.get("/update-role", requireAuth(), updateRoleToEducator);
 
 // -----------------------------
-// Add Course
+// Add Project
 // -----------------------------
 educatorRouter.post(
-  "/add-course",
+  "/add-project",
   requireAuth(),
   upload.fields([
     { name: "image", maxCount: 1 },
     { name: "pdfs", maxCount: 10 },
   ]),
-  addCourse
+  addProject
 );
 
 // -----------------------------
-// Get Educator Courses
+// Get Educator Projects
 // -----------------------------
-educatorRouter.get("/courses", requireAuth(), getEducatorCourses);
+educatorRouter.get("/projects", requireAuth(), getEducatorProjects);
 
 // -----------------------------
-// Get Single Educator Course
+// Get Single Educator Project
 // -----------------------------
-educatorRouter.get("/course/:id", requireAuth(), getEducatorCourseById);
+educatorRouter.get("/project/:id", requireAuth(), getEducatorProjectById);
 
 // -----------------------------
-// Update Course
+// Update Project
 // -----------------------------
 educatorRouter.put(
-  "/course/:id",
+  "/project/:id",
   requireAuth(),
   upload.fields([
     { name: "image", maxCount: 1 },
     { name: "pdfs", maxCount: 10 },
   ]),
-  updateCourse
+  updateProject
 );
 
 // -----------------------------
-// Delete Course
+// Delete Project
 // -----------------------------
-educatorRouter.delete("/course/:id", requireAuth(), deleteCourse);
+educatorRouter.delete("/project/:id", requireAuth(), deleteProject);
 
 // -----------------------------
 // Educator Dashboard Data
@@ -78,10 +78,10 @@ educatorRouter.get(
 );
 
 // -----------------------------
-// Remove Student Access from Course
+// Remove Student Access from Project
 // -----------------------------
 educatorRouter.delete(
-  "/remove-student/:courseId/:studentId",
+  "/remove-student/:projectId/:studentId",
   requireAuth(),
   removeStudentAccess
 );
@@ -92,8 +92,8 @@ educatorRouter.delete(
 educatorRouter.get("/all-students", requireAuth(), getAllStudents);
 
 // -----------------------------
-// Assign Course to Student
+// Assign Project to Student
 // -----------------------------
-educatorRouter.post("/assign-course", requireAuth(), assignCourse);
+educatorRouter.post("/assign-project", requireAuth(), assignProject);
 
 export default educatorRouter;

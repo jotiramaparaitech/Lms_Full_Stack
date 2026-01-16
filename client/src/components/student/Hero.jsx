@@ -47,7 +47,7 @@ const Hero = () => {
             transition={{ delay: 0.4 }}
             className="flex flex-wrap gap-4 mt-8"
           >
-            <Link to="/course-list">
+            <Link to="/project-list">
               <button className="bg-cyan-600 hover:bg-cyan-700 text-white px-6 sm:px-8 py-3 rounded-md font-medium shadow-md transition-all duration-300">
                 Start Learning Today
               </button>

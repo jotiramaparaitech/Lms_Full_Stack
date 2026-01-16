@@ -26,25 +26,25 @@ export const AppContextProvider = (props) => {
 
   const [showLogin, setShowLogin] = useState(false);
   const [isEducator, setIsEducator] = useState(false);
-  const [allCourses, setAllCourses] = useState([]);
+  const [allProjects, setAllProjects] = useState([]);
   const [userData, setUserData] = useState(null);
-  const [enrolledCourses, setEnrolledCourses] = useState([]);
+  const [enrolledProjects, setEnrolledProjects] = useState([]);
   const roleRedirectedRef = useRef(false);
   const previousUserRef = useRef(null);
 
-  // ✅ Fetch all courses (handles errors gracefully)
-  const fetchAllCourses = async () => {
+  // ✅ Fetch all projects (handles errors gracefully)
+  const fetchAllProjects = async () => {
     try {
-      const response = await axios.get(`${backendUrl}/api/course/all`, {
+      const response = await axios.get(`${backendUrl}/api/project/all`, {
         timeout: 8000,
       });
 
       if (response?.data?.success) {
-        const courses = response.data.courses || [];
-        setAllCourses(courses);
+        const projects = response.data.projects || [];
+        setAllProjects(projects);
       } else {
-        toast.error(response?.data?.message || "Failed to load courses.");
-        setAllCourses([]);
+        toast.error(response?.data?.message || "Failed to load projects.");
+        setAllProjects([]);
       }
     } catch (error) {
       if (error.code === "ERR_NETWORK") {
@@ -52,14 +52,14 @@ export const AppContextProvider = (props) => {
           "Cannot connect to backend. Check your internet or backend deployment."
         );
       } else if (error.response?.status === 500) {
-        toast.error("Server error while fetching courses.");
+        toast.error("Server error while fetching projects.");
       } else if (error.message?.includes("CORS")) {
         toast.error("CORS issue: backend not allowing this origin.");
       } else {
-        toast.error(error.message || "Unknown error fetching courses.");
+        toast.error(error.message || "Unknown error fetching projects.");
       }
 
-      setAllCourses([]); // Safe fallback
+      setAllProjects([]); // Safe fallback
     }
   };
 
@@ -172,60 +172,60 @@ export const AppContextProvider = (props) => {
     }
   };
 
-  // ✅ Fetch enrolled courses
-  const fetchUserEnrolledCourses = async () => {
+  // ✅ Fetch enrolled projects
+  const fetchUserEnrolledProjects = async () => {
     try {
       if (!user) {
-        setEnrolledCourses([]);
+        setEnrolledProjects([]);
         return;
       }
 
       const token = await getToken();
       if (!token) {
-        setEnrolledCourses([]);
+        setEnrolledProjects([]);
         return;
       }
 
       const response = await axios.get(
-        `${backendUrl}/api/user/enrolled-courses`,
+        `${backendUrl}/api/user/enrolled-projects`,
         { headers: { Authorization: `Bearer ${token}` }, timeout: 8000 }
       );
 
       if (response?.data?.success) {
-        setEnrolledCourses(response.data.enrolledCourses.reverse());
+        setEnrolledProjects(response.data.enrolledProjects.reverse());
       } else {
         toast.error(
-          response?.data?.message || "Failed to load enrolled courses."
+          response?.data?.message || "Failed to load enrolled projects."
         );
       }
     } catch (error) {
       if (error.code === "ERR_NETWORK") {
-        toast.error("Network error while fetching enrolled courses.");
+        toast.error("Network error while fetching enrolled projects.");
       } else if (error.response?.status === 500) {
-        toast.error("Server error while loading enrolled courses.");
+        toast.error("Server error while loading enrolled projects.");
       } else if (error.message?.includes("CORS")) {
-        toast.error("CORS issue while loading enrolled courses.");
+        toast.error("CORS issue while loading enrolled projects.");
       } else {
-        toast.error(error.message || "Unknown error loading courses.");
+        toast.error(error.message || "Unknown error loading projects.");
       }
 
-      setEnrolledCourses([]);
+      setEnrolledProjects([]);
     }
   };
 
-  // ✅ Fetch single course (includes PDFs)
-  const fetchCourseById = async (courseId) => {
+  // ✅ Fetch single project (includes PDFs)
+  const fetchProjectById = async (projectId) => {
     try {
-      const response = await axios.get(`${backendUrl}/api/course/${courseId}`, {
+      const response = await axios.get(`${backendUrl}/api/project/${projectId}`, {
         timeout: 8000,
       });
-      if (response?.data?.success) return response.data.courseData;
+      if (response?.data?.success) return response.data.projectData;
       else {
-        toast.error(response?.data?.message || "Failed to load course.");
+        toast.error(response?.data?.message || "Failed to load project.");
         return null;
       }
     } catch (error) {
-      toast.error(error.message || "Error fetching course.");
+      toast.error(error.message || "Error fetching project.");
       return null;
     }
   };
@@ -239,9 +239,9 @@ export const AppContextProvider = (props) => {
     return humanizeDuration(time * 60 * 1000, { units: ["h", "m"] });
   };
 
-  const calculateCourseDuration = (course) => {
+  const calculateProjectDuration = (project) => {
     let time = 0;
-    course.courseContent.forEach((chapter) =>
+    project.projectContent.forEach((chapter) =>
       chapter.chapterContent.forEach(
         (lecture) => (time += lecture.lectureDuration)
       )
@@ -249,14 +249,14 @@ export const AppContextProvider = (props) => {
     return humanizeDuration(time * 60 * 1000, { units: ["h", "m"] });
   };
 
-  const calculateRating = (course) => {
-    if (course.courseRatings.length === 0) return 0;
-    const total = course.courseRatings.reduce((acc, r) => acc + r.rating, 0);
-    return Math.floor(total / course.courseRatings.length);
+  const calculateRating = (project) => {
+    if (project.projectRatings.length === 0) return 0;
+    const total = project.projectRatings.reduce((acc, r) => acc + r.rating, 0);
+    return Math.floor(total / project.projectRatings.length);
   };
 
-  const calculateNoOfLectures = (course) => {
-    return course.courseContent.reduce((total, chapter) => {
+  const calculateNoOfLectures = (project) => {
+    return project.projectContent.reduce((total, chapter) => {
       if (Array.isArray(chapter.chapterContent)) {
         total += chapter.chapterContent.length;
       }
@@ -287,7 +287,7 @@ export const AppContextProvider = (props) => {
 
     const role = user.publicMetadata?.role || "student";
     fetchUserData();
-    fetchUserEnrolledCourses();
+    fetchUserEnrolledProjects();
 
     if (!roleRedirectedRef.current) {
       if (role === "educator" || role === "admin") navigate("/educator");
@@ -297,7 +297,7 @@ export const AppContextProvider = (props) => {
   }, [user, isLoaded]);
 
   useEffect(() => {
-    fetchAllCourses();
+    fetchAllProjects();
   }, []);
 
   const value = {
@@ -310,14 +310,14 @@ export const AppContextProvider = (props) => {
     setUserData,
     fetchUserData,
     getToken,
-    allCourses,
-    fetchAllCourses,
-    enrolledCourses,
-    setEnrolledCourses,
-    fetchUserEnrolledCourses,
-    fetchCourseById,
+    allProjects,
+    fetchAllProjects,
+    enrolledProjects,
+    setEnrolledProjects,
+    fetchUserEnrolledProjects,
+    fetchProjectById,
     calculateChapterTime,
-    calculateCourseDuration,
+    calculateProjectDuration,
     calculateRating,
     calculateNoOfLectures,
     isEducator,

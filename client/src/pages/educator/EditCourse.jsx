@@ -8,8 +8,8 @@ import { AppContext } from "../../context/AppContext";
 import { assets } from "../../assets/assets";
 import Loading from "../../components/student/Loading";
 
-const EditCourse = () => {
-  const { courseId } = useParams();
+const EditProject = () => {
+  const { projectId } = useParams();
   const navigate = useNavigate();
   const editorRef = useRef(null);
   const quillRef = useRef(null);
@@ -17,9 +17,9 @@ const EditCourse = () => {
 
   const [isFetching, setIsFetching] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [courseTitle, setCourseTitle] = useState("");
+  const [projectTitle, setProjectTitle] = useState("");
   const [customDomain, setCustomDomain] = useState("");
-  const [coursePrice, setCoursePrice] = useState(0);
+  const [projectPrice, setProjectPrice] = useState(0);
   const [discount, setDiscount] = useState(0);
   const [isLocked, setIsLocked] = useState(false);
   const [isTrending, setIsTrending] = useState(false);
@@ -116,39 +116,39 @@ const EditCourse = () => {
       : [],
   });
 
-  const fetchCourseData = async () => {
+  const fetchProjectData = async () => {
     try {
       setIsFetching(true);
       const token = await getToken();
       const { data } = await axios.get(
-        `${backendUrl}/api/educator/course/${courseId}`,
+        `${backendUrl}/api/educator/project/${projectId}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
 
       if (!data.success) {
-        toast.error(data.message || "Failed to load course");
+        toast.error(data.message || "Failed to load project");
         return;
       }
 
-      const course = data.course;
-      setCourseTitle(course.courseTitle || "");
-      setCustomDomain(course.customDomain || "");
-      setCoursePrice(course.coursePrice || 0);
-      setDiscount(course.discount || 0);
-      setIsLocked(course.isLocked || false);
-      setIsTrending(course.isTrending || false);
-      setExistingThumbnail(course.courseThumbnail || "");
+      const project = data.project;
+      setProjectTitle(project.projectTitle || "");
+      setCustomDomain(project.customDomain || "");
+      setProjectPrice(project.projectPrice || 0);
+      setDiscount(project.discount || 0);
+      setIsLocked(project.isLocked || false);
+      setIsTrending(project.isTrending || false);
+      setExistingThumbnail(project.projectThumbnail || "");
       setChapters(
-        Array.isArray(course.courseContent)
-          ? course.courseContent.map((chapter) => normalizeChapter(chapter))
+        Array.isArray(project.projectContent)
+          ? project.projectContent.map((chapter) => normalizeChapter(chapter))
           : []
       );
-      setPdfs(course.pdfResources || []);
+      setPdfs(project.pdfResources || []);
       // Set description - ensure it's a string
-      const description = course.courseDescription || "";
-      console.log("Course description loaded:", {
+      const description = project.projectDescription || "";
+      console.log("Project description loaded:", {
         hasDescription: !!description,
         descriptionLength: description.length,
         preview: description.substring(0, 100),
@@ -182,10 +182,10 @@ const EditCourse = () => {
   };
 
   useEffect(() => {
-    if (courseId) {
-      fetchCourseData();
+    if (projectId) {
+      fetchProjectData();
     }
-  }, [courseId]);
+  }, [projectId]);
 
   // --------------- Chapter Handling ---------------
   const handleChapter = (action, chapterId) => {
@@ -366,59 +366,59 @@ const EditCourse = () => {
         description = initialDescription || "";
       }
 
-      const courseData = {
-        courseTitle: courseTitle.trim(),
+      const projectData = {
+        projectTitle: projectTitle.trim(),
         customDomain: customDomain.trim(),
-        courseDescription: description.trim(),
-        coursePrice: Number(coursePrice) || 0,
+        projectDescription: description.trim(),
+        projectPrice: Number(projectPrice) || 0,
         discount: Number(discount) || 0,
         isLocked,
         isTrending,
-        courseContent: preparedChapters,
+        projectContent: preparedChapters,
         pdfResources: pdfs,
-        courseThumbnail: existingThumbnail,
+        projectThumbnail: existingThumbnail,
       };
 
       // Validate required fields
-      if (!courseData.courseTitle) {
-        toast.error("Course title is required");
+      if (!projectData.projectTitle) {
+        toast.error("Project title is required");
         setIsSubmitting(false);
         return;
       }
 
       // Validate description - it's required by the model
       if (
-        !courseData.courseDescription ||
-        courseData.courseDescription.trim() === "" ||
-        courseData.courseDescription === "<p><br></p>"
+        !projectData.projectDescription ||
+        projectData.projectDescription.trim() === "" ||
+        projectData.projectDescription === "<p><br></p>"
       ) {
         toast.error(
-          "Course description is required. Please add a description."
+          "Project description is required. Please add a description."
         );
         setIsSubmitting(false);
         return;
       }
 
-      console.log("Submitting course data:", {
-        courseTitle: courseData.courseTitle,
-        customDomain: courseData.customDomain,
-        descriptionLength: courseData.courseDescription?.length || 0,
+      console.log("Submitting project data:", {
+        projectTitle: projectData.projectTitle,
+        customDomain: projectData.customDomain,
+        descriptionLength: projectData.projectDescription?.length || 0,
         descriptionPreview:
-          courseData.courseDescription?.substring(0, 50) || "empty",
+          projectData.projectDescription?.substring(0, 50) || "empty",
         quillReady: !!quillRef.current,
         initialDescriptionLength: initialDescription?.length || 0,
-        price: courseData.coursePrice,
-        chaptersCount: courseData.courseContent?.length || 0,
+        price: projectData.projectPrice,
+        chaptersCount: projectData.projectContent?.length || 0,
       });
 
       const formData = new FormData();
-      formData.append("courseData", JSON.stringify(courseData));
+      formData.append("projectData", JSON.stringify(projectData));
       if (image) {
         formData.append("image", image);
       }
 
       const { data } = await axios.put(
-        `${backendUrl}/api/educator/course/${courseId}`,
+        `${backendUrl}/api/educator/project/${projectId}`,
         formData,
         {
           headers: {
@@ -429,13 +429,13 @@ const EditCourse = () => {
       );
 
       if (data.success) {
-        toast.success(data.message || "Course updated successfully!");
-        navigate("/educator/my-courses");
+        toast.success(data.message || "Project updated successfully!");
+        navigate("/educator/my-projects");
       } else {
-        toast.error(data.message || "Failed to update course");
+        toast.error(data.message || "Failed to update project");
       }
     } catch (error) {
-      console.error("Error updating course:", error);
+      console.error("Error updating project:", error);
       console.error("Error response:", error.response?.data);
       const errorMessage =
         error.response?.data?.message ||
@@ -449,7 +449,7 @@ const EditCourse = () => {
         console.error("Server error details:", {
           status: error.response.status,
           data: error.response.data,
-          courseId,
+          projectId,
         });
       }
     } finally {
@@ -474,8 +474,8 @@ const EditCourse = () => {
           <label className="text-gray-700 font-semibold">Project Title</label>
           <input
             type="text"
-            value={courseTitle}
-            onChange={(e) => setCourseTitle(e.target.value)}
+            value={projectTitle}
+            onChange={(e) => setProjectTitle(e.target.value)}
             placeholder="Enter course title..."
             className="mt-2 bg-white/80 text-gray-800 border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#80deea] shadow-inner"
             required
@@ -512,8 +512,8 @@ const EditCourse = () => {
             <label className="text-gray-700 font-semibold">Project Price</label>
             <input
               type="number"
-              value={coursePrice}
-              onChange={(e) => setCoursePrice(e.target.value)}
+              value={projectPrice}
+              onChange={(e) => setProjectPrice(e.target.value)}
               className="mt-2 bg-white/80 text-gray-800 border border-gray-300 rounded-xl px-4 py-2.5 w-32 focus:outline-none focus:ring-2 focus:ring-[#81d4fa] shadow-inner"
             />
           </div>

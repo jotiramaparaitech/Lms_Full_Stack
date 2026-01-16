@@ -12,16 +12,16 @@ import Loading from "../../components/student/Loading";
 
 const Player = () => {
   const {
-    enrolledCourses,
+    enrolledProjects,
     backendUrl,
     getToken,
     calculateChapterTime,
     userData,
-    fetchUserEnrolledCourses,
+    fetchUserEnrolledProjects,
   } = useContext(AppContext);
 
-  const { courseId } = useParams();
-  const [courseData, setCourseData] = useState(null);
+  const { projectId } = useParams();
+  const [projectData, setProjectData] = useState(null);
   const [progressData, setProgressData] = useState(null);
   const [openSections, setOpenSections] = useState({});
   const [playerData, setPlayerData] = useState(null);
@@ -39,12 +39,12 @@ const Player = () => {
     }
   };
 
-  // Load course data
-  const getCourseData = () => {
-    enrolledCourses.forEach((course) => {
-      if (course._id === courseId) {
-        setCourseData(course);
-        course.courseRatings.forEach((item) => {
+  // Load project data
+  const getProjectData = () => {
+    enrolledProjects.forEach((project) => {
+      if (project._id === projectId) {
+        setProjectData(project);
+        project.projectRatings.forEach((item) => {
           if (item.userId === userData._id) setInitialRating(item.rating);
         });
       }
@@ -52,8 +52,8 @@ const Player = () => {
   };
 
   useEffect(() => {
-    if (enrolledCourses.length > 0) getCourseData();
-  }, [enrolledCourses]);
+    if (enrolledProjects.length > 0) getProjectData();
+  }, [enrolledProjects]);
 
   const toggleSection = (key) => {
     setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -64,27 +64,27 @@ const Player = () => {
     try {
       const token = await getToken();
       const { data } = await axios.post(
-        `${backendUrl}/api/user/update-course-progress`,
-        { courseId, lectureId },
+        `${backendUrl}/api/user/update-project-progress`,
+        { projectId, lectureId },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
       if (data.success) {
         toast.success(data.message);
-        getCourseProgress();
+        getProjectProgress();
       } else toast.error(data.message);
     } catch (error) {
       toast.error(error.message);
     }
   };
 
-  // Fetch course progress
-  const getCourseProgress = async () => {
+  // Fetch project progress
+  const getProjectProgress = async () => {
     try {
       const token = await getToken();
       const { data } = await axios.post(
-        `${backendUrl}/api/user/get-course-progress`,
-        { courseId },
+        `${backendUrl}/api/user/get-project-progress`,
+        { projectId },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -96,7 +96,7 @@ const Player = () => {
   };
 
   useEffect(() => {
-    getCourseProgress();
+    getProjectProgress();
   }, []);
 
   // Handle rating
@@ -105,36 +105,36 @@ const Player = () => {
       const token = await getToken();
       const { data } = await axios.post(
         `${backendUrl}/api/user/add-rating`,
-        { courseId, rating },
+        { projectId, rating },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
       if (data.success) {
         toast.success(data.message);
-        fetchUserEnrolledCourses();
+        fetchUserEnrolledProjects();
       } else toast.error(data.message);
     } catch (error) {
       toast.error(error.message);
     }
   };
 
-  if (!courseData) return <Loading />;
+  if (!projectData) return <Loading />;
 
   // ✅ Get PDFs directly from MongoDB (no Cloudinary)
-  const pdfList = courseData.pdfResources || [];
+  const pdfList = projectData.pdfResources || [];
 
   return (
     <>
       <div className="min-h-screen bg-gradient-to-tr from-[#f0f9ff] via-[#e6f7f1] to-[#e3f2fd] p-4 md:p-10">
         <div className="grid md:grid-cols-2 gap-8 md:gap-16">
-          {/* -------- Left Side: Course Structure -------- */}
+          {/* -------- Left Side: Project Structure -------- */}
           <div className="text-gray-800">
             <h2 className="text-2xl md:text-3xl font-bold mb-4">
               Project Structure
             </h2>
 
             <div className="space-y-4">
-              {courseData.courseContent.map((chapter, index) => (
+              {projectData.projectContent.map((chapter, index) => (
                 <div
                   key={chapter.chapterId || index}
                   className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden"
@@ -259,14 +259,14 @@ const Player = () => {
                 </div>
               ) : (
                 <p className="text-sm text-gray-500 italic">
-                  No PDFs available for this course.
+                  No PDFs available for this project.
                 </p>
               )}
             </div>
 
             {/* -------- Rating -------- */}
             <div className="mt-8 flex items-center gap-3">
-              <h3 className="text-xl font-semibold">Rate this Course:</h3>
+              <h3 className="text-xl font-semibold">Rate this Project:</h3>
               <Rating initialRating={initialRating} onRate={handleRate} />
             </div>
           </div>
@@ -304,8 +304,8 @@ const Player = () => {
               </div>
             ) : (
               <img
-                src={courseData.courseThumbnail}
-                alt="Course Thumbnail"
+                src={projectData.projectThumbnail}
+                alt="Project Thumbnail"
                 className="rounded-xl shadow-md w-full"
               />
             )}

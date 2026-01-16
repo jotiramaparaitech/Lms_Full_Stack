@@ -11,9 +11,9 @@ const AddCourse = () => {
   const quillRef = useRef(null);
   const { backendUrl, getToken } = useContext(AppContext);
 
-  const [courseTitle, setCourseTitle] = useState("");
+  const [projectTitle, setProjectTitle] = useState("");
   const [customDomain, setCustomDomain] = useState("");
-  const [coursePrice, setCoursePrice] = useState(0);
+  const [projectPrice, setProjectPrice] = useState(0);
   const [discount, setDiscount] = useState(0);
   const [isLocked, setIsLocked] = useState(false);
   const [isTrending, setIsTrending] = useState(false);
@@ -154,30 +154,30 @@ const AddCourse = () => {
     e.preventDefault();
     try {
       if (!image) return toast.error("Thumbnail Not Selected");
-      if (!courseTitle) return toast.error("Please enter course title");
+      if (!projectTitle) return toast.error("Please enter project title");
 
       const token = await getToken();
 
       const formData = new FormData();
 
-      // Server expects a single `courseData` JSON field plus `image`
-      const courseData = {
-        courseTitle,
-        courseDescription: quillRef.current?.root?.innerHTML || "",
-        coursePrice: Number(coursePrice),
+      // Server expects a single `projectData` JSON field plus `image`
+      const projectData = {
+        projectTitle,
+        projectDescription: quillRef.current?.root?.innerHTML || "",
+        projectPrice: Number(projectPrice),
         discount: Number(discount),
         isLocked,
         isTrending,
-        courseContent: chapters,
+        projectContent: chapters,
         pdfResources: pdfs,
         customDomain,
       };
 
-      formData.append("courseData", JSON.stringify(courseData));
+      formData.append("projectData", JSON.stringify(projectData));
       formData.append("image", image);
 
       const { data } = await axios.post(
-        `${backendUrl}/api/educator/add-course`,
+        `${backendUrl}/api/educator/add-project`,
         formData,
         {
           headers: {
@@ -230,8 +230,8 @@ const AddCourse = () => {
           <label className="text-gray-700 font-semibold">Project Title</label>
           <input
             type="text"
-            value={courseTitle}
-            onChange={(e) => setCourseTitle(e.target.value)}
+            value={projectTitle}
+            onChange={(e) => setProjectTitle(e.target.value)}
             placeholder="Enter course title..."
             className="mt-2 bg-white/80 text-gray-800 border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#80deea] shadow-inner"
             required
@@ -268,8 +268,8 @@ const AddCourse = () => {
             <label className="text-gray-700 font-semibold">Project Price</label>
             <input
               type="number"
-              value={coursePrice}
-              onChange={(e) => setCoursePrice(e.target.value)}
+              value={projectPrice}
+              onChange={(e) => setProjectPrice(e.target.value)}
               className="mt-2 bg-white/80 text-gray-800 border border-gray-300 rounded-xl px-4 py-2.5 w-32 focus:outline-none focus:ring-2 focus:ring-[#81d4fa] shadow-inner"
             />
           </div>

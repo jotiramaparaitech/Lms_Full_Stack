@@ -1,14 +1,14 @@
 import React, { useContext } from "react";
 import { AppContext } from "../../context/AppContext";
-import CourseCard from "./CourseCard";
+import ProjectCard from "./ProjectCard";
 import { Link } from "react-router-dom";
 
-const CoursesSection = () => {
-  const { allCourses } = useContext(AppContext);
+const ProjectsSection = () => {
+  const { allProjects } = useContext(AppContext);
 
-  const courses = allCourses?.filter((c) => c?.courseTitle) || [];
+  const projects = allProjects?.filter((p) => p?.projectTitle) || [];
 
-  if (!courses.length) {
+  if (!projects.length) {
     return (
       <div className="py-20 text-center text-gray-400">
         No projects available
@@ -31,15 +31,15 @@ const CoursesSection = () => {
         className="grid md:grid-cols-3 sm:grid-cols-2 grid-cols-1 
                       gap-10 mt-16 px-3 sm:px-10 md:px-20"
       >
-        {courses.slice(0, 3).map((course) => (
-          <CourseCard key={course._id} course={course} />
+        {projects.slice(0, 3).map((project) => (
+          <ProjectCard key={project._id} project={project} />
         ))}
       </div>
 
       {/* ===== CTA BUTTON ===== */}
       <div className="flex justify-center mt-16">
         <Link
-          to="/course-list"
+          to="/project-list"
           className="inline-block px-8 py-3 text-base font-semibold
                      bg-gradient-to-r from-blue-600 to-purple-600
                      text-white rounded-xl shadow-md
@@ -52,4 +52,4 @@ const CoursesSection = () => {
   );
 };
 
-export default CoursesSection;
+export default ProjectsSection;

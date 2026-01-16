@@ -8,33 +8,33 @@ import { motion } from "framer-motion";
 
 const MyCourses = () => {
   const { backendUrl, isEducator, currency, getToken } = useContext(AppContext);
-  const [courses, setCourses] = useState(null);
+  const [projects, setProjects] = useState(null);
   const navigate = useNavigate();
 
-  const fetchEducatorCourses = async () => {
+  const fetchEducatorProjects = async () => {
     try {
       const token = await getToken();
-      const { data } = await axios.get(`${backendUrl}/api/educator/courses`, {
+      const { data } = await axios.get(`${backendUrl}/api/educator/projects`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (data.success) setCourses(data.courses);
+      if (data.success) setProjects(data.projects);
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to load courses");
+      toast.error(error.response?.data?.message || "Failed to load projects");
     }
   };
 
-  const handleRemoveCourse = async (courseId) => {
+  const handleRemoveProject = async (projectId) => {
     if (!window.confirm("Are you sure you want to delete this project?"))
       return;
     try {
       const token = await getToken();
       const { data } = await axios.delete(
-        `${backendUrl}/api/educator/course/${courseId}`,
+        `${backendUrl}/api/educator/project/${projectId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (data.success) {
         toast.success("Project removed successfully!");
-        setCourses((prev) => prev.filter((c) => c._id !== courseId));
+        setProjects((prev) => prev.filter((p) => p._id !== projectId));
       } else {
         toast.error("Failed to remove project.");
       }
@@ -43,15 +43,15 @@ const MyCourses = () => {
     }
   };
 
-  const handleEditCourse = (courseId) => {
-    navigate(`/educator/course/${courseId}/edit`);
+  const handleEditProject = (projectId) => {
+    navigate(`/educator/project/${projectId}/edit`);
   };
 
   useEffect(() => {
-    if (isEducator) fetchEducatorCourses();
+    if (isEducator) fetchEducatorProjects();
   }, [isEducator]);
 
-  if (!courses) return <Loading />;
+  if (!projects) return <Loading />;
 
   return (
     <div className="min-h-screen flex flex-col items-center md:p-12 p-4 bg-gradient-to-br from-sky-50 via-white to-blue-50 relative overflow-hidden">
@@ -78,9 +78,9 @@ const MyCourses = () => {
           </thead>
 
           <tbody className="text-gray-700">
-            {courses.map((course) => (
+            {projects.map((project) => (
               <motion.tr
-                key={course._id}
+                key={project._id}
                 whileHover={{
                   scale: 1.02,
                   backgroundColor: "rgba(224, 242, 254, 0.5)",
@@ -90,37 +90,37 @@ const MyCourses = () => {
               >
                 <td className="px-4 py-3 flex items-center gap-3 truncate">
                   <img
-                    src={course.courseThumbnail}
-                    alt="Course"
+                    src={project.projectThumbnail}
+                    alt="Project"
                     className="w-16 h-12 object-cover rounded-lg border shadow-md hover:scale-105 transition-transform"
                   />
                   <span className="truncate font-medium text-gray-800">
-                    {course.courseTitle}
+                    {project.projectTitle}
                   </span>
                 </td>
 
                 <td className="px-4 py-3 font-semibold text-blue-600 whitespace-nowrap">
                   {currency}{" "}
                   {Math.floor(
-                    course.enrolledStudents.length *
-                      (course.coursePrice -
-                        (course.discount * course.coursePrice) / 100)
+                    project.enrolledStudents.length *
+                      (project.projectPrice -
+                        (project.discount * project.projectPrice) / 100)
                   )}
                 </td>
 
                 <td className="px-4 py-3 text-center font-medium text-gray-800">
-                  {course.enrolledStudents.length}
+                  {project.enrolledStudents.length}
                 </td>
 
                 <td className="px-4 py-3 text-gray-700 whitespace-nowrap">
-                  {new Date(course.createdAt).toLocaleDateString()}
+                  {new Date(project.createdAt).toLocaleDateString()}
                 </td>
 
                 <td className="px-4 py-3 flex justify-center gap-2">
                   <motion.button
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.95 }}
-                    onClick={() => handleEditCourse(course._id)}
+                    onClick={() => handleEditProject(project._id)}
                     className="px-4 py-1.5 text-xs font-semibold bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-md shadow-md hover:shadow-lg transition"
                   >
                     Edit
@@ -129,7 +129,7 @@ const MyCourses = () => {
                   <motion.button
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.95 }}
-                    onClick={() => handleRemoveCourse(course._id)}
+                    onClick={() => handleRemoveProject(project._id)}
                     className="px-4 py-1.5 text-xs font-semibold bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-md shadow-md hover:shadow-lg transition"
                   >
                     Remove
@@ -143,34 +143,34 @@ const MyCourses = () => {
 
       {/* MOBILE CARD VIEW (Visible below md) */}
       <div className="block md:hidden w-full max-w-md mt-4 space-y-4">
-        {courses.map((course) => (
+        {projects.map((project) => (
           <motion.div
-            key={course._id}
+            key={project._id}
             whileHover={{ scale: 1.02 }}
             transition={{ type: "spring", stiffness: 200 }}
             className="bg-white/80 border border-gray-200 rounded-2xl shadow-md p-4 backdrop-blur-sm"
           >
             <div className="flex items-center gap-4">
               <img
-                src={course.courseThumbnail}
-                alt="Course"
+                src={project.projectThumbnail}
+                alt="Project"
                 className="w-20 h-16 object-cover rounded-lg shadow-sm"
               />
               <div className="flex-1">
                 <h3 className="font-semibold text-gray-800 truncate">
-                  {course.courseTitle}
+                  {project.projectTitle}
                 </h3>
                 <p className="text-sm text-gray-600 mt-1">
                   {currency}{" "}
                   {Math.floor(
-                    course.enrolledStudents.length *
-                      (course.coursePrice -
-                        (course.discount * course.coursePrice) / 100)
+                    project.enrolledStudents.length *
+                      (project.projectPrice -
+                        (project.discount * project.projectPrice) / 100)
                   )}{" "}
-                  • {course.enrolledStudents.length} Students
+                  • {project.enrolledStudents.length} Students
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
-                  {new Date(course.createdAt).toLocaleDateString()}
+                  {new Date(project.createdAt).toLocaleDateString()}
                 </p>
               </div>
             </div>
@@ -179,7 +179,7 @@ const MyCourses = () => {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => handleEditCourse(course._id)}
+                onClick={() => handleEditProject(project._id)}
                 className="px-3 py-1 text-xs font-semibold bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-md shadow-sm"
               >
                 Edit
@@ -188,7 +188,7 @@ const MyCourses = () => {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => handleRemoveCourse(course._id)}
+                onClick={() => handleRemoveProject(project._id)}
                 className="px-3 py-1 text-xs font-semibold bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-md shadow-sm"
               >
                 Remove

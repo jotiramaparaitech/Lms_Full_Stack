@@ -3,27 +3,27 @@ import { useNavigate } from "react-router-dom";
 import { assets } from "../../assets/assets";
 import { AppContext } from "../../context/AppContext";
 
-const CourseCard = ({ course }) => {
+const ProjectCard = ({ project }) => {
   const { calculateRating } = useContext(AppContext);
   const navigate = useNavigate();
 
-  if (!course) return null;
+  if (!project) return null;
 
-  const educatorName = course.educator?.name || "Unknown Educator";
-  const courseThumbnail = course.courseThumbnail || assets.defaultThumbnail;
-  const courseTitle = course.courseTitle || "Untitled Course";
-  const rating = calculateRating ? calculateRating(course) : 0;
-  const ratingCount = course.courseRatings?.length || 0;
+  const educatorName = project.educator?.name || "Unknown Educator";
+  const projectThumbnail = project.projectThumbnail || assets.defaultThumbnail;
+  const projectTitle = project.projectTitle || "Untitled Project";
+  const rating = calculateRating ? calculateRating(project) : 0;
+  const ratingCount = project.projectRatings?.length || 0;
 
   const stripHtml = (html) =>
     html
       ? html.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim()
       : "";
 
-  const description = stripHtml(course.courseDescription);
+  const description = stripHtml(project.projectDescription);
 
   const handleClick = () => {
-    navigate(`/course/${course._id}`);
+    navigate(`/project/${project._id}`);
     window.scrollTo(0, 0);
   };
 
@@ -46,8 +46,8 @@ const CourseCard = ({ course }) => {
       {/* IMAGE */}
       <div className="relative">
         <img
-          src={courseThumbnail}
-          alt={courseTitle}
+          src={projectThumbnail}
+          alt={projectTitle}
           className="
                w-full h-[160px] object-cover
                transition-transform duration-500 ease-out
@@ -55,13 +55,13 @@ const CourseCard = ({ course }) => {
              "
         />
 
-        {course.discount > 0 && (
+        {project.discount > 0 && (
           <span className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-            {course.discount}% OFF
+            {project.discount}% OFF
           </span>
         )}
 
-        {course.isTrending && (
+        {project.isTrending && (
           <span className="absolute top-2 right-2 bg-yellow-400 text-black text-xs px-2 py-1 rounded-full">
             Trending
           </span>
@@ -71,7 +71,7 @@ const CourseCard = ({ course }) => {
       {/* CONTENT */}
       <div className="flex flex-col flex-1 p-4 gap-2 text-left">
         <h4 className="font-semibold text-base leading-snug">
-          {courseTitle}
+          {projectTitle}
         </h4>
 
         <p className="text-sm text-orange-500">{educatorName}</p>
@@ -123,4 +123,4 @@ const CourseCard = ({ course }) => {
   );
 };
 
-export default CourseCard;
+export default ProjectCard;

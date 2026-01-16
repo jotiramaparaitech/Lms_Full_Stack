@@ -75,7 +75,7 @@ export const protectEducator = async (req, res, next) => {
   }
 };
 
-// ✅ Middleware: Alias for Educator Role Check (for courseRoute.js compatibility)
+// ✅ Middleware: Alias for Educator Role Check (for projectRoute.js compatibility)
 export const isEducator = (req, res, next) => {
   try {
     if (!req.user || req.user.role !== "educator") {

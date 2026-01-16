@@ -12,7 +12,7 @@ export const AllProjectsContext = createContext();
 
 const Navbar = () => {
   const location = useLocation();
-  const isCoursesListPage = location.pathname.includes("/course-list");
+  const isProjectsListPage = location.pathname.includes("/project-list");
 
   const { navigate } = useContext(AppContext);
   const { openSignIn } = useClerk();
@@ -61,7 +61,7 @@ const Navbar = () => {
       className={`${
         isFixed ? "fixed top-0" : "sticky top-0"
       } left-0 w-full z-50 transition-all duration-700 backdrop-blur-lg shadow-md ${
-        isCoursesListPage
+        isProjectsListPage
           ? "bg-white"
           : "bg-gradient-to-r from-cyan-50 via-cyan-100 to-cyan-50"
       }`}
@@ -112,7 +112,7 @@ const Navbar = () => {
               About Us
             </Link>
             <Link
-              to="/course-list"
+              to="/project-list"
               className="hover:text-cyan-700 transition-colors duration-200"
             >
               Projects
@@ -196,7 +196,7 @@ const Navbar = () => {
               About Us
             </Link>
             <Link
-              to="/course-list"
+              to="/project-list"
               onClick={() => setMenuOpen(false)}
               className="hover:text-cyan-700 transition-colors"
             >

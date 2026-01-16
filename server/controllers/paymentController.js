@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import Course from "../models/Course.js";
+import Project from "../models/Project.js";
 import User from "../models/User.js";
 import { Purchase } from "../models/Purchase.js";
 import { ensureUserExists } from "./userController.js";
@@ -15,7 +15,7 @@ export const createRazorpayOrder = async (req, res) => {
   try {
     const auth = req.auth();
     const userId = auth.userId; // Clerk user
-    const { courseId } = req.body;
+    const { projectId } = req.body;
 
     let razorpay;
     try {
@@ -30,17 +30,17 @@ export const createRazorpayOrder = async (req, res) => {
       throw error;
     }
 
-    if (!courseId || !userId) {
+    if (!projectId || !userId) {
       return res
         .status(400)
-        .json({ success: false, message: "Missing courseId or userId" });
+        .json({ success: false, message: "Missing projectId or userId" });
     }
 
-    const course = await Course.findById(courseId);
-    if (!course)
+    const project = await Project.findById(projectId);
+    if (!project)
       return res
         .status(404)
-        .json({ success: false, message: "Course not found" });
+        .json({ success: false, message: "Project not found" });
 
     const user = await ensureUserExists(userId);
     if (!user)
@@ -49,7 +49,7 @@ export const createRazorpayOrder = async (req, res) => {
         .json({ success: false, message: "User not found" });
 
     const amount =
-      course.coursePrice - (course.discount * course.coursePrice) / 100;
+      project.coursePrice - (project.discount * project.coursePrice) / 100;
 
     const order = await razorpay.orders.create({
       amount: Math.round(amount * 100), // paise
@@ -57,7 +57,7 @@ export const createRazorpayOrder = async (req, res) => {
       receipt: `receipt_${Date.now()}`,
       notes: {
         userId,
-        courseId,
+        projectId,
       },
     });
 
@@ -123,15 +123,15 @@ export const verifyRazorpayPayment = async (req, res) => {
     const order = await razorpay.orders.fetch(razorpay_order_id);
 
     const userId = order.notes.userId;
-    const courseId = order.notes.courseId;
+    const projectId = order.notes.projectId;
 
-    const course = await Course.findById(courseId);
+    const project = await Project.findById(projectId);
     const user = await ensureUserExists(userId);
 
-    if (!course || !user) {
+    if (!project || !user) {
       return res.status(404).json({
         success: false,
-        message: "User or Course not found",
+        message: "User or Project not found",
       });
     }
 
@@ -141,7 +141,7 @@ export const verifyRazorpayPayment = async (req, res) => {
     const amountPaid = order.amount / 100; // convert to INR
 
     await Purchase.create({
-      courseId,
+      projectId,
       userId,
       amount: amountPaid,
       status: "completed",
@@ -149,14 +149,14 @@ export const verifyRazorpayPayment = async (req, res) => {
     });
 
     // ============================================================
-    //              ENROLL USER IN THE COURSE
+    //              ENROLL USER IN THE PROJECT
     // ============================================================
-    await Course.findByIdAndUpdate(courseId, {
+    await Project.findByIdAndUpdate(projectId, {
       $addToSet: { enrolledStudents: userId },
     });
 
     await User.findByIdAndUpdate(userId, {
-      $addToSet: { enrolledCourses: courseId },
+      $addToSet: { enrolledProjects: projectId },
     });
 
     return res.json({

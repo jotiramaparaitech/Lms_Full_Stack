@@ -339,7 +339,7 @@ const ProjectDetails = () => {
             <p>{projectData.enrolledStudents.length} students</p>
           </div>
 
-          {/* Course Structure */}
+          {/* Project Structure */}
           <div className="pt-8 text-gray-800">
             <h2 className="text-xl font-semibold">Project Structure</h2>
             <div className="pt-5">

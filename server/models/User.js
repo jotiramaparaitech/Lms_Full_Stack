@@ -11,10 +11,10 @@ const userSchema = new mongoose.Schema(
       enum: ["student", "educator", "admin"],
       default: "student",
     },
-    enrolledCourses: [
+    enrolledProjects: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Course",
+        ref: "Project",
       },
     ],
   },

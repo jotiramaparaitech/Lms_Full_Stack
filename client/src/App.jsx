@@ -5,8 +5,8 @@ import Navbar, { AllProjectsProvider } from "./components/student/Navbar";
 import Footer from "./components/student/Footer";
 
 import Home from "./pages/student/Home";
-import CourseDetails from "./pages/student/CourseDetails";
-import CoursesList from "./pages/student/CoursesList";
+import ProjectDetails from "./pages/student/ProjectDetails";
+import ProjectsList from "./pages/student/ProjectsList";
 import Dashboard from "./pages/educator/Dashboard";
 import AddCourse from "./pages/educator/AddCourse";
 import EditCourse from "./pages/educator/EditCourse";
@@ -76,11 +76,11 @@ const AppContent = ({ isEducatorRoute, isEducator }) => {
       <Routes>
         {/* 🧩 Student Routes */}
         <Route path="/" element={<Home />} />
-        <Route path="/course/:id" element={<CourseDetails />} />
-        <Route path="/course-list" element={<CoursesList />} />
-        <Route path="/course-list/:input" element={<CoursesList />} />
+        <Route path="/project/:id" element={<ProjectDetails />} />
+        <Route path="/project-list" element={<ProjectsList />} />
+        <Route path="/project-list/:input" element={<ProjectsList />} />
         <Route path="/my-enrollments" element={<MyEnrollments />} />
-        <Route path="/player/:courseId" element={<Player />} />
+        <Route path="/player/:projectId" element={<Player />} />
         <Route path="/loading/:path" element={<Loading />} />
         <Route path="/about" element={<About />} />
         <Route path="/contact" element={<Contact />} />
@@ -98,11 +98,11 @@ const AppContent = ({ isEducatorRoute, isEducator }) => {
           element={isEducator ? <Educator /> : <Navigate to="/" replace />}
         >
           <Route index element={<Dashboard />} />
-          <Route path="add-course" element={<AddCourse />} />
-          <Route path="my-courses" element={<MyCourses />} />
-          <Route path="course/:courseId/edit" element={<EditCourse />} />
+          <Route path="add-project" element={<AddCourse />} />
+          <Route path="my-projects" element={<MyCourses />} />
+          <Route path="project/:projectId/edit" element={<EditCourse />} />
           <Route path="student-enrolled" element={<StudentsEnrolled />} />
-          <Route path="assign-course" element={<AssignCourse />} />
+          <Route path="assign-project" element={<AssignCourse />} />
           <Route path="tickets" element={<SupportTickets />} />
         </Route>
       </Routes>

@@ -2,27 +2,27 @@ import React, { useContext, useMemo } from "react";
 import { AppContext } from "../../context/AppContext";
 
 const AllProjects = ({ onClose }) => {
-  const { allCourses, navigate } = useContext(AppContext);
+  const { allProjects, navigate } = useContext(AppContext);
 
-  // Group courses by domain
+  // Group projects by domain
   const groupedByDomain = useMemo(() => {
-    if (!allCourses || allCourses.length === 0) return {};
+    if (!allProjects || allProjects.length === 0) return {};
 
-    return allCourses.reduce((acc, course) => {
-      const domain = course.customDomain || "Uncategorized";
+    return allProjects.reduce((acc, project) => {
+      const domain = project.customDomain || "Uncategorized";
       if (!acc[domain]) {
         acc[domain] = [];
       }
-      acc[domain].push(course);
+      acc[domain].push(project);
       return acc;
     }, {});
-  }, [allCourses]);
+  }, [allProjects]);
 
   // Get all unique domains
   const domains = Object.keys(groupedByDomain);
 
-  const handleProjectClick = (courseId) => {
-    navigate(`/course/${courseId}`);
+  const handleProjectClick = (projectId) => {
+    navigate(`/project/${projectId}`);
     if (onClose) onClose();
   };
 
@@ -62,18 +62,18 @@ const AllProjects = ({ onClose }) => {
 
         {/* All Projects List */}
         <div className="space-y-2">
-          {allCourses && allCourses.length > 0 ? (
-            allCourses.map((course, index) => (
+          {allProjects && allProjects.length > 0 ? (
+            allProjects.map((project, index) => (
               <button
-                key={course._id || index}
-                onClick={() => handleProjectClick(course._id)}
+                key={project._id || index}
+                onClick={() => handleProjectClick(project._id)}
                 className="w-full text-left px-3 py-2 rounded-lg bg-white border border-gray-200 hover:border-cyan-400 hover:bg-cyan-50 transition-all"
               >
                 <p className="font-medium text-gray-800 text-sm">
-                  {course.courseTitle}
+                  {project.projectTitle}
                 </p>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  {course.customDomain || "Uncategorized"}
+                  {project.customDomain || "Uncategorized"}
                 </p>
               </button>
             ))

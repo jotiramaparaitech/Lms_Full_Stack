@@ -1,5 +1,5 @@
-import Course from "../models/Course.js";
-import { CourseProgress } from "../models/CourseProgress.js";
+import Project from "../models/Project.js";
+import { ProjectProgress } from "../models/ProjectProgress.js";
 import { Purchase } from "../models/Purchase.js";
 import User from "../models/User.js";
 import { clerkClient } from "@clerk/express";
@@ -114,36 +114,36 @@ export const getUserData = async (req, res) => {
   }
 };
 
-// ---------------- Users Enrolled Courses ----------------
-export const userEnrolledCourses = async (req, res) => {
+// ---------------- Users Enrolled Projects ----------------
+export const userEnrolledProjects = async (req, res) => {
   try {
     const auth = req.auth();
     const userId = auth.userId;
     const userData = await ensureUserExists(userId);
 
     if (!userData) {
-      return res.json({ success: true, enrolledCourses: [] });
+      return res.json({ success: true, enrolledProjects: [] });
     }
 
-    // Populate enrolled courses
-    await userData.populate("enrolledCourses");
+    // Populate enrolled projects
+    await userData.populate("enrolledProjects");
     res.json({
       success: true,
-      enrolledCourses: userData.enrolledCourses || [],
+      enrolledProjects: userData.enrolledProjects || [],
     });
   } catch (error) {
     res.json({ success: false, message: error.message });
   }
 };
 
-// ---------------- Update User Course Progress ----------------
-export const updateUserCourseProgress = async (req, res) => {
+// ---------------- Update User Project Progress ----------------
+export const updateUserProjectProgress = async (req, res) => {
   try {
     const auth = req.auth();
     const userId = auth.userId;
-    const { courseId, lectureId } = req.body;
+    const { projectId, lectureId } = req.body;
 
-    const progressData = await CourseProgress.findOne({ userId, courseId });
+    const progressData = await ProjectProgress.findOne({ userId, projectId });
 
     if (progressData) {
       if (progressData.lectureCompleted.includes(lectureId)) {
@@ -156,9 +156,9 @@ export const updateUserCourseProgress = async (req, res) => {
       progressData.lectureCompleted.push(lectureId);
       await progressData.save();
     } else {
-      await CourseProgress.create({
+      await ProjectProgress.create({
         userId,
-        courseId,
+        projectId,
         lectureCompleted: [lectureId],
       });
     }
@@ -169,14 +169,14 @@ export const updateUserCourseProgress = async (req, res) => {
   }
 };
 
-// ---------------- Get User Course Progress ----------------
-export const getUserCourseProgress = async (req, res) => {
+// ---------------- Get User Project Progress ----------------
+export const getUserProjectProgress = async (req, res) => {
   try {
     const auth = req.auth();
     const userId = auth.userId;
-    const { courseId } = req.body;
+    const { projectId } = req.body;
 
-    const progressData = await CourseProgress.findOne({ userId, courseId });
+    const progressData = await ProjectProgress.findOne({ userId, projectId });
 
     res.json({ success: true, progressData });
   } catch (error) {
@@ -188,37 +188,37 @@ export const getUserCourseProgress = async (req, res) => {
 export const addUserRating = async (req, res) => {
   const auth = req.auth();
   const userId = auth.userId;
-  const { courseId, rating } = req.body;
+  const { projectId, rating } = req.body;
 
-  if (!courseId || !userId || !rating || rating < 1 || rating > 5) {
+  if (!projectId || !userId || !rating || rating < 1 || rating > 5) {
     return res.json({ success: false, message: "Invalid Details" });
   }
 
   try {
-    const course = await Course.findById(courseId);
-    if (!course) {
-      return res.json({ success: false, message: "Course not found." });
+    const project = await Project.findById(projectId);
+    if (!project) {
+      return res.json({ success: false, message: "Project not found." });
     }
 
     const user = await ensureUserExists(userId);
-    if (!user || !user.enrolledCourses.includes(courseId)) {
+    if (!user || !user.enrolledProjects.includes(projectId)) {
       return res.json({
         success: false,
-        message: "User has not purchased this course.",
+        message: "User has not purchased this project.",
       });
     }
 
-    const existingRatingIndex = course.courseRatings.findIndex(
+    const existingRatingIndex = project.courseRatings.findIndex(
       (r) => r.userId === userId
     );
 
     if (existingRatingIndex > -1) {
-      course.courseRatings[existingRatingIndex].rating = rating;
+      project.courseRatings[existingRatingIndex].rating = rating;
     } else {
-      course.courseRatings.push({ userId, rating });
+      project.courseRatings.push({ userId, rating });
     }
 
-    await course.save();
+    await project.save();
 
     return res.json({ success: true, message: "Rating added" });
   } catch (error) {

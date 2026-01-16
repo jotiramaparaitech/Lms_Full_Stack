@@ -35,9 +35,9 @@ const StudentsEnrolled = () => {
   // -----------------------------
   // Remove Student Access
   // -----------------------------
-  const handleRemoveAccess = async (courseId, studentId) => {
-    if (!courseId || !studentId) {
-      toast.error("Missing course or student ID");
+  const handleRemoveAccess = async (projectId, studentId) => {
+    if (!projectId || !studentId) {
+      toast.error("Missing project or student ID");
       return;
     }
 
@@ -49,7 +49,7 @@ const StudentsEnrolled = () => {
     try {
       const token = await getToken();
       const { data } = await axios.delete(
-        `${backendUrl}/api/educator/remove-student/${courseId}/${studentId}`,
+        `${backendUrl}/api/educator/remove-student/${projectId}/${studentId}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -60,7 +60,7 @@ const StudentsEnrolled = () => {
         setEnrolledStudents((prev) =>
           prev.filter(
             (item) =>
-              !(item.courseId === courseId && item.student?._id === studentId)
+              !(item.projectId === projectId && item.student?._id === studentId)
           )
         );
       } else {
@@ -103,7 +103,7 @@ const StudentsEnrolled = () => {
                 #
               </th>
               <th className="px-4 py-3 font-semibold">Student Name</th>
-              <th className="px-4 py-3 font-semibold">Course Title</th>
+              <th className="px-4 py-3 font-semibold">Project Title</th>
               <th className="px-4 py-3 font-semibold hidden sm:table-cell">
                 Date
               </th>
@@ -119,7 +119,7 @@ const StudentsEnrolled = () => {
               )
               .map((item, index) => (
                 <motion.tr
-                  key={`${item.student?._id}-${item.courseId}`}
+                  key={`${item.student?._id}-${item.projectId}`}
                   whileHover={{
                     scale: 1.02,
                     backgroundColor: "rgba(224, 242, 254, 0.5)",
@@ -144,9 +144,9 @@ const StudentsEnrolled = () => {
                     </span>
                   </td>
 
-                  {/* Course Title */}
+                  {/* Project Title */}
                   <td className="px-4 py-3 truncate font-medium text-gray-700">
-                    {item.courseTitle || "Untitled Course"}
+                    {item.projectTitle || "Untitled Project"}
                   </td>
 
                   {/* Date */}
@@ -160,7 +160,7 @@ const StudentsEnrolled = () => {
                   <td className="px-4 py-3 text-center">
                     <button
                       onClick={() =>
-                        handleRemoveAccess(item.courseId, item.student?._id)
+                        handleRemoveAccess(item.projectId, item.student?._id)
                       }
                       className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-xs font-semibold transition-all shadow-md hover:shadow-lg"
                     >

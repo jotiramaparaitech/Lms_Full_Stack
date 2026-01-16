@@ -9,28 +9,28 @@ const AssignCourse = () => {
   const { backendUrl } = useContext(AppContext);
   const { getToken } = useAuth(); // ✅ Clerk Auth
   const [students, setStudents] = useState([]);
-  const [courses, setCourses] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [selectedStudent, setSelectedStudent] = useState("");
-  const [selectedCourse, setSelectedCourse] = useState("");
+  const [selectedProject, setSelectedProject] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // ✅ Fetch all students and educator's courses (Clerk-secured)
+  // ✅ Fetch all students and educator's projects (Clerk-secured)
   useEffect(() => {
     const fetchData = async () => {
       try {
         const token = await getToken(); // 🔐 Get Clerk token
 
-        const [studentsRes, coursesRes] = await Promise.all([
+        const [studentsRes, projectsRes] = await Promise.all([
           axios.get(`${backendUrl}/api/educator/all-students`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
-          axios.get(`${backendUrl}/api/educator/courses`, {
+          axios.get(`${backendUrl}/api/educator/projects`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
         ]);
 
         setStudents(studentsRes.data.students || []);
-        setCourses(coursesRes.data.courses || []);
+        setProjects(projectsRes.data.projects || []);
       } catch (error) {
         console.error(error);
         toast.error("Failed to load data");
@@ -39,11 +39,11 @@ const AssignCourse = () => {
     fetchData();
   }, [backendUrl, getToken]);
 
-  // ✅ Assign course to student
+  // ✅ Assign project to student
   const handleAssign = async (e) => {
     e.preventDefault();
-    if (!selectedStudent || !selectedCourse) {
-      toast.warning("Please select both student and course");
+    if (!selectedStudent || !selectedProject) {
+      toast.warning("Please select both student and project");
       return;
     }
 
@@ -52,17 +52,17 @@ const AssignCourse = () => {
       const token = await getToken(); // 🔐 Clerk token again
 
       const { data } = await axios.post(
-        `${backendUrl}/api/educator/assign-course`,
-        { studentId: selectedStudent, courseId: selectedCourse },
+        `${backendUrl}/api/educator/assign-project`,
+        { studentId: selectedStudent, projectId: selectedProject },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
       if (data.success) {
-        toast.success("Course assigned successfully");
+        toast.success("Project assigned successfully");
         setSelectedStudent("");
-        setSelectedCourse("");
+        setSelectedProject("");
       } else {
-        toast.error(data.message || "Failed to assign course");
+        toast.error(data.message || "Failed to assign project");
       }
     } catch (error) {
       console.error(error);
@@ -109,20 +109,20 @@ const AssignCourse = () => {
           </select>
         </div>
 
-        {/* Course Dropdown */}
+        {/* Project Dropdown */}
         <div>
           <label className="block text-gray-700 font-semibold mb-2">
             Select Projects
           </label>
           <select
             className="w-full border border-gray-300 rounded-lg p-3 text-gray-700 focus:ring-2 focus:ring-blue-400 focus:outline-none"
-            value={selectedCourse}
-            onChange={(e) => setSelectedCourse(e.target.value)}
+            value={selectedProject}
+            onChange={(e) => setSelectedProject(e.target.value)}
           >
-            <option value="">-- Choose Course --</option>
-            {courses.map((course) => (
-              <option key={course._id} value={course._id}>
-                {course.courseTitle}
+            <option value="">-- Choose Project --</option>
+            {projects.map((project) => (
+              <option key={project._id} value={project._id}>
+                {project.projectTitle}
               </option>
             ))}
           </select>

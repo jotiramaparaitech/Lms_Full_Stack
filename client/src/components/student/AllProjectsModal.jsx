@@ -4,22 +4,22 @@ import { X } from "lucide-react";
 import { AppContext } from "../../context/AppContext";
 
 const AllProjectsModal = ({ isOpen, onClose }) => {
-  const { allCourses, navigate } = useContext(AppContext);
+  const { allProjects, navigate } = useContext(AppContext);
   const [selectedDomain, setSelectedDomain] = useState("All");
 
-  // Group courses by domain
+  // Group projects by domain
   const groupedByDomain = useMemo(() => {
-    if (!allCourses || allCourses.length === 0) return {};
+    if (!allProjects || allProjects.length === 0) return {};
 
-    return allCourses.reduce((acc, course) => {
-      const domain = course.customDomain || "Uncategorized";
+    return allProjects.reduce((acc, project) => {
+      const domain = project.customDomain || "Uncategorized";
       if (!acc[domain]) {
         acc[domain] = [];
       }
-      acc[domain].push(course);
+      acc[domain].push(project);
       return acc;
     }, {});
-  }, [allCourses]);
+  }, [allProjects]);
 
   // Get all unique domains
   const domains = Object.keys(groupedByDomain);
@@ -31,16 +31,16 @@ const AllProjectsModal = ({ isOpen, onClose }) => {
     }
   }, [isOpen]);
 
-  // Get filtered courses based on selected domain
-  const filteredCourses = useMemo(() => {
+  // Get filtered projects based on selected domain
+  const filteredProjects = useMemo(() => {
     if (selectedDomain === "All") {
-      return allCourses || [];
+      return allProjects || [];
     }
     return groupedByDomain[selectedDomain] || [];
-  }, [selectedDomain, allCourses, groupedByDomain]);
+  }, [selectedDomain, allProjects, groupedByDomain]);
 
-  const handleProjectClick = (courseId) => {
-    navigate(`/course/${courseId}`);
+  const handleProjectClick = (projectId) => {
+    navigate(`/project/${projectId}`);
     onClose();
   };
 
@@ -100,7 +100,7 @@ const AllProjectsModal = ({ isOpen, onClose }) => {
                           : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-300"
                       }`}
                     >
-                      All ({allCourses?.length || 0})
+                      All ({allProjects?.length || 0})
                     </button>
                     {/* Domain Buttons */}
                     {domains.map((domain) => (
@@ -122,19 +122,19 @@ const AllProjectsModal = ({ isOpen, onClose }) => {
 
               {/* Projects List */}
               <div className="overflow-y-auto max-h-[calc(85vh-200px)] p-6">
-                {filteredCourses && filteredCourses.length > 0 ? (
+                {filteredProjects && filteredProjects.length > 0 ? (
                   <div className="space-y-3">
-                    {filteredCourses.map((course, index) => (
+                    {filteredProjects.map((project, index) => (
                       <button
-                        key={course._id || index}
-                        onClick={() => handleProjectClick(course._id)}
+                        key={project._id || index}
+                        onClick={() => handleProjectClick(project._id)}
                         className="w-full text-left px-4 py-3 rounded-lg bg-white border border-gray-200 hover:border-cyan-400 hover:bg-cyan-50 transition-all"
                       >
                         <p className="font-medium text-gray-800">
-                          {course.courseTitle}
+                          {project.projectTitle}
                         </p>
                         <p className="text-xs text-gray-500 mt-1">
-                          {course.customDomain || "Uncategorized"}
+                          {project.customDomain || "Uncategorized"}
                         </p>
                       </button>
                     ))}

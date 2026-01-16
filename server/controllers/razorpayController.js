@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import Course from "../models/Course.js";
+import Project from "../models/Project.js";
 import User from "../models/User.js";
 import { Purchase } from "../models/Purchase.js";
 import { ensureUserExists } from "./userController.js";
@@ -74,8 +74,8 @@ export const createOrder = async (req, res) => {
     // Get userId from either Clerk auth or protect middleware
     const auth = req.auth();
     const userId = auth?.userId || req.user?.id || req.user?._id;
-    // Extract courseId from request body
-    const { courseId } = req.body;
+    // Extract projectId from request body
+    const { projectId } = req.body;
     let razorpay;
     try {
       razorpay = getRazorpayClient();
@@ -100,10 +100,10 @@ export const createOrder = async (req, res) => {
       });
     }
 
-    if (!courseId) {
+    if (!projectId) {
       return res.status(400).json({
         success: false,
-        message: "Missing courseId",
+        message: "Missing projectId",
       });
     }
 
@@ -114,57 +114,57 @@ export const createOrder = async (req, res) => {
       });
     }
 
-    const course = await Course.findById(courseId);
+    const project = await Project.findById(projectId);
     const user = await ensureUserExists(userId);
 
-    if (!course || !user) {
+    if (!project || !user) {
       return res.status(404).json({
         success: false,
-        message: "Course or User not found",
+        message: "Project or User not found",
       });
     }
 
-    // ⛔ Block purchase when course is locked by admin
-    if (course.isLocked) {
+    // ⛔ Block purchase when project is locked by admin
+    if (project.isLocked) {
       return res.status(403).json({
         success: false,
         message:
           "This project is currently locked by the admin and cannot be purchased.",
-        error: "COURSE_LOCKED",
+        error: "PROJECT_LOCKED",
       });
     }
 
     const alreadyEnrolled =
-      user.enrolledCourses?.some(
-        (enrolledCourseId) =>
-          enrolledCourseId.toString() === courseId.toString()
+      user.enrolledProjects?.some(
+        (enrolledProjectId) =>
+          enrolledProjectId.toString() === projectId.toString()
       ) || false;
 
     if (alreadyEnrolled) {
       return res.status(409).json({
         success: false,
-        message: "You are already enrolled in this course.",
+        message: "You are already enrolled in this project.",
       });
     }
 
-    await Purchase.deleteMany({ userId, courseId, status: "pending" });
+    await Purchase.deleteMany({ userId, projectId, status: "pending" });
 
     // FINAL PRICE
-    const price = course.coursePrice;
-    const discount = course.discount || 0;
+    const price = project.coursePrice;
+    const discount = project.discount || 0;
     const finalAmount = price - (discount * price) / 100;
 
     const amountInPaise = Math.round(finalAmount * 100);
     if (amountInPaise <= 0) {
       return res.status(400).json({
         success: false,
-        message: "Invalid course price",
+        message: "Invalid project price",
       });
     }
 
     // Save a purchase entry
     const purchase = await Purchase.create({
-      courseId,
+      projectId,
       userId,
       amount: finalAmount,
       status: "pending",
@@ -178,7 +178,7 @@ export const createOrder = async (req, res) => {
       notes: {
         purchaseId: purchase._id.toString(),
         userId,
-        courseId,
+        projectId,
       },
     });
 
@@ -263,15 +263,15 @@ export const verifyPayment = async (req, res) => {
 
     const purchaseId = razorOrder.notes.purchaseId;
     const userId = razorOrder.notes.userId;
-    const courseId = razorOrder.notes.courseId;
+    const projectId = razorOrder.notes.projectId;
 
-    const course = await Course.findById(courseId);
+    const project = await Project.findById(projectId);
     const user = await ensureUserExists(userId);
 
-    if (!course || !user) {
+    if (!project || !user) {
       return res.status(404).json({
         success: false,
-        message: "User or Course not found",
+        message: "User or Project not found",
       });
     }
 
@@ -284,9 +284,9 @@ export const verifyPayment = async (req, res) => {
     }
 
     if (purchase.status === "completed") {
-      // Still return enrolled courses even if payment was already verified
+      // Still return enrolled projects even if payment was already verified
       await user.populate({
-        path: "enrolledCourses",
+        path: "enrolledProjects",
         options: { sort: { createdAt: -1 } },
       });
       const updatedUser = user.toObject();
@@ -294,7 +294,7 @@ export const verifyPayment = async (req, res) => {
       return res.json({
         success: true,
         message: "Payment already verified",
-        enrolledCourses: updatedUser?.enrolledCourses || [],
+        enrolledProjects: updatedUser?.enrolledProjects || [],
       });
     }
 
@@ -305,17 +305,17 @@ export const verifyPayment = async (req, res) => {
     });
 
     // Enroll user
-    await Course.findByIdAndUpdate(courseId, {
+    await Project.findByIdAndUpdate(projectId, {
       $addToSet: { enrolledStudents: userId },
     });
 
     await User.findByIdAndUpdate(userId, {
-      $addToSet: { enrolledCourses: courseId },
+      $addToSet: { enrolledProjects: projectId },
     });
 
-    // Populate enrolled courses for response
+    // Populate enrolled projects for response
     await user.populate({
-      path: "enrolledCourses",
+      path: "enrolledProjects",
       options: { sort: { createdAt: -1 } },
     });
     const updatedUser = user.toObject();
@@ -323,7 +323,7 @@ export const verifyPayment = async (req, res) => {
     return res.json({
       success: true,
       message: "Payment verified & student enrolled successfully",
-      enrolledCourses: updatedUser?.enrolledCourses || [],
+      enrolledProjects: updatedUser?.enrolledProjects || [],
     });
   } catch (error) {
     console.error("❌ Razorpay verification error:", error);

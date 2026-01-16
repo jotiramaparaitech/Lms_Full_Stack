@@ -1,49 +1,49 @@
 import React, { useContext, useEffect, useState } from "react";
 import Footer from "../../components/student/Footer";
 import { assets } from "../../assets/assets";
-import CourseCard from "../../components/student/CourseCard";
+import ProjectCard from "../../components/student/ProjectCard";
 import { AppContext } from "../../context/AppContext";
 import { useParams } from "react-router-dom";
 import SearchBar from "../../components/student/SearchBar";
 import { motion } from "framer-motion";
 
-const CoursesList = () => {
+const ProjectsList = () => {
   const { input } = useParams();
-  const { allCourses, navigate } = useContext(AppContext);
+  const { allProjects, navigate } = useContext(AppContext);
 
-  const [filteredCourse, setFilteredCourse] = useState([]);
+  const [filteredProject, setFilteredProject] = useState([]);
   const [selectedDomain, setSelectedDomain] = useState("All");
 
   // ✅ Extract unique domains
   const uniqueDomains = Array.from(
-    new Set(allCourses?.map((course) => course.customDomain))
+    new Set(allProjects?.map((project) => project.customDomain))
   );
 
-  // ✅ Filter courses
+  // ✅ Filter projects
   useEffect(() => {
-    if (allCourses?.length > 0) {
-      let tempCourses = [...allCourses];
+    if (allProjects?.length > 0) {
+      let tempProjects = [...allProjects];
 
       if (input) {
-        tempCourses = tempCourses.filter((item) =>
-          item.courseTitle.toLowerCase().includes(input.toLowerCase())
+        tempProjects = tempProjects.filter((item) =>
+          item.projectTitle.toLowerCase().includes(input.toLowerCase())
         );
       }
 
       if (selectedDomain !== "All") {
-        tempCourses = tempCourses.filter(
+        tempProjects = tempProjects.filter(
           (item) => item.customDomain === selectedDomain
         );
       }
 
-      setFilteredCourse(tempCourses);
+      setFilteredProject(tempProjects);
     }
-  }, [allCourses, input, selectedDomain]);
+  }, [allProjects, input, selectedDomain]);
 
   // ✅ Group by domain
-  const groupedByDomain = filteredCourse.reduce((acc, course) => {
-    if (!acc[course.customDomain]) acc[course.customDomain] = [];
-    acc[course.customDomain].push(course);
+  const groupedByDomain = filteredProject.reduce((acc, project) => {
+    if (!acc[project.customDomain]) acc[project.customDomain] = [];
+    acc[project.customDomain].push(project);
     return acc;
   }, {});
 
@@ -261,15 +261,15 @@ const CoursesList = () => {
               <img
                 src={assets.cross_icon}
                 alt="clear"
-                onClick={() => navigate("/course-list")}
+                onClick={() => navigate("/project-list")}
                 className="w-4 h-4 cursor-pointer hover:rotate-90 transition-transform"
               />
             </motion.div>
           )}
 
-          {/* Courses */}
+          {/* Projects */}
           {Object.keys(groupedByDomain).length > 0 ? (
-            Object.entries(groupedByDomain).map(([domain, courses]) => (
+            Object.entries(groupedByDomain).map(([domain, projects]) => (
               <div key={domain} className="my-16">
                 {/* Domain Heading with animation */}
                 <motion.h2
@@ -294,14 +294,14 @@ const CoursesList = () => {
                   animate="visible"
                   className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-6 md:gap-8 place-items-start"
                 >
-                  {courses.map((course, index) => (
+                  {projects.map((project, index) => (
                     <motion.div
                        key={index}
                        variants={cardVariants}
                        initial="hidden"
                        animate="visible"
                        whileHover="hover"
-                       onClick={() => navigate(`/course/${course._id}`)}
+                       onClick={() => navigate(`/project/${project._id}`)}
                        className="w-full flex justify-center relative cursor-pointer"
                      >
                       {/* Elegant hover overlay */}
@@ -327,7 +327,7 @@ const CoursesList = () => {
                       >
                         {/* Card content wrapper */}
                         <div className="relative">
-                          <CourseCard course={course} />
+                          <ProjectCard project={project} />
                           
                           {/* Subtle shine effect on hover */}
                           <motion.div
@@ -381,4 +381,4 @@ const CoursesList = () => {
   );
 };
 
-export default CoursesList;
+export default ProjectsList;

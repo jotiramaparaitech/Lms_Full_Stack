@@ -20,19 +20,19 @@ const MyEnrollments = () => {
 
   const [progressArray, setProgressData] = useState([]);
 
-  const getCourseProgress = async () => {
+  const getProjectProgress = async () => {
     try {
       const token = await getToken();
 
       const tempProgressArray = await Promise.all(
-        enrolledCourses.map(async (course) => {
+        enrolledProjects.map(async (project) => {
           const { data } = await axios.post(
-            `${backendUrl}/api/user/get-course-progress`,
-            { courseId: course._id },
+            `${backendUrl}/api/user/get-project-progress`,
+            { projectId: project._id },
             { headers: { Authorization: `Bearer ${token}` } }
           );
 
-          let totalLectures = calculateNoOfLectures(course);
+          let totalLectures = calculateNoOfLectures(project);
           const lectureCompleted = data.progressData
             ? data.progressData.lectureCompleted.length
             : 0;
@@ -47,12 +47,12 @@ const MyEnrollments = () => {
   };
 
   useEffect(() => {
-    if (userData) fetchUserEnrolledCourses();
+    if (userData) fetchUserEnrolledProjects();
   }, [userData]);
 
   useEffect(() => {
-    if (enrolledCourses.length > 0) getCourseProgress();
-  }, [enrolledCourses]);
+    if (enrolledProjects.length > 0) getProjectProgress();
+  }, [enrolledProjects]);
 
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-b from-gray-50 via-blue-50 to-gray-100 relative overflow-hidden">
@@ -77,7 +77,7 @@ const MyEnrollments = () => {
               </tr>
             </thead>
             <tbody>
-              {enrolledCourses.map((course, index) => (
+              {enrolledProjects.map((project, index) => (
                 <motion.tr
                   key={index}
                   whileHover={{ scale: 1.02, y: -2 }}
@@ -86,13 +86,13 @@ const MyEnrollments = () => {
                 >
                   <td className="px-4 sm:px-6 py-4 flex items-center gap-4">
                     <img
-                      src={course.courseThumbnail}
-                      alt={course.courseTitle}
+                      src={project.projectThumbnail}
+                      alt={project.projectTitle}
                       className="w-14 sm:w-24 md:w-28 rounded-xl shadow-md hover:shadow-blue-300/50 transition-all duration-300"
                     />
                     <div className="flex-1">
                       <p className="font-medium text-gray-800 mb-1 max-sm:text-sm">
-                        {course.courseTitle}
+                        {project.projectTitle}
                       </p>
                       <Line
                         className="bg-gray-200 rounded-full"
@@ -110,7 +110,7 @@ const MyEnrollments = () => {
                   </td>
 
                   <td className="px-4 sm:px-6 py-3 text-gray-700 max-sm:hidden">
-                    {calculateCourseDuration(course)}
+                    {calculateProjectDuration(project)}
                   </td>
 
                   <td className="px-4 sm:px-6 py-3 text-gray-700 max-sm:hidden">
@@ -123,7 +123,7 @@ const MyEnrollments = () => {
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      onClick={() => navigate("/player/" + course._id)}
+                      onClick={() => navigate("/player/" + project._id)}
                       className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-md shadow-md hover:shadow-lg transition-all duration-300"
                     >
                       {progressArray[index] &&

@@ -8,7 +8,7 @@ import userRouter from "./routes/userRoutes.js";
 import { clerkMiddleware, requireAuth } from "@clerk/express";
 import { clerkWebhooks } from "./controllers/webhooks.js"; // Stripe removed
 import educatorRouter from "./routes/educatorRoutes.js";
-import courseRouter from "./routes/courseRoute.js";
+import projectRouter from "./routes/projectRoute.js";
 
 // ⬅️ NEW — Razorpay Route
 import razorpayRoute from "./routes/razorpayRoute.js";
@@ -87,8 +87,8 @@ app.post("/clerk", express.json(), clerkWebhooks);
 app.use("/api/educator", express.json(), requireAuth(), educatorRouter);
 app.use("/api/user", express.json(), requireAuth(), userRouter);
 
-// Public course routes
-app.use("/api/course", express.json(), courseRouter);
+// Public project routes
+app.use("/api/project", express.json(), projectRouter);
 
 // ⬅️ NEW — Razorpay Payment Routes
 app.use("/api/razorpay", express.json(), razorpayRoute);

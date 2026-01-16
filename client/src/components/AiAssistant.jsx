@@ -41,7 +41,7 @@ const COMMANDS = [
   {
     keywords: ["project", "library"],
     type: "navigate",
-    path: "/course-list",
+    path: "/project-list",
     message: "Opening Projects library.",
   },
   {
@@ -195,7 +195,7 @@ const AiAssistant = () => {
       }
       if (query && query.length > 0) {
         speak(`Searching for ${query}`);
-        navigate(`/course-list/${query}`);
+        navigate(`/project-list/${query}`);
       } else {
         speak("Please say a topic to search.");
       }

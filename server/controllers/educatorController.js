@@ -1,6 +1,6 @@
 import { v2 as cloudinary } from "cloudinary";
 import { Readable } from "stream";
-import Course from "../models/Course.js";
+import Project, { transformProjectFields } from "../models/Project.js";
 import { Purchase } from "../models/Purchase.js";
 import User from "../models/User.js";
 import { clerkClient } from "@clerk/express";
@@ -22,7 +22,7 @@ export const updateRoleToEducator = async (req, res) => {
       publicMetadata: { role: "educator" },
     });
 
-    res.json({ success: true, message: "You can publish a course now" });
+    res.json({ success: true, message: "You can publish a project now" });
   } catch (error) {
     res
       .status(500)
@@ -31,11 +31,13 @@ export const updateRoleToEducator = async (req, res) => {
 };
 
 // -----------------------------
-// Add New Course
+// Add New Project
 // -----------------------------
-export const addCourse = async (req, res) => {
+export const addProject = async (req, res) => {
   try {
-    const { courseData } = req.body;
+    // Accept both projectData and courseData for backward compatibility
+    const { projectData, courseData } = req.body;
+    const dataToUse = projectData || courseData;
     const imageFile = req.files?.image?.[0];
     const pdfFiles = req.files?.pdfs || [];
     const auth = req.auth();
@@ -49,14 +51,33 @@ export const addCourse = async (req, res) => {
     if (!imageFile)
       return res.json({ success: false, message: "Thumbnail not attached" });
 
-    const parsedCourseData = JSON.parse(courseData);
-    parsedCourseData.educator = educatorId;
+    if (!dataToUse)
+      return res.json({ success: false, message: "Project data not provided" });
 
-    let pdfResources = Array.isArray(parsedCourseData.pdfResources)
-      ? [...parsedCourseData.pdfResources]
+    const parsedProjectData = typeof dataToUse === "string" ? JSON.parse(dataToUse) : dataToUse;
+    parsedProjectData.educator = educatorId;
+
+    // Map new field names to old field names for database storage
+    const dbProjectData = {
+      ...parsedProjectData,
+      courseTitle: parsedProjectData.projectTitle || parsedProjectData.courseTitle,
+      courseDescription: parsedProjectData.projectDescription || parsedProjectData.courseDescription,
+      coursePrice: parsedProjectData.projectPrice || parsedProjectData.coursePrice,
+      courseContent: parsedProjectData.projectContent || parsedProjectData.courseContent,
+      courseRatings: parsedProjectData.projectRatings || parsedProjectData.courseRatings || [],
+    };
+    // Remove new field names if they exist
+    delete dbProjectData.projectTitle;
+    delete dbProjectData.projectDescription;
+    delete dbProjectData.projectPrice;
+    delete dbProjectData.projectContent;
+    delete dbProjectData.projectRatings;
+
+    let pdfResources = Array.isArray(parsedProjectData.pdfResources)
+      ? [...parsedProjectData.pdfResources]
       : [];
 
-    const newCourse = await Course.create(parsedCourseData);
+    const newProject = await Project.create(dbProjectData);
 
     // ✅ Upload thumbnail
     const uploadFromBuffer = (buffer, folder, resource_type = "image") =>
@@ -69,13 +90,13 @@ export const addCourse = async (req, res) => {
       });
 
     if (imageFile.buffer) {
-      const imageUpload = await uploadFromBuffer(imageFile.buffer, "courses");
-      newCourse.courseThumbnail = imageUpload.secure_url;
+      const imageUpload = await uploadFromBuffer(imageFile.buffer, "projects");
+      newProject.courseThumbnail = imageUpload.secure_url;
     } else if (imageFile.path) {
       const imageUpload = await cloudinary.uploader.upload(imageFile.path, {
-        folder: "courses",
+        folder: "projects",
       });
-      newCourse.courseThumbnail = imageUpload.secure_url;
+      newProject.courseThumbnail = imageUpload.secure_url;
     }
 
     // ✅ Upload PDFs
@@ -84,13 +105,13 @@ export const addCourse = async (req, res) => {
       if (file.buffer) {
         uploadResult = await uploadFromBuffer(
           file.buffer,
-          "course_pdfs",
+          "project_pdfs",
           "raw"
         );
       } else if (file.path) {
         uploadResult = await cloudinary.uploader.upload(file.path, {
           resource_type: "raw",
-          folder: "course_pdfs",
+          folder: "project_pdfs",
         });
       }
 
@@ -104,19 +125,21 @@ export const addCourse = async (req, res) => {
       }
     }
 
-    if (pdfResources.length > 0) newCourse.pdfResources = pdfResources;
-    await newCourse.save();
+    if (pdfResources.length > 0) newProject.pdfResources = pdfResources;
+    await newProject.save();
 
-    res.json({ success: true, message: "Course added", course: newCourse });
+    // Transform to use new field names
+    const transformedProject = transformProjectFields(newProject.toObject ? newProject.toObject() : newProject);
+    res.json({ success: true, message: "Project added", project: transformedProject });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
 // -----------------------------
-// Get Educator Courses
+// Get Educator Projects
 // -----------------------------
-export const getEducatorCourses = async (req, res) => {
+export const getEducatorProjects = async (req, res) => {
   try {
     const auth = req.auth();
     const educator = auth?.userId;
@@ -125,17 +148,19 @@ export const getEducatorCourses = async (req, res) => {
         .status(401)
         .json({ success: false, message: "Unauthorized educator" });
 
-    const courses = await Course.find({ educator });
-    res.json({ success: true, courses });
+    const projects = await Project.find({ educator });
+    // Transform to use new field names
+    const transformedProjects = transformProjectFields(projects);
+    res.json({ success: true, projects: transformedProjects });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
 // -----------------------------
-// Get Single Educator Course
+// Get Single Educator Project
 // -----------------------------
-export const getEducatorCourseById = async (req, res) => {
+export const getEducatorProjectById = async (req, res) => {
   try {
     const auth = req.auth();
     const educator = auth?.userId;
@@ -146,26 +171,28 @@ export const getEducatorCourseById = async (req, res) => {
         .status(401)
         .json({ success: false, message: "Unauthorized educator" });
 
-    const course = await Course.findOne({ _id: id, educator });
+    const project = await Project.findOne({ _id: id, educator });
 
-    if (!course) {
+    if (!project) {
       return res
         .status(404)
-        .json({ success: false, message: "Course not found" });
+        .json({ success: false, message: "Project not found" });
     }
 
-    res.json({ success: true, course });
+    // Transform to use new field names
+    const transformedProject = transformProjectFields(project.toObject ? project.toObject() : project);
+    res.json({ success: true, project: transformedProject });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
 // -----------------------------
-// Update Course
+// Update Project
 // -----------------------------
-export const updateCourse = async (req, res) => {
+export const updateProject = async (req, res) => {
   try {
-    const courseId = req.params.id;
+    const projectId = req.params.id;
     const auth = req.auth();
     const educatorId = auth?.userId;
 
@@ -175,94 +202,97 @@ export const updateCourse = async (req, res) => {
         .json({ success: false, message: "Unauthorized: No user ID found" });
     }
 
-    const course = await Course.findOne({
-      _id: courseId,
+    const project = await Project.findOne({
+      _id: projectId,
       educator: educatorId,
     });
-    if (!course)
+    if (!project)
       return res
         .status(404)
-        .json({ success: false, message: "Course not found or unauthorized" });
+        .json({ success: false, message: "Project not found or unauthorized" });
 
-    // Parse courseData with error handling
-    let parsedCourseData = {};
-    if (req.body.courseData) {
+    // Parse projectData with error handling
+    let parsedProjectData = {};
+    // Accept both projectData and courseData for backward compatibility
+    const dataToUse = req.body.projectData || req.body.courseData;
+    if (dataToUse) {
       try {
         // Handle both string and object formats
-        if (typeof req.body.courseData === "string") {
-          parsedCourseData = JSON.parse(req.body.courseData);
+        if (typeof dataToUse === "string") {
+          parsedProjectData = JSON.parse(dataToUse);
         } else {
-          parsedCourseData = req.body.courseData;
+          parsedProjectData = dataToUse;
         }
-        console.log("✅ Course data parsed successfully");
-        console.log("  Fields received:", Object.keys(parsedCourseData));
+        console.log("✅ Project data parsed successfully");
+        console.log("  Fields received:", Object.keys(parsedProjectData));
       } catch (parseError) {
-        console.error("❌ Error parsing courseData:", parseError);
-        console.error("  Raw courseData type:", typeof req.body.courseData);
-        console.error("  Raw courseData length:", req.body.courseData?.length);
+        console.error("❌ Error parsing project data:", parseError);
+        console.error("  Raw data type:", typeof dataToUse);
+        console.error("  Raw data length:", dataToUse?.length);
         console.error(
-          "  Raw courseData preview:",
-          typeof req.body.courseData === "string"
-            ? req.body.courseData.substring(0, 200)
-            : JSON.stringify(req.body.courseData).substring(0, 200)
+          "  Raw data preview:",
+          typeof dataToUse === "string"
+            ? dataToUse.substring(0, 200)
+            : JSON.stringify(dataToUse).substring(0, 200)
         );
         return res.status(400).json({
           success: false,
-          message: "Invalid course data format",
+          message: "Invalid project data format",
           error: parseError.message,
         });
       }
     } else {
-      console.warn("⚠️ No courseData in request body");
+      console.warn("⚠️ No projectData or courseData in request body");
       console.log("  Request body keys:", Object.keys(req.body));
     }
 
     // Explicitly update all fields to ensure they're saved
-    if (parsedCourseData.courseTitle !== undefined) {
-      course.courseTitle = parsedCourseData.courseTitle;
+    // Map new field names (projectTitle) to old field names (courseTitle) for database
+    if (parsedProjectData.projectTitle !== undefined || parsedProjectData.courseTitle !== undefined) {
+      project.courseTitle = parsedProjectData.projectTitle || parsedProjectData.courseTitle;
     }
-    if (parsedCourseData.customDomain !== undefined) {
-      course.customDomain = parsedCourseData.customDomain;
+    if (parsedProjectData.customDomain !== undefined) {
+      project.customDomain = parsedProjectData.customDomain;
     }
-    if (parsedCourseData.courseDescription !== undefined) {
+    if (parsedProjectData.projectDescription !== undefined || parsedProjectData.courseDescription !== undefined) {
       // Ensure description is not empty (required field)
-      const description = parsedCourseData.courseDescription?.trim() || "";
+      const description = (parsedProjectData.projectDescription || parsedProjectData.courseDescription)?.trim() || "";
       if (description === "" || description === "<p><br></p>") {
         return res.status(400).json({
           success: false,
-          message: "Course description is required and cannot be empty",
+          message: "Project description is required and cannot be empty",
         });
       }
-      course.courseDescription = description;
+      project.courseDescription = description;
     }
-    if (parsedCourseData.coursePrice !== undefined) {
-      course.coursePrice = Number(parsedCourseData.coursePrice) || 0;
+    if (parsedProjectData.projectPrice !== undefined || parsedProjectData.coursePrice !== undefined) {
+      project.coursePrice = Number(parsedProjectData.projectPrice || parsedProjectData.coursePrice) || 0;
     }
-    if (parsedCourseData.discount !== undefined) {
-      course.discount = Number(parsedCourseData.discount) || 0;
+    if (parsedProjectData.discount !== undefined) {
+      project.discount = Number(parsedProjectData.discount) || 0;
     }
-    if (parsedCourseData.isLocked !== undefined) {
-      course.isLocked = Boolean(parsedCourseData.isLocked);
+    if (parsedProjectData.isLocked !== undefined) {
+      project.isLocked = Boolean(parsedProjectData.isLocked);
     }
-    if (parsedCourseData.isTrending !== undefined) {
-      course.isTrending = Boolean(parsedCourseData.isTrending);
+    if (parsedProjectData.isTrending !== undefined) {
+      project.isTrending = Boolean(parsedProjectData.isTrending);
     }
-    if (parsedCourseData.courseContent !== undefined) {
-      course.courseContent = Array.isArray(parsedCourseData.courseContent)
-        ? parsedCourseData.courseContent
-        : course.courseContent;
+    if (parsedProjectData.projectContent !== undefined || parsedProjectData.courseContent !== undefined) {
+      project.courseContent = Array.isArray(parsedProjectData.projectContent || parsedProjectData.courseContent)
+        ? (parsedProjectData.projectContent || parsedProjectData.courseContent)
+        : project.courseContent;
     }
-    if (parsedCourseData.pdfResources !== undefined) {
-      course.pdfResources = Array.isArray(parsedCourseData.pdfResources)
-        ? parsedCourseData.pdfResources
-        : course.pdfResources;
+    if (parsedProjectData.pdfResources !== undefined) {
+      project.pdfResources = Array.isArray(parsedProjectData.pdfResources)
+        ? parsedProjectData.pdfResources
+        : project.pdfResources;
     }
-    // courseThumbnail is handled separately below if imageFile is provided
+    // projectThumbnail is handled separately below if imageFile is provided
     if (
-      parsedCourseData.courseThumbnail !== undefined &&
+      (parsedProjectData.projectThumbnail !== undefined || parsedProjectData.courseThumbnail !== undefined) &&
       !req.files?.image?.[0]
     ) {
-      course.courseThumbnail = parsedCourseData.courseThumbnail;
+      project.courseThumbnail = parsedProjectData.projectThumbnail || parsedProjectData.courseThumbnail;
     }
 
     const imageFile = req.files?.image?.[0];
@@ -280,12 +310,12 @@ export const updateCourse = async (req, res) => {
     if (imageFile) {
       try {
         const uploadResult = imageFile.buffer
-          ? await uploadFromBuffer(imageFile.buffer, "courses")
+          ? await uploadFromBuffer(imageFile.buffer, "projects")
           : await cloudinary.uploader.upload(imageFile.path, {
-              folder: "courses",
+              folder: "projects",
             });
         if (uploadResult && uploadResult.secure_url) {
-          course.courseThumbnail = uploadResult.secure_url;
+          project.courseThumbnail = uploadResult.secure_url;
         }
       } catch (imageError) {
         console.error("❌ Error uploading image:", imageError);
@@ -299,16 +329,16 @@ export const updateCourse = async (req, res) => {
 
     // Handle PDF file uploads - append to existing PDFs
     if (pdfFiles.length > 0) {
-      const pdfResources = Array.isArray(course.pdfResources)
-        ? [...course.pdfResources]
+      const pdfResources = Array.isArray(project.pdfResources)
+        ? [...project.pdfResources]
         : [];
       for (const file of pdfFiles) {
         try {
           const uploadResult = file.buffer
-            ? await uploadFromBuffer(file.buffer, "course_pdfs", "raw")
+            ? await uploadFromBuffer(file.buffer, "project_pdfs", "raw")
             : await cloudinary.uploader.upload(file.path, {
                 resource_type: "raw",
-                folder: "course_pdfs",
+                folder: "project_pdfs",
               });
 
           if (uploadResult) {
@@ -324,38 +354,40 @@ export const updateCourse = async (req, res) => {
           // Continue with other PDFs even if one fails
         }
       }
-      course.pdfResources = pdfResources;
+      project.pdfResources = pdfResources;
     }
 
-    // Save the course
+    // Save the project
     try {
-      // Validate course before saving
-      const validationError = course.validateSync();
+      // Validate project before saving
+      const validationError = project.validateSync();
       if (validationError) {
-        console.error("❌ Course validation error:", validationError);
+        console.error("❌ Project validation error:", validationError);
         return res.status(400).json({
           success: false,
-          message: "Course validation failed",
+          message: "Project validation failed",
           error: validationError.message,
           details: validationError.errors,
         });
       }
 
-      await course.save();
-      console.log("✅ Course updated successfully:", courseId);
+      await project.save();
+      console.log("✅ Project updated successfully:", projectId);
       console.log("  Updated fields:", {
-        title: course.courseTitle,
-        descriptionLength: course.courseDescription?.length || 0,
-        price: course.coursePrice,
-        chaptersCount: course.courseContent?.length || 0,
+        title: project.courseTitle,
+        descriptionLength: project.courseDescription?.length || 0,
+        price: project.coursePrice,
+        chaptersCount: project.courseContent?.length || 0,
       });
+      // Transform to use new field names
+      const transformedProject = transformProjectFields(project.toObject ? project.toObject() : project);
       res.json({
         success: true,
-        message: "Course updated successfully",
-        course,
+        message: "Project updated successfully",
+        project: transformedProject,
       });
     } catch (saveError) {
-      console.error("❌ Error saving course:", saveError);
+      console.error("❌ Error saving project:", saveError);
       console.error("  Error name:", saveError.name);
       console.error("  Error message:", saveError.message);
       if (saveError.errors) {
@@ -363,13 +395,13 @@ export const updateCourse = async (req, res) => {
       }
       return res.status(500).json({
         success: false,
-        message: "Failed to save course",
+        message: "Failed to save project",
         error: saveError.message,
         errorType: saveError.name,
       });
     }
   } catch (error) {
-    console.error("❌ Error in updateCourse:", error);
+    console.error("❌ Error in updateProject:", error);
     console.error("  Error stack:", error.stack);
     res.status(500).json({
       success: false,
@@ -380,25 +412,25 @@ export const updateCourse = async (req, res) => {
 };
 
 // -----------------------------
-// Delete Course
+// Delete Project
 // -----------------------------
-export const deleteCourse = async (req, res) => {
+export const deleteProject = async (req, res) => {
   try {
-    const courseId = req.params.id;
+    const projectId = req.params.id;
     const auth = req.auth();
     const educatorId = auth?.userId;
 
-    const course = await Course.findOne({
-      _id: courseId,
+    const project = await Project.findOne({
+      _id: projectId,
       educator: educatorId,
     });
-    if (!course)
+    if (!project)
       return res
         .status(404)
-        .json({ success: false, message: "Course not found or unauthorized" });
+        .json({ success: false, message: "Project not found or unauthorized" });
 
-    await course.deleteOne();
-    res.json({ success: true, message: "Course deleted successfully" });
+    await project.deleteOne();
+    res.json({ success: true, message: "Project deleted successfully" });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -416,12 +448,12 @@ export const educatorDashboardData = async (req, res) => {
         .status(401)
         .json({ success: false, message: "Unauthorized educator" });
 
-    const courses = await Course.find({ educator });
-    const totalCourses = courses.length;
-    const courseIds = courses.map((c) => c._id);
+    const projects = await Project.find({ educator });
+    const totalProjects = projects.length;
+    const projectIds = projects.map((p) => p._id);
 
     const purchases = await Purchase.find({
-      courseId: { $in: courseIds },
+      projectId: { $in: projectIds },
       status: "completed",
     });
 
@@ -431,9 +463,9 @@ export const educatorDashboardData = async (req, res) => {
     );
 
     const enrolledStudentsData = [];
-    for (const course of courses) {
+    for (const project of projects) {
       const students = await User.find(
-        { _id: { $in: course.enrolledStudents } },
+        { _id: { $in: project.enrolledStudents } },
         "name imageUrl"
       );
       // Filter out null/undefined students (deleted users)
@@ -441,7 +473,7 @@ export const educatorDashboardData = async (req, res) => {
         .filter((s) => s && s._id) // Only include valid users
         .forEach((s) => {
           enrolledStudentsData.push({
-            courseTitle: course.courseTitle,
+            projectTitle: project.courseTitle, // Use old field name from DB
             student: s,
           });
         });
@@ -449,7 +481,7 @@ export const educatorDashboardData = async (req, res) => {
 
     res.json({
       success: true,
-      dashboardData: { totalEarnings, enrolledStudentsData, totalCourses },
+      dashboardData: { totalEarnings, enrolledStudentsData, totalProjects },
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -468,23 +500,23 @@ export const getEnrolledStudentsData = async (req, res) => {
         .status(401)
         .json({ success: false, message: "Unauthorized educator" });
 
-    const courses = await Course.find({ educator });
-    const courseIds = courses.map((c) => c._id);
+    const projects = await Project.find({ educator });
+    const projectIds = projects.map((p) => p._id);
 
     const purchases = await Purchase.find({
-      courseId: { $in: courseIds },
+      projectId: { $in: projectIds },
       status: "completed",
     })
       .populate("userId", "name imageUrl")
-      .populate("courseId", "courseTitle");
+      .populate("projectId", "courseTitle");
 
     // Filter out purchases where user has been deleted (userId is null or user doesn't exist)
     const enrolledStudents = purchases
       .filter((p) => p.userId && p.userId._id) // Only include purchases with valid users
       .map((p) => ({
         student: p.userId,
-        courseId: p.courseId?._id,
-        courseTitle: p.courseId?.courseTitle,
+        projectId: p.projectId?._id,
+        projectTitle: p.projectId?.courseTitle, // Use old field name from DB
         purchaseDate: p.createdAt,
       }));
 
@@ -499,29 +531,29 @@ export const getEnrolledStudentsData = async (req, res) => {
 // -----------------------------
 export const removeStudentAccess = async (req, res) => {
   try {
-    const { courseId, studentId } = req.params;
+    const { projectId, studentId } = req.params;
     const auth = req.auth();
     const educatorId = auth?.userId;
 
-    const course = await Course.findOne({
-      _id: courseId,
+    const project = await Project.findOne({
+      _id: projectId,
       educator: educatorId,
     });
-    if (!course)
+    if (!project)
       return res
         .status(404)
-        .json({ success: false, message: "Course not found or unauthorized" });
+        .json({ success: false, message: "Project not found or unauthorized" });
 
-    course.enrolledStudents = course.enrolledStudents.filter(
+    project.enrolledStudents = project.enrolledStudents.filter(
       (id) => id.toString() !== studentId
     );
-    await course.save();
+    await project.save();
 
     await Promise.all([
       User.findByIdAndUpdate(studentId, {
-        $pull: { enrolledCourses: courseId },
+        $pull: { enrolledProjects: projectId },
       }),
-      Purchase.deleteMany({ courseId, userId: studentId }),
+      Purchase.deleteMany({ projectId, userId: studentId }),
     ]);
 
     res.json({
@@ -546,22 +578,22 @@ export const getAllStudents = async (req, res) => {
 };
 
 // -----------------------------
-// Assign Course to Student
+// Assign Project to Student
 // -----------------------------
-export const assignCourse = async (req, res) => {
+export const assignProject = async (req, res) => {
   try {
-    const { studentId, courseId } = req.body;
+    const { studentId, projectId } = req.body;
     const auth = req.auth();
     const educatorId = auth?.userId;
 
-    const course = await Course.findOne({
-      _id: courseId,
+    const project = await Project.findOne({
+      _id: projectId,
       educator: educatorId,
     });
-    if (!course)
+    if (!project)
       return res
         .status(404)
-        .json({ success: false, message: "Course not found or unauthorized" });
+        .json({ success: false, message: "Project not found or unauthorized" });
 
     const student = await User.findById(studentId);
     if (!student)
@@ -569,26 +601,26 @@ export const assignCourse = async (req, res) => {
         .status(404)
         .json({ success: false, message: "Student not found" });
 
-    if (course.enrolledStudents.includes(studentId))
+    if (project.enrolledStudents.includes(studentId))
       return res.json({
         success: false,
-        message: "Student already enrolled in this course",
+        message: "Student already enrolled in this project",
       });
 
-    // ✅ Add student to course enrollment
-    course.enrolledStudents.push(studentId);
-    await course.save();
+    // ✅ Add student to project enrollment
+    project.enrolledStudents.push(studentId);
+    await project.save();
 
-    // ✅ Add course to student's enrolledCourses if not already present
-    if (!student.enrolledCourses.includes(courseId)) {
-      student.enrolledCourses.push(courseId);
+    // ✅ Add project to student's enrolledProjects if not already present
+    if (!student.enrolledProjects.includes(projectId)) {
+      student.enrolledProjects.push(projectId);
       await student.save();
     }
 
     // ✅ Create purchase record (manual assignment)
     await Purchase.create({
       userId: studentId,
-      courseId,
+      projectId,
       status: "completed",
       amount: 0,
       paymentId: "manual-assignment",
@@ -596,7 +628,7 @@ export const assignCourse = async (req, res) => {
 
     res.json({
       success: true,
-      message: "Course successfully assigned to student",
+      message: "Project successfully assigned to student",
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

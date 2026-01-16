@@ -128,7 +128,7 @@ const Dashboard = () => {
                       />
                       <span className="font-medium">{item.student.name}</span>
                     </td>
-                    <td className="px-6 py-3 truncate">{item.courseTitle}</td>
+                    <td className="px-6 py-3 truncate">{item.projectTitle}</td>
                   </motion.tr>
                 ))}
             </tbody>
