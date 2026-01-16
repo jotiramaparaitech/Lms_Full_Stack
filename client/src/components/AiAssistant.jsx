@@ -5,7 +5,7 @@ import aiImage from "../assets/ai.png";
 
 // --- 1. CONFIGURATION: Centralized Command List ---
 const COMMANDS = [
-  // --- EXTERNAL SOCIAL MEDIA ---
+  // --- External Links ---
   {
     keywords: ["linkedin"],
     type: "external",
@@ -37,7 +37,7 @@ const COMMANDS = [
     message: "Opening Facebook.",
   },
 
-  // --- INTERNAL PAGES ---
+  // --- Specific Navigation (Higher Priority) ---
   {
     keywords: ["project", "library"],
     type: "navigate",
@@ -69,7 +69,7 @@ const COMMANDS = [
     message: "Opening Contact page.",
   },
 
-  // --- SCROLL SECTIONS ---
+  // --- Scroll Sections (Lower Priority) ---
   {
     keywords: ["testimonial", "review"],
     type: "scroll",
@@ -78,11 +78,29 @@ const COMMANDS = [
     message: "Here are the testimonials.",
   },
   {
-    keywords: ["feature", "service"],
+    // Broad keywords for the Features section
+    // Triggers only if 'project', 'contact', etc. (above) didn't match
+    keywords: [
+      "feature", 
+      "service", 
+      "certificate", 
+      "certification",
+      "learn", 
+      "study",
+      "register", 
+      "registration",
+      "job", 
+      "apply",
+      "enquiry", 
+      // "contact" is removed here to prevent conflict with the Contact Page above
+      "question",
+      "support", 
+      "help"
+    ],
     type: "scroll",
     id: "features",
     label: "features",
-    message: "Here are our features.",
+    message: "Here are our features and services.",
   },
   {
     keywords: ["company", "companies", "partner"],
@@ -106,11 +124,9 @@ const AiAssistant = () => {
   const [activeAi, setActiveAi] = useState(false);
   const [hasGreeted, setHasGreeted] = useState(false);
 
-  // Refs
   const audioCtxRef = useRef(null);
   const recognitionRef = useRef(null);
 
-  // --- AUDIO SETUP ---
   const getAudioContext = () => {
     if (!audioCtxRef.current) {
       audioCtxRef.current = new (window.AudioContext ||
@@ -134,7 +150,10 @@ const AiAssistant = () => {
       oscillator.type = "sine";
       oscillator.frequency.setValueAtTime(600, ctx.currentTime);
       gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+      gainNode.gain.exponentialRampToValueAtTime(
+        0.001,
+        ctx.currentTime + 0.15
+      );
 
       oscillator.start();
       oscillator.stop(ctx.currentTime + 0.15);
@@ -149,12 +168,14 @@ const AiAssistant = () => {
     utterance.rate = 1;
     utterance.pitch = 1;
     utterance.lang = "en-US";
+
     const voices = window.speechSynthesis.getVoices();
     const preferredVoice = voices.find(
       (v) => v.name.includes("Google US English") || v.name.includes("Female")
     );
     if (preferredVoice) utterance.voice = preferredVoice;
     if (onEndCallback) utterance.onend = onEndCallback;
+
     window.speechSynthesis.speak(utterance);
   };
 
@@ -178,9 +199,8 @@ const AiAssistant = () => {
     }
   };
 
-  // --- EXECUTE COMMAND ---
   const executeCommand = (transcript) => {
-    // 1. SEARCH
+    // 1. Search Logic
     if (transcript.includes("search for") || transcript.includes("find")) {
       const triggerWord = transcript.includes("search for")
         ? "search for"
@@ -202,7 +222,7 @@ const AiAssistant = () => {
       return;
     }
 
-    // 2. HOME
+    // 2. Home Navigation Logic
     if (transcript.includes("home") || transcript.includes("top")) {
       speak("Going to home page.");
       if (location.pathname === "/") {
@@ -214,7 +234,7 @@ const AiAssistant = () => {
       return;
     }
 
-    // 3. ARRAY LOGIC (Socials, Pages, Sections)
+    // 3. Command List Logic (Iterates from top to bottom)
     const matchedCommand = COMMANDS.find((cmd) =>
       cmd.keywords.some((keyword) => transcript.includes(keyword))
     );
@@ -223,14 +243,8 @@ const AiAssistant = () => {
       speak(matchedCommand.message);
 
       if (matchedCommand.type === "external") {
-        // ✅ FIX: Try new tab first, fallback to same tab if blocked
         const newWindow = window.open(matchedCommand.url, "_blank");
-        if (
-          !newWindow ||
-          newWindow.closed ||
-          typeof newWindow.closed === "undefined"
-        ) {
-          console.log("Pop-up blocked. Opening in current tab.");
+        if (!newWindow || newWindow.closed) {
           window.location.href = matchedCommand.url;
         }
       } else if (matchedCommand.type === "navigate") {
@@ -241,7 +255,7 @@ const AiAssistant = () => {
       return;
     }
 
-    // 4. FALLBACK
+    // 4. Fallback Logic
     if (transcript.includes("who are you") || transcript.includes("intro")) {
       speak("I am the Aparaitech Assistant. We focus on AI solutions.");
     } else {
@@ -249,7 +263,6 @@ const AiAssistant = () => {
     }
   };
 
-  // --- LISTENING ---
   const startListening = () => {
     const SpeechRecognition =
       window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -267,10 +280,11 @@ const AiAssistant = () => {
       setActiveAi(true);
       playActivationSound();
     };
+
     recognition.onend = () => setActiveAi(false);
+
     recognition.onresult = (e) => {
       const transcript = e.results[0][0].transcript.trim().toLowerCase();
-      console.log("Voice Command:", transcript);
       executeCommand(transcript);
     };
 
@@ -279,14 +293,15 @@ const AiAssistant = () => {
 
   const handleInteraction = () => {
     if (activeAi) {
-      if (recognitionRef.current) recognitionRef.current.stop();
+      recognitionRef.current?.stop();
       setActiveAi(false);
       return;
     }
+
     if (!hasGreeted) {
       setHasGreeted(true);
       speak(
-        "Hello! Welcome to Aparaitech Software Solution.We provide smart AI-powered solutions to help students learn, grow, and automate their work.I am the Aparaitech AI Assistant, and I will guide you through the system.Please follow the instructions:You can give simple voice commands.For example, say: ‘Please open all projects.’You give me just voice commands,ok now, how may I assist you today?",
+        "Hello! Welcome to Aparaitech Software Solution. I am your AI assistant. How may I assist you today?",
         () => startListening()
       );
     } else {
@@ -299,33 +314,32 @@ const AiAssistant = () => {
   }, []);
 
   return (
-    <div 
-      className="fixed bottom-16 left-4 z-50 group cursor-pointer"
+    <div
+      className="fixed bottom-4 left-3 sm:bottom-4 sm:left-4 z-50 cursor-pointer"
       onClick={handleInteraction}
       title="Tap to Speak"
     >
-      <div className="relative transition-all duration-300">
-        {activeAi && (
-          <>
-            <span className="absolute -inset-1 rounded-full bg-blue-500 opacity-75 animate-ping"></span>
-            <span className="absolute -inset-2 rounded-full bg-blue-400 opacity-50 animate-pulse"></span>
-          </>
-        )}
-        <div
-          className={`relative flex items-center justify-center h-16 w-16 bg-white rounded-full shadow-2xl border-2 transition-transform duration-300 ${
+      <div
+        className={`flex items-center justify-center
+          h-14 w-14 sm:h-16 sm:w-16
+          bg-white rounded-full
+          border-2
+          shadow-xl
+          transition-all duration-300
+          ${
             activeAi
-              ? "scale-110 border-blue-500"
-              : "hover:scale-105 border-gray-200"
+              ? "border-blue-500 scale-110"
+              : "border-gray-400 hover:scale-105"
+          }
+        `}
+      >
+        <img
+          src={aiImage}
+          alt="AI"
+          className={`w-8 h-8 sm:w-9 sm:h-9 object-contain transition-opacity duration-300 ${
+            activeAi ? "opacity-100" : "opacity-80"
           }`}
-        >
-          <img
-            src={aiImage}
-            alt="AI"
-            className={`w-9 h-9 object-contain transition-opacity duration-300 ${
-              activeAi ? "opacity-100" : "opacity-80"
-            }`}
-          />
-        </div>
+        />
       </div>
     </div>
   );

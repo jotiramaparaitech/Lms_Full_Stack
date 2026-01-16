@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { useUser } from "@clerk/clerk-react";
 import { toast } from "react-toastify";
-import SupportTicketModal from "./SupportTicketModal";
-import supportIcon from "../../assets/support.png";
+import HelpCenter from "./HelpCenter"; // Import the new component
+import { Headphones } from "lucide-react";
 
 const SupportTicketButton = () => {
   const { isSignedIn } = useUser();
@@ -10,7 +10,7 @@ const SupportTicketButton = () => {
 
   const handleClick = () => {
     if (!isSignedIn) {
-      toast.info("Please login to raise a support ticket");
+      toast.info("Please login to access support");
       return;
     }
     setOpen(true);
@@ -18,27 +18,29 @@ const SupportTicketButton = () => {
 
   return (
     <>
-      {/* Floating Support Button */}
+      {/* Floating Help & Support Button */}
       <button
         onClick={handleClick}
         className="
-         bg-white shadow-lg rounded-full p-3
-        transform transition-all duration-300
-        hover:scale-110 hover:shadow-2xl hover:-translate-y-1 hover:rotate-3
+          fixed bottom-4 right-4 sm:bottom-5 sm:right-5 z-[9999]
+          flex items-center gap-1.5 sm:gap-2
+          bg-[#2F415D] text-white
+          px-3 py-2 sm:px-5 sm:py-3
+          rounded-full
+          shadow-lg
+          transition-all duration-300
+          hover:shadow-2xl hover:scale-105
+          active:scale-95
         "
-        style={{
-          transform: "translateY(-2%)", // ✅ move button slightly upward
-        }}
       >
-        <img
-          src={supportIcon}
-          alt="Support"
-          className="w-9 h-9"
-        />
+        <Headphones className="w-4 h-4 sm:w-5 sm:h-5" />
+        <span className="text-xs sm:text-sm font-semibold whitespace-nowrap">
+          Help & Support
+        </span>
       </button>
 
-      {/* Modal */}
-      {open && <SupportTicketModal onClose={() => setOpen(false)} />}
+      {/* Render the Help Center (Menu) instead of the Modal directly */}
+      {open && <HelpCenter onClose={() => setOpen(false)} />}
     </>
   );
 };
