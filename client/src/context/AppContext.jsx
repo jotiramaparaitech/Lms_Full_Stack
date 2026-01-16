@@ -274,14 +274,16 @@ export const AppContextProvider = (props) => {
       return;
     }
 
-    // Show login success message when user logs in (transition from null to user)
-    if (!previousUserRef.current && user) {
-      toast.success(
-        `Welcome back to ${
-          user.firstName || user.emailAddresses[0]?.emailAddress || "User"
-        } 🎉`
-      );
-    }
+    // ✅ Show welcome toast only once per session
+       const hasShownWelcome = sessionStorage.getItem("welcome_shown");
+       if (!hasShownWelcome) {
+         toast.success(
+           `Welcome ${
+             user.firstName || user.emailAddresses[0]?.emailAddress || "User"
+           } 🎉`
+         );
+         sessionStorage.setItem("welcome_shown", "true");
+       }
 
     previousUserRef.current = user;
 

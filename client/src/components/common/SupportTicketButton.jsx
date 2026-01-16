@@ -22,7 +22,7 @@ const SupportTicketButton = () => {
       <button
         onClick={handleClick}
         className="
-          fixed bottom-4 right-4 sm:bottom-5 sm:right-5 z-[9999]
+          fixed bottom-5 right-4 sm:bottom-5 sm:right-5 z-[9999]
           flex items-center gap-1.5 sm:gap-2
           bg-[#2F415D] text-white
           px-3 py-2 sm:px-5 sm:py-3
@@ -33,7 +33,7 @@ const SupportTicketButton = () => {
           active:scale-95
         "
       >
-        <Headphones className="w-4 h-4 sm:w-5 sm:h-5" />
+        <Headphones className="w-5 h-5 sm:w-5 sm:h-5" />
         <span className="text-xs sm:text-sm font-semibold whitespace-nowrap">
           Help & Support
         </span>

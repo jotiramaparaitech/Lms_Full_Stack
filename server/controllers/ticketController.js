@@ -8,7 +8,6 @@ import { ensureUserExists } from "./userController.js";
  */
 export const createTicket = async (req, res) => {
   try {
-   
     const auth = req.auth();
     const clerkUserId = auth?.userId;
 
@@ -28,7 +27,6 @@ export const createTicket = async (req, res) => {
       });
     }
 
-    
     const user = await ensureUserExists(clerkUserId);
 
     if (!user) {
@@ -39,7 +37,7 @@ export const createTicket = async (req, res) => {
     }
 
     const ticket = await Ticket.create({
-      userId: clerkUserId, // ✅ Clerk ID (string)
+      userId: clerkUserId,
       name: user.name,
       email: user.email,
       query,
@@ -122,8 +120,8 @@ export const markTicketSolved = async (req, res) => {
 export const deleteTicket = async (req, res) => {
   try {
     const { id } = req.params;
-    
-    // 1. Verify Authentication
+
+    // 1. Get User ID from Token
     const auth = req.auth();
     const clerkUserId = auth?.userId;
 
@@ -137,18 +135,33 @@ export const deleteTicket = async (req, res) => {
       return res.status(404).json({ success: false, message: "Ticket not found" });
     }
 
-    // 3. Fetch User details to check role (using your existing helper)
-    const user = await ensureUserExists(clerkUserId);
+    // 3. Determine User Role
+    // PRIORITY: Check req.user (from Middleware) -> Fallback: Check Database
+    let userRole = "student";
 
-    // 4. Check Permissions: 
-    // Allow if User is the Owner OR User is an Educator/Admin
-    const isOwner = ticket.userId === clerkUserId;
-    const isAdmin = user.role === "educator" || user.role === "admin"; // Adjust "educator" to match your exact DB role string
+    if (req.user && req.user.role) {
+      // Use role from Clerk Metadata (via protect middleware)
+      userRole = req.user.role;
+    } else {
+      // Fallback: Fetch from DB if middleware didn't populate req.user
+      const user = await ensureUserExists(clerkUserId);
+      if (user && user.role) userRole = user.role;
+    }
 
-    if (!isOwner && !isAdmin) {
+    // Normalize for case-insensitive check
+    userRole = String(userRole).toLowerCase();
+
+    // 4. Permissions Check
+    const isOwner = String(ticket.userId) === String(clerkUserId);
+    const isEducatorOrAdmin = userRole === "educator" || userRole === "admin";
+
+    // Debug Log
+    console.log(`[DEBUG] Delete: User=${clerkUserId} | Role=${userRole} | TicketOwner=${ticket.userId} | Auth=${isOwner || isEducatorOrAdmin}`);
+
+    if (!isOwner && !isEducatorOrAdmin) {
       return res.status(403).json({
         success: false,
-        message: "Access denied. You can only delete your own tickets.",
+        message: "Access denied. Only Educators or the Ticket Owner can delete this.",
       });
     }
 
