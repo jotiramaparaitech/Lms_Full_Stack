@@ -152,14 +152,15 @@ const Navbar = () => {
                 </motion.button>
               )}
 
-              {userRole === "student" && (
-                <Link
-                  to="/my-enrollments"
-                  className="hover:text-cyan-700 transition-colors duration-200"
-                >
-                  My Enrollments
-                </Link>
-              )}
+              {(userRole === "student" || userRole === "admin") && (
+                 <Link
+                   to="/student/dashboard"
+                   className="hover:text-cyan-700 transition-colors duration-200"
+                 >
+                  Student Dashboard
+                 </Link>
+               )}
+
             </div>
           )}
 
@@ -241,15 +242,15 @@ const Navbar = () => {
                   </button>
                 )}
 
-                {userRole === "student" && (
-                  <Link
-                    to="/my-enrollments"
-                    onClick={() => setMenuOpen(false)}
-                    className="hover:text-cyan-700 transition-colors"
-                  >
-                    My Enrollments
-                  </Link>
-                )}
+                {(userRole === "student" || userRole === "admin") && (
+                    <Link
+                      to="/student/dashboard"
+                      onClick={() => setMenuOpen(false)}
+                      className="hover:text-cyan-700 transition-colors"
+                    >
+                     Student Dashboard
+                    </Link>
+                  )}
               </>
             )}
 
