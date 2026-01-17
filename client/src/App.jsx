@@ -32,10 +32,20 @@ import AiAssistant from "./components/AiAssistant";
 
 import ScrollToTop from "./components/ScrollToTop";
 import AllTestimonials from "./components/student/AllTestimonials";
+
 import StudentDashboard from "./pages/student/StudentDashboard";
+
 import SupportTicketButton from "./components/common/SupportTicketButton";
 import SupportTickets from './pages/educator/SupportTickets';
 
+import MyProjects from "./pages/student/MyProjects";
+import Tests from "./pages/student/Tests";
+import Certificates from "./pages/student/Certificates";
+import Progress from "./pages/student/Progress";
+import Calendar from "./pages/student/apps/Calendar";
+import Todo from "./pages/student/apps/Todo";
+import Chat from "./pages/student/apps/Chat";
+import Teams from "./pages/student/apps/Teams";
 
 const App = () => {
   const { isEducator } = useContext(AppContext);
@@ -85,11 +95,18 @@ const AppContent = ({ isEducatorRoute, isEducator }) => {
         <Route path="/contact" element={<Contact />} />
         <Route path="/connect" element={<Connect />} />
         <Route path="/AllTestimonials" element={<AllTestimonials />} />
+       
         {/* ✅ Student Dashboard Route */}
-  <Route
-    path="/student-dashboard"
-    element={<StudentDashboard />}
-  />
+         <Route path="/student/dashboard" element={<StudentDashboard />} />
+         <Route path="/student/projects" element={<MyProjects />} />
+         <Route path="/student/tests" element={<Tests />} />
+         <Route path="/student/certificates" element={<Certificates />} />
+         <Route path="/student/progress" element={<Progress />} />
+         <Route path="/student/apps/calendar" element={<Calendar />} />
+         <Route path="/student/apps/todo" element={<Todo />} />
+         <Route path="/student/apps/chat" element={<Chat />} />
+         <Route path="/student/apps/teams" element={<Teams />} />
+
 
         {/* 🧑‍🏫 Educator Routes (Protected) */}
         <Route
