@@ -274,7 +274,7 @@ export const AppContextProvider = (props) => {
       return;
     }
 
-      // ✅ Show welcome toast only once per session
+    // ✅ Show welcome toast only once per session
        const hasShownWelcome = sessionStorage.getItem("welcome_shown");
        if (!hasShownWelcome) {
          toast.success(
@@ -291,14 +291,11 @@ export const AppContextProvider = (props) => {
     fetchUserData();
     fetchUserEnrolledCourses();
 
-         if (!roleRedirectedRef.current) {
-        if (role === "educator") {
-          navigate("/educator");
-        } else {
-          navigate("/");
-        }
-        roleRedirectedRef.current = true;
-      }
+    if (!roleRedirectedRef.current) {
+      if (role === "educator" || role === "admin") navigate("/educator");
+      else navigate("/");
+      roleRedirectedRef.current = true;
+    }
   }, [user, isLoaded]);
 
   useEffect(() => {

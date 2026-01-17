@@ -119,7 +119,7 @@ const AssignCourse = () => {
             value={selectedCourse}
             onChange={(e) => setSelectedCourse(e.target.value)}
           >
-            <option value="">-- Choose Course --</option>
+            <option value="">-- Choose Project --</option>
             {courses.map((course) => (
               <option key={course._id} value={course._id}>
                 {course.courseTitle}

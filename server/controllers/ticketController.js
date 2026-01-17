@@ -8,7 +8,6 @@ import { ensureUserExists } from "./userController.js";
  */
 export const createTicket = async (req, res) => {
   try {
-   
     const auth = req.auth();
     const clerkUserId = auth?.userId;
 
@@ -28,7 +27,6 @@ export const createTicket = async (req, res) => {
       });
     }
 
-    
     const user = await ensureUserExists(clerkUserId);
 
     if (!user) {
@@ -39,7 +37,7 @@ export const createTicket = async (req, res) => {
     }
 
     const ticket = await Ticket.create({
-      userId: clerkUserId, // ✅ Clerk ID (string)
+      userId: clerkUserId,
       name: user.name,
       email: user.email,
       query,
@@ -107,6 +105,76 @@ export const markTicketSolved = async (req, res) => {
     });
   } catch (error) {
     console.error("Solve Ticket Error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
+/**
+ * @desc    Delete a ticket
+ * @route   DELETE /api/tickets/:id
+ * @access  Protected (Owner or Educator)
+ */
+export const deleteTicket = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // 1. Get User ID from Token
+    const auth = req.auth();
+    const clerkUserId = auth?.userId;
+
+    if (!clerkUserId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    // 2. Find the Ticket
+    const ticket = await Ticket.findById(id);
+    if (!ticket) {
+      return res.status(404).json({ success: false, message: "Ticket not found" });
+    }
+
+    // 3. Determine User Role
+    // PRIORITY: Check req.user (from Middleware) -> Fallback: Check Database
+    let userRole = "student";
+
+    if (req.user && req.user.role) {
+      // Use role from Clerk Metadata (via protect middleware)
+      userRole = req.user.role;
+    } else {
+      // Fallback: Fetch from DB if middleware didn't populate req.user
+      const user = await ensureUserExists(clerkUserId);
+      if (user && user.role) userRole = user.role;
+    }
+
+    // Normalize for case-insensitive check
+    userRole = String(userRole).toLowerCase();
+
+    // 4. Permissions Check
+    const isOwner = String(ticket.userId) === String(clerkUserId);
+    const isEducatorOrAdmin = userRole === "educator" || userRole === "admin";
+
+    // Debug Log
+    console.log(`[DEBUG] Delete: User=${clerkUserId} | Role=${userRole} | TicketOwner=${ticket.userId} | Auth=${isOwner || isEducatorOrAdmin}`);
+
+    if (!isOwner && !isEducatorOrAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Only Educators or the Ticket Owner can delete this.",
+      });
+    }
+
+    // 5. Delete the ticket
+    await ticket.deleteOne();
+
+    res.status(200).json({
+      success: true,
+      message: "Ticket deleted successfully",
+    });
+
+  } catch (error) {
+    console.error("Delete Ticket Error:", error);
     res.status(500).json({
       success: false,
       message: "Server error",

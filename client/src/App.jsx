@@ -22,7 +22,6 @@ import { ToastContainer } from "react-toastify";
 import Player from "./pages/student/Player";
 import MyEnrollments from "./pages/student/MyEnrollments";
 import Loading from "./components/student/Loading";
-import WhatsAppButton from "./components/common/WhatsAppButton";
 import About from "./pages/student/About";
 import Contact from "./pages/student/Contact";
 import AllProjectsModal from "./components/student/AllProjectsModal";
@@ -125,10 +124,6 @@ const AppContent = ({ isEducatorRoute, isEducator }) => {
       </div>
       <div className="fixed bottom-24 right-6 z-50">
   <SupportTicketButton />
-</div>
-
-<div className="fixed bottom-6 right-6 z-50">
-  <WhatsAppButton />
 </div>
 
       {/* <ChatbotWidget /> */}
