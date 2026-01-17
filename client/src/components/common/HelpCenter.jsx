@@ -23,9 +23,9 @@ const FAQS = [
     category: "General & Account",
     items: [
       {
-        question: "How do I reset my LMS password?",
+        question: "How do I reset my password?",
         answer:
-          "Go to the login page and click on 'Forgot Password'. Enter your registered email to receive a reset link.",
+          "Go to the login page and select ‘Forgot Password.’ Enter your registered email address to receive a secure password reset link.",
       },
     ],
   },
@@ -35,22 +35,53 @@ const FAQS = [
       {
         question: "How does the Live Project start?",
         answer:
-          "Upon enrollment, you will receive a Project PDF with all the details. You will also be added to a dedicated WhatsApp group with other participants.",
+          "After enrollment, you will receive a Project PDF with complete details of the workflow. You will also be added to a Microsoft Team for project communication.",
       },
       {
-        question: "How often are the mentorship meetings?",
+        question: "How often will the guidance sessions happen?",
         answer:
-          "We conduct live meetings 2-3 times a week. These sessions are for tracking progress, solving doubts, and reviewing your code.",
+          "Guidance sessions are held 2–3 times a week by the Project Coordinator to track progress, review work, and clear doubts.",
       },
       {
-        question: "Where can I ask day-to-day doubts?",
+        question: "Where can I ask my daily questions or doubts?",
         answer:
-          "Please post your queries in the assigned WhatsApp group. Mentors and peers are active there to help you immediately.",
+          "You can ask your questions in the assigned Microsoft Community. The Project Coordinator will help you there.",
       },
       {
-        question: "When do I get my certificate?",
+        question: "When will I get my certificate?",
         answer:
-          "Once you complete the project and it is approved by the mentor during the final review, your certificate will be issued to you.",
+          "You will receive your certificate after completing the project and getting approval from the mentor.",
+      },
+      {
+        question: "What will I receive during the Live Project Program?",
+        answer: `During the Live Project Program, you will receive:
+• Project Completion Certificate
+• Letter of Recommendation (LOR) (based on performance)
+• Experience Letter
+• Offer Letter (subject to eligibility and performance)
+• Aparaitech ID Card`,
+      },
+      {
+        question: "Does the company provide software products?",
+        answer:
+          "Yes. Aparaitech provides access to real-time company-level software products and live project environments, helping students understand how industry projects are developed, managed, and delivered.",
+      },
+      {
+        question: "Which domains are available for Live Projects?",
+        answer:
+          "We offer Live Projects across 30+ in-demand domains, including: Web Development, Artificial Intelligence, Data Science, Data Analytics, DevOps, and more.",
+      },
+      {
+        question: "Do you provide demo projects?",
+        answer: `Yes. We provide demo projects to help students understand the project flow before starting.
+Example – Web Development Demo Project:
+Project Name: "Student Management System"
+Description: A web-based application to manage student records, registrations, and data using the latest technology. This demo helps students understand project structure.`,
+      },
+      {
+        question: "Why should I pay fees to the company?",
+        answer:
+          "Your fees cover industry-grade training, real-time project exposure, expert guidance, project resources, certification, and career support.",
       },
     ],
   },
