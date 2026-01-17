@@ -43,7 +43,7 @@ const MyProjectsPage = () => {
             View Your Projects
           </h3>
           <p className="text-gray-600 mb-8 max-w-md mx-auto">
-            All your enrolled projects are available in the My Projects section.
+            All your assign projects are available in the My Projects section.
           </p>
           <button
             onClick={() => navigate("/student/projects")}
@@ -225,7 +225,7 @@ const DashboardHome = () => {
     const mockActivities = [
       { 
         id: 1, 
-        activity: "Enrolled in new course", 
+        activity: "Assigned in new project", 
         time: "2 hours ago", 
         type: "enrollment",
         courseName: enrolledCourses[0]?.courseTitle || "New Course"
@@ -289,7 +289,7 @@ const DashboardHome = () => {
 
   const statsCards = [
      { 
-    title: 'Enrolled Projects', 
+    title: 'Assigned Projects', 
     value: enrolledCourses.length, // Show total enrolled count
     icon: <BookOpen size={24} />, 
     color: 'bg-gradient-to-r from-blue-500 to-cyan-500',
@@ -301,7 +301,7 @@ const DashboardHome = () => {
       : 'No projects yet'
   },
     { 
-      title: 'Completed Tasks', 
+      title: 'Completed Work', 
       value: stats.completedTasks, 
       icon: <CheckCircle size={24} />, 
       color: 'bg-gradient-to-r from-green-500 to-emerald-500',
@@ -329,7 +329,7 @@ const DashboardHome = () => {
       change: stats.progress > 0 ? 'Keep it up!' : 'Start your first project'
     },
     { 
-      title: 'Pending Tasks', 
+      title: 'Pending Work', 
       value: stats.pendingTasks, 
       icon: <AlertCircle size={24} />, 
       color: 'bg-gradient-to-r from-yellow-500 to-amber-500',
