@@ -4,191 +4,306 @@ import { AppContext } from "../../../context/AppContext";
 import { useNavigate } from "react-router-dom";
 import {
   Users,
-  Plus,
   Search,
   Filter,
   MessageSquare,
   Video,
   Calendar,
   FileText,
-  Github,
-  ExternalLink,
   UserPlus,
-  MoreVertical,
-  UserCheck,
-  Users as TeamIcon,
-  FolderKanban,
   BookOpen,
   Award,
   Clock,
-  Mail,
   ChevronRight,
   Eye,
-  Link,
   Download,
   Share2,
-  Bell,
-  Settings
+  Settings,
+  Loader2,
+  User,
+  Mail,
+  CheckCircle,
+  XCircle
 } from "lucide-react";
 
 const Teams = () => {
-  const { userData, enrolledCourses = [] } = useContext(AppContext) || {};
+  const { 
+    userData, 
+    enrolledCourses = [], 
+    fetchUserEnrolledCourses,
+    backendUrl,
+    getToken
+  } = useContext(AppContext) || {};
+  
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTeam, setActiveTeam] = useState(null);
   const navigate = useNavigate();
 
-  // Fetch teams based on enrolled courses
-  useEffect(() => {
-    const fetchTeamsData = async () => {
-      try {
-        setLoading(true);
-        
-        // If user has enrolled courses, fetch their details
-        if (enrolledCourses.length > 0) {
-          const formattedTeams = [];
-          
-          // For each enrolled course, create a team
-          for (const course of enrolledCourses) {
-            // Check if course has enrolledStudents
-            if (course.enrolledStudents && course.enrolledStudents.length > 0) {
-              try {
-                // Fetch enrolled students' details
-                const response = await fetch(`/api/courses/${course._id}/enrolled-students`);
-                const enrolledStudentsData = await response.json();
-                
-                // Filter out current user from members list
-                const members = enrolledStudentsData.filter(
-                  student => student._id !== userData?._id
-                );
-                
-                // Only create team if there are other enrolled students
-                if (members.length > 0) {
-                  const team = {
-                    _id: course._id,
-                    courseId: course._id,
-                    courseTitle: course.courseTitle,
-                    courseDescription: course.courseDescription,
-                    courseThumbnail: course.courseThumbnail,
-                    coursePrice: course.coursePrice,
-                    discount: course.discount,
-                    educator: course.educator,
-                    teamName: `${course.courseTitle} Team`,
-                    members: members.map(student => ({
-                      _id: student._id,
-                      name: student.name,
-                      email: student.email,
-                      imageUrl: student.imageUrl,
-                      role: "Student",
-                      enrolledDate: student.enrolledDate,
-                      progress: calculateStudentProgress(student, course._id)
-                    })),
-                    totalMembers: enrolledStudentsData.length,
-                    projectStatus: "Active",
-                    progress: calculateCourseProgress(course),
-                    resources: course.pdfResources || [],
-                    meetings: [], // This would come from a separate meetings API
-                    tasks: [], // This would come from a separate tasks API
-                    createdAt: course.createdAt
-                  };
-                  
-                  formattedTeams.push(team);
-                }
-              } catch (error) {
-                console.error(`Error fetching students for course ${course._id}:`, error);
-              }
-            }
-          }
-          
-          setTeams(formattedTeams);
-          
-          // Set first team as active if available
-          if (formattedTeams.length > 0) {
-            setActiveTeam(formattedTeams[0]);
+  // Function to fetch student details - FIXED APPROACH
+  const fetchStudentDetails = async (studentId) => {
+    try {
+      const token = await getToken();
+      // Use the correct endpoint format based on your backend
+      const response = await fetch(`${backendUrl}/api/user/${studentId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        return data;
+      }
+    } catch (error) {
+      console.error(`Error fetching student ${studentId}:`, error);
+    }
+    return null;
+  };
+
+  // Function to get student progress
+  const fetchStudentProgress = async (studentId, courseId) => {
+    try {
+      const token = await getToken();
+      const response = await fetch(`${backendUrl}/api/user/get-course-progress`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ 
+          courseId: courseId,
+          studentId: studentId 
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        // Check if the response has progress data
+        if (data.progressData) {
+          // Get total lectures from the course
+          const course = enrolledCourses.find(c => c._id === courseId);
+          if (course && course.courseContent) {
+            let totalLectures = 0;
+            course.courseContent.forEach(chapter => {
+              totalLectures += (chapter.chapterContent?.length || 0);
+            });
+            
+            const completedLectures = data.progressData.lectureCompleted?.length || 0;
+            return totalLectures > 0 ? Math.round((completedLectures / totalLectures) * 100) : 0;
           }
         }
+        return data.progressPercent || 0;
+      }
+    } catch (error) {
+      console.error(`Error fetching progress for ${studentId}:`, error);
+    }
+    return 0;
+  };
+
+  // Build teams from enrolled courses - SIMPLIFIED & CORRECTED
+  useEffect(() => {
+    const buildTeams = async () => {
+      try {
+        setLoading(true);
+        console.log("Building teams from enrolled courses:", enrolledCourses);
+        
+        if (!enrolledCourses || enrolledCourses.length === 0) {
+          console.log("No enrolled courses found");
+          setTeams([]);
+          setLoading(false);
+          return;
+        }
+
+        const formattedTeams = [];
+        
+        // Create a team for EACH enrolled course
+        for (const course of enrolledCourses) {
+          console.log(`Processing course: ${course.courseTitle}`, course.enrolledStudents);
+          
+          // Check if course has enrolled students
+          if (course.enrolledStudents && course.enrolledStudents.length > 0) {
+            
+            // Get ALL student IDs for this course
+            const studentIds = course.enrolledStudents;
+            console.log(`Course has ${studentIds.length} students:`, studentIds);
+            
+            // Create team members array
+            const teamMembers = [];
+            
+            // Process each student in the course
+            for (const studentId of studentIds) {
+              try {
+                // Get student details
+                const studentDetails = await fetchStudentDetails(studentId);
+                
+                if (studentDetails) {
+                  // Get progress for this student in this course
+                  const progress = await fetchStudentProgress(studentId, course._id);
+                  
+                  const member = {
+                    _id: studentId,
+                    name: studentDetails.name || 'Unknown Student',
+                    email: studentDetails.email || '',
+                    imageUrl: studentDetails.imageUrl,
+                    role: studentDetails.role || 'student',
+                    isCurrentUser: studentId === userData?._id,
+                    progress: progress
+                  };
+                  
+                  teamMembers.push(member);
+                  console.log(`Added student: ${member.name} (${studentId})`);
+                } else {
+                  // If student details not found, create placeholder
+                  teamMembers.push({
+                    _id: studentId,
+                    name: 'Loading...',
+                    email: '',
+                    imageUrl: null,
+                    role: 'student',
+                    isCurrentUser: studentId === userData?._id,
+                    progress: 0
+                  });
+                }
+              } catch (error) {
+                console.error(`Error processing student ${studentId}:`, error);
+              }
+            }
+            
+            // Only create team if we have members
+            if (teamMembers.length > 0) {
+              // Calculate average progress
+              const avgProgress = teamMembers.length > 0
+                ? Math.round(teamMembers.reduce((sum, member) => sum + member.progress, 0) / teamMembers.length)
+                : 0;
+              
+              // Separate current user from others
+              const currentUser = teamMembers.find(m => m.isCurrentUser);
+              const otherMembers = teamMembers.filter(m => !m.isCurrentUser);
+              
+              const team = {
+                _id: course._id,
+                courseId: course._id,
+                courseTitle: course.courseTitle || 'Untitled Project',
+                courseDescription: course.courseDescription || 'No description',
+                courseThumbnail: course.courseThumbnail,
+                educator: course.educator || 'Unknown Educator',
+                teamName: `${course.courseTitle || 'Project'} Team`,
+                currentUser: currentUser,
+                members: otherMembers,
+                allMembers: teamMembers,
+                totalMembers: teamMembers.length,
+                projectStatus: "Active",
+                resources: course.pdfResources || [],
+                createdAt: course.createdAt || new Date(),
+                avgProgress: avgProgress
+              };
+              
+              console.log(`Created team: ${team.teamName} with ${team.totalMembers} members`);
+              formattedTeams.push(team);
+            }
+          } else {
+            console.log(`Course has no enrolledStudents array or it's empty`);
+          }
+        }
+        
+        console.log("Final teams:", formattedTeams);
+        setTeams(formattedTeams);
+        
+        // Set first team as active if available
+        if (formattedTeams.length > 0) {
+          setActiveTeam(formattedTeams[0]);
+        } else {
+          console.log("No teams were created. Check enrolledCourses data structure.");
+        }
+        
       } catch (error) {
-        console.error("Error fetching teams data:", error);
+        console.error("Error building teams:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchTeamsData();
-  }, [enrolledCourses, userData]);
-
-  // Helper function to calculate student progress (you would implement this based on your data)
-  const calculateStudentProgress = (student, courseId) => {
-    // This should come from your backend - for now returning mock progress
-    return Math.floor(Math.random() * 100);
-  };
-
-  // Helper function to calculate course progress
-  const calculateCourseProgress = (course) => {
-    if (!course.courseContent || course.courseContent.length === 0) return 0;
-    
-    // Calculate based on completed lectures (this is simplified)
-    let totalLectures = 0;
-    let completedLectures = 0;
-    
-    course.courseContent.forEach(chapter => {
-      totalLectures += chapter.chapterContent.length;
-      // You would need to track which lectures each student has completed
-      // For now, using a mock calculation
-      completedLectures += Math.floor(chapter.chapterContent.length * 0.6);
-    });
-    
-    return totalLectures > 0 ? Math.round((completedLectures / totalLectures) * 100) : 0;
-  };
-
-  // Filter teams based on search
-  const filteredTeams = teams.filter(team =>
-    team.courseTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    team.teamName.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  // Handle send message
-  const handleSendMessage = (member) => {
-    navigate(`/student/apps/chat?user=${member._id}`);
-  };
-
-  // Handle schedule meeting
-  const handleScheduleMeeting = (team) => {
-    navigate(`/student/apps/calendar?team=${team._id}`);
-  };
-
-  // Handle view course
-  const handleViewCourse = (courseId) => {
-    navigate(`/course/${courseId}`);
-  };
-
-  // Handle invite to team
-  const handleInviteToTeam = async (teamId) => {
-    try {
-      const inviteLink = `${window.location.origin}/course/${teamId}/join`;
-      await navigator.clipboard.writeText(inviteLink);
-      alert("Invite link copied to clipboard!");
-    } catch (error) {
-      console.error("Error copying invite link:", error);
+    // Initial load
+    if (userData) {
+      // If enrolledCourses is empty, fetch them first
+      if (enrolledCourses.length === 0) {
+        console.log("No enrolled courses in context, fetching...");
+        fetchUserEnrolledCourses().then(() => {
+          // Give a small delay for data to load
+          setTimeout(() => {
+            buildTeams();
+          }, 1000);
+        });
+      } else {
+        console.log("Building teams with existing enrolledCourses");
+        buildTeams();
+      }
+    } else {
+      console.log("No userData available");
+      setLoading(false);
     }
+  }, [userData, enrolledCourses]);
+
+  // Debug function to log current state
+  const debugState = () => {
+    console.log("=== DEBUG INFO ===");
+    console.log("User Data:", userData);
+    console.log("Enrolled Courses:", enrolledCourses);
+    console.log("Number of Courses:", enrolledCourses.length);
+    
+    if (enrolledCourses.length > 0) {
+      enrolledCourses.forEach((course, index) => {
+        console.log(`Course ${index + 1}: ${course.courseTitle}`);
+        console.log(`  - ID: ${course._id}`);
+        console.log(`  - Enrolled Students:`, course.enrolledStudents);
+        console.log(`  - Number of Students:`, course.enrolledStudents?.length || 0);
+      });
+    }
+    
+    console.log("Teams:", teams);
+    console.log("Active Team:", activeTeam);
+    console.log("Loading:", loading);
+    console.log("===================");
   };
 
-  // Handle download resource
-  const handleDownloadResource = (resource) => {
-    window.open(resource.pdfUrl, '_blank');
+  // Get progress color
+  const getProgressColor = (progress) => {
+    if (progress === 100) return 'bg-green-500 text-green-800';
+    if (progress >= 70) return 'bg-blue-500 text-blue-800';
+    if (progress >= 40) return 'bg-yellow-500 text-yellow-800';
+    return 'bg-red-500 text-red-800';
+  };
+
+  // Get member initials
+  const getMemberInitials = (name) => {
+    if (!name || name === 'Loading...') return '?';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+  };
+
+  // Handle actions
+  const handleSendMessage = (member) => {
+    navigate(`/student/apps/chat?user=${member._id}&name=${encodeURIComponent(member.name)}`);
   };
 
   if (loading) {
     return (
       <StudentLayout>
         <div className="p-6">
-          <h1 className="text-2xl font-bold mb-6">Teams</h1>
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading teams...</p>
-            </div>
+          <h1 className="text-2xl font-bold mb-6">Project Teams</h1>
+          <div className="flex flex-col items-center justify-center h-96">
+            <Loader2 className="h-12 w-12 text-cyan-600 animate-spin mb-4" />
+            <p className="text-gray-600">Loading project teams...</p>
+            <p className="text-sm text-gray-500 mt-2">
+              Processing {enrolledCourses.length} courses...
+            </p>
+            <button 
+              onClick={debugState}
+              className="mt-4 px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+            >
+              Debug Info
+            </button>
           </div>
         </div>
       </StudentLayout>
@@ -197,24 +312,28 @@ const Teams = () => {
 
   return (
     <StudentLayout>
-      <div className="p-6">
+      <div className="p-4 md:p-6">
         {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Project Teams</h1>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Project Teams</h1>
             <p className="text-gray-600 mt-1">
-              Collaborate with students assign in the same projects
+              {teams.length > 0 
+                ? `Showing ${teams.reduce((sum, team) => sum + team.totalMembers, 0)} students across ${teams.length} projects`
+                : "No project teams available"}
             </p>
           </div>
           
           <div className="flex items-center gap-3">
+            <button 
+              onClick={debugState}
+              className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm"
+            >
+              Debug
+            </button>
             <button className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2">
               <Filter size={16} />
               <span>Filter</span>
-            </button>
-            <button className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2">
-              <Settings size={16} />
-              <span>Settings</span>
             </button>
           </div>
         </div>
@@ -225,7 +344,7 @@ const Teams = () => {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
             <input
               type="text"
-              placeholder="Search teams or projects..."
+              placeholder="Search projects or students..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
@@ -233,13 +352,29 @@ const Teams = () => {
           </div>
         </div>
 
+        {/* Debug Info Button */}
+        <div className="mb-4">
+          <button 
+            onClick={debugState}
+            className="text-sm text-cyan-600 hover:text-cyan-800 underline"
+          >
+            Click here to see debug info in console
+          </button>
+        </div>
+
+        {/* No Teams Found */}
         {teams.length === 0 ? (
           <div className="bg-white rounded-xl shadow p-8 text-center">
-            <TeamIcon size={64} className="mx-auto mb-4 text-gray-300" />
-            <h3 className="text-xl font-semibold text-gray-700 mb-2">No Teams Found</h3>
-            <p className="text-gray-600 mb-6">
-              You're not assign in any projects with other students yet.
-            </p>
+            <Users size={64} className="mx-auto mb-4 text-gray-300" />
+            <h3 className="text-xl font-semibold text-gray-700 mb-2">No Project Teams Found</h3>
+            <div className="text-left bg-gray-50 p-4 rounded-lg mb-6">
+              <h4 className="font-medium text-gray-800 mb-2">Debug Information:</h4>
+              <ul className="text-sm text-gray-600 space-y-1">
+                <li>• Enrolled Courses: {enrolledCourses.length}</li>
+                <li>• User ID: {userData?._id || 'Not logged in'}</li>
+                <li>• User Name: {userData?.name || 'Unknown'}</li>
+              </ul>
+            </div>
             <button
               onClick={() => navigate("/course-list")}
               className="px-4 py-2 bg-gradient-to-r from-cyan-600 to-teal-500 text-white rounded-lg hover:opacity-90 transition-opacity"
@@ -253,12 +388,17 @@ const Teams = () => {
             <div className="lg:col-span-1">
               <div className="bg-white rounded-xl shadow overflow-hidden">
                 <div className="p-4 border-b border-gray-200">
-                  <h3 className="font-semibold text-gray-800">
-                    My Teams ({filteredTeams.length})
-                  </h3>
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-semibold text-gray-800">
+                      My Projects ({teams.length})
+                    </h3>
+                    <span className="text-xs text-gray-500">
+                      {teams.reduce((sum, team) => sum + team.totalMembers, 0)} students
+                    </span>
+                  </div>
                 </div>
                 <div className="divide-y divide-gray-100 max-h-[600px] overflow-y-auto">
-                  {filteredTeams.map((team) => (
+                  {teams.map((team) => (
                     <div
                       key={team._id}
                       onClick={() => setActiveTeam(team)}
@@ -285,16 +425,16 @@ const Teams = () => {
                             {team.teamName}
                           </h4>
                           <p className="text-sm text-gray-600 truncate">
-                            {team.courseTitle}
+                            {team.totalMembers} student{team.totalMembers !== 1 ? 's' : ''}
                           </p>
-                          <div className="flex items-center gap-4 mt-2">
-                            <div className="flex items-center gap-1 text-sm text-gray-500">
-                              <Users size={14} />
-                              <span>{team.totalMembers} members</span>
-                            </div>
-                            <div className="flex items-center gap-1 text-sm text-gray-500">
-                              <FolderKanban size={14} />
-                              <span>{team.progress}% progress</span>
+                          <div className="mt-2">
+                            <div className="flex items-center gap-2">
+                              <div className={`px-2 py-1 rounded-full text-xs ${getProgressColor(team.avgProgress)}`}>
+                                {team.avgProgress}% avg
+                              </div>
+                              <span className="text-xs text-gray-500">
+                                {team.members.length} other{team.members.length !== 1 ? 's' : ''}
+                              </span>
                             </div>
                           </div>
                         </div>
@@ -308,9 +448,9 @@ const Teams = () => {
 
             {/* Right Side - Active Team Details */}
             {activeTeam && (
-              <div className="lg:col-span-2">
-                {/* Team Header */}
-                <div className="bg-white rounded-xl shadow mb-6 overflow-hidden">
+              <div className="lg:col-span-2 space-y-6">
+                <div className="bg-white rounded-xl shadow overflow-hidden">
+                  {/* Team Header */}
                   <div className="p-6 border-b border-gray-200">
                     <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
                       <div className="flex items-start gap-4">
@@ -325,7 +465,7 @@ const Teams = () => {
                             <BookOpen size={24} className="text-white" />
                           </div>
                         )}
-                        <div>
+                        <div className="flex-1">
                           <h2 className="text-xl font-bold text-gray-900">
                             {activeTeam.teamName}
                           </h2>
@@ -333,253 +473,128 @@ const Teams = () => {
                           <div className="flex flex-wrap gap-4 mt-3">
                             <div className="flex items-center gap-2 text-sm">
                               <Users size={16} className="text-gray-500" />
-                              <span className="text-gray-700">{activeTeam.totalMembers} members</span>
+                              <span className="text-gray-700">{activeTeam.totalMembers} total students</span>
                             </div>
                             <div className="flex items-center gap-2 text-sm">
                               <Award size={16} className="text-gray-500" />
                               <span className="text-gray-700">Educator: {activeTeam.educator}</span>
                             </div>
-                            <div className="flex items-center gap-2 text-sm">
-                              <Clock size={16} className="text-gray-500" />
-                              <span className="text-gray-700">
-                                Enrolled: {new Date(activeTeam.createdAt).toLocaleDateString()}
-                              </span>
-                            </div>
                           </div>
                         </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleInviteToTeam(activeTeam._id)}
-                          className="px-3 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2"
-                        >
-                          <UserPlus size={16} />
-                          <span>Invite</span>
-                        </button>
-                        <button
-                          onClick={() => handleViewCourse(activeTeam._id)}
-                          className="px-3 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2"
-                        >
-                          <Eye size={16} />
-                          <span>View Course</span>
-                        </button>
-                        <button
-                          onClick={() => handleScheduleMeeting(activeTeam)}
-                          className="px-3 py-2 bg-gradient-to-r from-cyan-600 to-teal-500 text-white rounded-lg hover:opacity-90 transition-opacity flex items-center gap-2"
-                        >
-                          <Calendar size={16} />
-                          <span>Schedule</span>
-                        </button>
                       </div>
                     </div>
                   </div>
 
                   {/* Team Members */}
                   <div className="p-6">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4">
-                      Team Members ({activeTeam.members.length + 1})
-                    </h3>
+                    <div className="flex items-center justify-between mb-6">
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-800">
+                          All Students in this Project ({activeTeam.totalMembers})
+                        </h3>
+                        <p className="text-sm text-gray-600">Including you and {activeTeam.members.length} others</p>
+                      </div>
+                    </div>
                     
-                    {/* Current User */}
-                    <div className="mb-6 p-4 bg-cyan-50 rounded-lg border border-cyan-100">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          {userData?.imageUrl ? (
-                            <img
-                              src={userData.imageUrl}
-                              alt={userData.name}
-                              className="w-12 h-12 rounded-full border-2 border-cyan-500"
-                            />
-                          ) : (
-                            <div className="w-12 h-12 bg-gradient-to-r from-cyan-500 to-teal-400 rounded-full flex items-center justify-center text-white font-semibold">
-                              {userData?.name?.charAt(0) || "U"}
-                            </div>
-                          )}
-                          <div>
-                            <h4 className="font-semibold text-gray-900">{userData?.name} (You)</h4>
-                            <p className="text-sm text-gray-600">{userData?.email}</p>
-                            <div className="flex items-center gap-2 mt-1">
-                              <span className="px-2 py-1 bg-cyan-100 text-cyan-800 text-xs rounded-full">
-                                Team Member
-                              </span>
-                              <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                                Online
-                              </span>
+                    {/* Current User Card */}
+                    {activeTeam.currentUser && (
+                      <div className="mb-6 p-4 bg-cyan-50 rounded-lg border border-cyan-100">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            {activeTeam.currentUser.imageUrl ? (
+                              <img
+                                src={activeTeam.currentUser.imageUrl}
+                                alt={activeTeam.currentUser.name}
+                                className="w-12 h-12 rounded-full border-2 border-cyan-500 object-cover"
+                              />
+                            ) : (
+                              <div className="w-12 h-12 bg-gradient-to-r from-cyan-500 to-teal-400 rounded-full flex items-center justify-center text-white font-semibold text-lg">
+                                {getMemberInitials(activeTeam.currentUser.name)}
+                              </div>
+                            )}
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-semibold text-gray-900">
+                                  {activeTeam.currentUser.name} (You)
+                                </h4>
+                                <span className="px-2 py-1 bg-cyan-100 text-cyan-800 text-xs rounded-full">
+                                  You
+                                </span>
+                              </div>
+                              <p className="text-sm text-gray-600">{activeTeam.currentUser.email}</p>
+                              <div className="mt-2">
+                                <span className={`px-2 py-1 rounded-full text-xs ${getProgressColor(activeTeam.currentUser.progress)}`}>
+                                  Progress: {activeTeam.currentUser.progress}%
+                                </span>
+                              </div>
                             </div>
                           </div>
                         </div>
-                        <button
-                          onClick={() => navigate("/student/profile")}
-                          className="text-cyan-600 hover:text-cyan-800 text-sm font-medium"
-                        >
-                          View Profile
-                        </button>
                       </div>
-                    </div>
+                    )}
 
-                    {/* Other Team Members */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {activeTeam.members.map((member) => (
-                        <div
-                          key={member._id}
-                          className="p-4 border border-gray-200 rounded-lg hover:border-cyan-200 transition-colors"
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-start gap-3">
-                              {member.imageUrl ? (
-                                <img
-                                  src={member.imageUrl}
-                                  alt={member.name}
-                                  className="w-12 h-12 rounded-full"
-                                />
-                              ) : (
-                                <div className="w-12 h-12 bg-gradient-to-r from-gray-500 to-gray-600 rounded-full flex items-center justify-center text-white font-semibold">
-                                  {member.name?.charAt(0) || "S"}
-                                </div>
-                              )}
-                              <div>
-                                <h4 className="font-semibold text-gray-900">{member.name}</h4>
-                                <p className="text-sm text-gray-600">{member.email}</p>
-                                <div className="flex items-center gap-2 mt-2">
-                                  <span className="px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded-full">
-                                    {member.role}
-                                  </span>
-                                  <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                                    {member.progress}% Progress
-                                  </span>
+                    {/* Other Members Grid */}
+                    {activeTeam.members.length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {activeTeam.members.map((member) => (
+                          <div
+                            key={member._id}
+                            className="bg-white border border-gray-200 rounded-lg p-4 hover:border-cyan-200 transition-colors"
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex items-start gap-3">
+                                {member.imageUrl ? (
+                                  <img
+                                    src={member.imageUrl}
+                                    alt={member.name}
+                                    className="w-12 h-12 rounded-full object-cover border-2 border-gray-100"
+                                  />
+                                ) : (
+                                  <div className="w-12 h-12 bg-gradient-to-r from-gray-600 to-gray-700 rounded-full flex items-center justify-center text-white font-semibold text-lg">
+                                    {getMemberInitials(member.name)}
+                                  </div>
+                                )}
+                                <div className="min-w-0">
+                                  <h4 className="font-semibold text-gray-900 truncate">{member.name}</h4>
+                                  <p className="text-sm text-gray-600 truncate mt-1">{member.email}</p>
+                                  <div className="mt-2">
+                                    <span className={`px-2 py-1 rounded-full text-xs ${getProgressColor(member.progress)}`}>
+                                      {member.progress}% complete
+                                    </span>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                            <div className="flex flex-col gap-2">
                               <button
                                 onClick={() => handleSendMessage(member)}
-                                className="p-2 text-gray-500 hover:text-cyan-600 hover:bg-cyan-50 rounded-lg"
+                                className="p-2 text-gray-400 hover:text-cyan-600 hover:bg-cyan-50 rounded-lg transition-colors"
                                 title="Send Message"
                               >
                                 <MessageSquare size={18} />
                               </button>
-                              <button
-                                className="p-2 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg"
-                                title="Video Call"
-                              >
-                                <Video size={18} />
-                              </button>
                             </div>
-                          </div>
-                          
-                          {/* Progress Bar */}
-                          <div className="mt-3">
-                            <div className="flex items-center justify-between text-xs mb-1">
-                              <span className="text-gray-600">Course Progress</span>
-                              <span className="font-medium">{member.progress}%</span>
-                            </div>
-                            <div className="w-full bg-gray-200 rounded-full h-2">
-                              <div
-                                className="h-2 rounded-full bg-gradient-to-r from-cyan-500 to-teal-400"
-                                style={{ width: `${member.progress}%` }}
-                              ></div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Course Resources */}
-                  {activeTeam.resources.length > 0 && (
-                    <div className="p-6 border-t border-gray-200">
-                      <h3 className="text-lg font-semibold text-gray-800 mb-4">Course Resources</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {activeTeam.resources.map((resource) => (
-                          <div
-                            key={resource.pdfId}
-                            className="p-3 border border-gray-200 rounded-lg hover:border-cyan-200 transition-colors"
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <div className="p-2 bg-red-50 rounded-lg">
-                                  <FileText size={20} className="text-red-500" />
-                                </div>
-                                <div>
-                                  <h4 className="font-medium text-gray-900">{resource.pdfTitle}</h4>
-                                  <p className="text-xs text-gray-500">{resource.pdfDescription}</p>
-                                </div>
+                            
+                            {/* Progress Bar */}
+                            <div className="mt-4 pt-4 border-t border-gray-100">
+                              <div className="flex items-center justify-between text-xs mb-2">
+                                <span className="text-gray-600">Course Progress</span>
+                                <span className="font-semibold">{member.progress}%</span>
                               </div>
-                              <button
-                                onClick={() => handleDownloadResource(resource)}
-                                className="text-cyan-600 hover:text-cyan-800"
-                                title="Download"
-                              >
-                                <Download size={18} />
-                              </button>
+                              <div className="w-full bg-gray-200 rounded-full h-2">
+                                <div
+                                  className={`h-2 rounded-full ${getProgressColor(member.progress).split(' ')[0]}`}
+                                  style={{ width: `${Math.min(member.progress, 100)}%` }}
+                                ></div>
+                              </div>
                             </div>
                           </div>
                         ))}
                       </div>
-                    </div>
-                  )}
-
-                  {/* Quick Actions */}
-                  <div className="p-6 border-t border-gray-200 bg-gray-50">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Quick Actions</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      <button
-                        onClick={() => navigate(`/student/apps/chat?team=${activeTeam._id}`)}
-                        className="p-4 bg-white border border-gray-200 rounded-lg hover:border-cyan-200 transition-colors text-center"
-                      >
-                        <MessageSquare size={24} className="mx-auto mb-2 text-cyan-600" />
-                        <span className="text-sm font-medium">Team Chat</span>
-                      </button>
-                      <button
-                        onClick={() => handleScheduleMeeting(activeTeam)}
-                        className="p-4 bg-white border border-gray-200 rounded-lg hover:border-cyan-200 transition-colors text-center"
-                      >
-                        <Video size={24} className="mx-auto mb-2 text-purple-600" />
-                        <span className="text-sm font-medium">Video Meeting</span>
-                      </button>
-                      <button
-                        onClick={() => navigate(`/student/projects?team=${activeTeam._id}`)}
-                        className="p-4 bg-white border border-gray-200 rounded-lg hover:border-cyan-200 transition-colors text-center"
-                      >
-                        <FolderKanban size={24} className="mx-auto mb-2 text-green-600" />
-                        <span className="text-sm font-medium">Project Tasks</span>
-                      </button>
-                      <button
-                        onClick={() => handleInviteToTeam(activeTeam._id)}
-                        className="p-4 bg-white border border-gray-200 rounded-lg hover:border-cyan-200 transition-colors text-center"
-                      >
-                        <Share2 size={24} className="mx-auto mb-2 text-blue-600" />
-                        <span className="text-sm font-medium">Share Team</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Statistics */}
-                <div className="bg-white rounded-xl shadow p-6">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-4">Team Statistics</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="text-center p-4 bg-blue-50 rounded-lg">
-                      <div className="text-2xl font-bold text-blue-700">{activeTeam.totalMembers}</div>
-                      <div className="text-sm text-blue-600">Total Members</div>
-                    </div>
-                    <div className="text-center p-4 bg-green-50 rounded-lg">
-                      <div className="text-2xl font-bold text-green-700">
-                        {Math.round(activeTeam.members.reduce((acc, m) => acc + m.progress, 0) / activeTeam.members.length)}%
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        <Users size={48} className="mx-auto mb-4 text-gray-300" />
+                        <p>No other students enrolled in this project yet.</p>
                       </div>
-                      <div className="text-sm text-green-600">Avg. Progress</div>
-                    </div>
-                    <div className="text-center p-4 bg-purple-50 rounded-lg">
-                      <div className="text-2xl font-bold text-purple-700">
-                        {activeTeam.resources.length}
-                      </div>
-                      <div className="text-sm text-purple-600">Resources</div>
-                    </div>
-                    <div className="text-center p-4 bg-yellow-50 rounded-lg">
-                      <div className="text-2xl font-bold text-yellow-700">{activeTeam.progress}%</div>
-                      <div className="text-sm text-yellow-600">Course Progress</div>
-                    </div>
+                    )}
                   </div>
                 </div>
               </div>
