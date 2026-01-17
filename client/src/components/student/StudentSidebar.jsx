@@ -64,22 +64,22 @@ const StudentSidebar = () => {
     {
       icon: <CalendarDays size={20} />,
       label: "Calendar",
-      path: "/student/calendar"
+      path: "/student/apps/calendar"
     },
     {
       icon: <Users size={20} />,
       label: "Teams",
-      path: "/student/teams"
+      path: "/student/apps/teams"
     },
     {
       icon: <MessageSquare size={20} />,
       label: "Chat",
-      path: "/student/chat"
+      path: "/student/apps/chat"
     },
     {
       icon: <CheckSquare size={20} />,
       label: "Todo",
-      path: "/student/todo"
+      path: "/student/apps/todo"
     }
   ];
 
@@ -128,6 +128,30 @@ const StudentSidebar = () => {
     return userData?.batch || getUserDomain();
   };
 
+  // Handle link click - close mobile menu but NOT apps dropdown
+  const handleLinkClick = () => {
+    setMobileMenuOpen(false);
+    // DO NOT close apps dropdown here
+  };
+
+  // Handle apps dropdown click - toggle only
+  const handleAppsClick = () => {
+    setAppsOpen(!appsOpen);
+  };
+
+  // Handle menu item click (Dashboard, My Projects, etc.) - close apps dropdown
+  const handleMenuItemClick = () => {
+    setAppsOpen(false);
+    setMobileMenuOpen(false);
+  };
+
+  // Handle app item click (Calendar, Teams, etc.) - DO NOT close apps dropdown, only close mobile menu
+  const handleAppItemClick = () => {
+    // Keep apps dropdown open on desktop
+    // Only close mobile menu on mobile
+    setMobileMenuOpen(false);
+  };
+
   // Prevent body scroll when mobile menu is open
   useEffect(() => {
     if (mobileMenuOpen) {
@@ -146,6 +170,7 @@ const StudentSidebar = () => {
     const handleClickOutside = (event) => {
       if (mobileMenuOpen && !event.target.closest('aside')) {
         setMobileMenuOpen(false);
+        setAppsOpen(false);
       }
     };
 
@@ -210,7 +235,10 @@ const StudentSidebar = () => {
         {mobileMenuOpen && (
           <div 
             className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 transition-opacity duration-300"
-            onClick={() => setMobileMenuOpen(false)}
+            onClick={() => {
+              setMobileMenuOpen(false);
+              setAppsOpen(false);
+            }}
           />
         )}
       </div>
@@ -323,6 +351,7 @@ const StudentSidebar = () => {
                     : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
                   }
                 `}
+                onClick={handleMenuItemClick}
               >
                 {({ isActive }) => (
                   <>
@@ -337,7 +366,7 @@ const StudentSidebar = () => {
             <div className="mb-4">
               {/* Apps Header */}
               <button
-                onClick={() => setAppsOpen(!appsOpen)}
+                onClick={handleAppsClick}
                 className={`
                   w-full flex items-center gap-3 px-3 py-2.5 rounded-lg 
                   transition-all duration-200
@@ -369,6 +398,7 @@ const StudentSidebar = () => {
                           : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                         }
                       `}
+                      onClick={handleAppItemClick}
                     >
                       {item.icon}
                       <span className="text-sm font-medium">{item.label}</span>
@@ -392,6 +422,7 @@ const StudentSidebar = () => {
                       : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
                     }
                   `}
+                  onClick={handleMenuItemClick}
                 >
                   {({ isActive }) => (
                     <>
@@ -418,13 +449,17 @@ const StudentSidebar = () => {
                   : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
                 }
               `}
+              onClick={handleMenuItemClick}
             >
               <Home size={18} />
               {isOpen && <span className="text-sm font-medium">Back to Home</span>}
             </NavLink>
 
             <button 
-              onClick={() => window.location.href = '/'}
+              onClick={() => {
+                window.location.href = '/';
+                handleMenuItemClick();
+              }}
               className="flex items-center gap-3 px-3 py-2 w-full text-gray-700 hover:bg-red-50 hover:text-red-700 rounded-lg transition-all duration-200"
             >
               <LogOut size={18} />
@@ -463,7 +498,10 @@ const StudentSidebar = () => {
                 </div>
                 
                 <button
-                  onClick={() => setMobileMenuOpen(false)}
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    setAppsOpen(false);
+                  }}
                   className="text-cyan-600 hover:text-cyan-800 hover:bg-cyan-100 p-2 rounded-full transition-all duration-300"
                   aria-label="Close menu"
                 >
@@ -539,7 +577,7 @@ const StudentSidebar = () => {
                       : 'text-gray-800 hover:bg-cyan-50'
                     }
                   `}
-                  onClick={() => setMobileMenuOpen(false)}
+                  onClick={handleMenuItemClick}
                 >
                   <LayoutDashboard size={20} />
                   <span className="font-medium">Dashboard</span>
@@ -549,7 +587,7 @@ const StudentSidebar = () => {
               {/* Apps Section with Dropdown */}
               <div className="mb-4">
                 <button
-                  onClick={() => setAppsOpen(!appsOpen)}
+                  onClick={handleAppsClick}
                   className={`
                     w-full flex items-center justify-between px-3 py-2.5 rounded-lg 
                     transition-all duration-200 mb-1
@@ -581,7 +619,7 @@ const StudentSidebar = () => {
                             : 'text-gray-600 hover:bg-gray-100'
                           }
                         `}
-                        onClick={() => setMobileMenuOpen(false)}
+                        onClick={handleLinkClick}
                       >
                         {item.icon}
                         <span className="text-sm font-medium">{item.label}</span>
@@ -605,7 +643,7 @@ const StudentSidebar = () => {
                         : 'text-gray-800 hover:bg-cyan-50'
                       }
                     `}
-                    onClick={() => setMobileMenuOpen(false)}
+                    onClick={handleMenuItemClick}
                   >
                     {item.icon}
                     <span className="font-medium">{item.label}</span>
@@ -619,7 +657,7 @@ const StudentSidebar = () => {
               <NavLink
                 to="/"
                 className="flex items-center gap-3 px-3 py-2 text-gray-700 hover:text-cyan-700 hover:bg-cyan-50 rounded-lg transition-all duration-200"
-                onClick={() => setMobileMenuOpen(false)}
+                onClick={handleMenuItemClick}
               >
                 <Home size={18} />
                 <span className="text-sm font-medium">Back to Home</span>
@@ -628,7 +666,7 @@ const StudentSidebar = () => {
               <button 
                 onClick={() => {
                   window.location.href = '/';
-                  setMobileMenuOpen(false);
+                  handleMenuItemClick();
                 }}
                 className="flex items-center gap-3 px-3 py-2 w-full text-gray-700 hover:text-white hover:bg-gradient-to-r hover:from-red-500 hover:to-red-600 rounded-lg transition-all duration-300"
               >

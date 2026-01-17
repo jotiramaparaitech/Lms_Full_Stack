@@ -42,7 +42,10 @@ import MyProjects from "./pages/student/MyProjects";
 import Tests from "./pages/student/Tests";
 import Certificates from "./pages/student/Certificates";
 import Progress from "./pages/student/Progress";
-
+import Calendar from "./pages/student/apps/Calendar";
+import Todo from "./pages/student/apps/Todo";
+import Chat from "./pages/student/apps/Chat";
+import Teams from "./pages/student/apps/Teams";
 
 const App = () => {
   const { isEducator } = useContext(AppContext);
@@ -99,6 +102,10 @@ const AppContent = ({ isEducatorRoute, isEducator }) => {
          <Route path="/student/tests" element={<Tests />} />
          <Route path="/student/certificates" element={<Certificates />} />
          <Route path="/student/progress" element={<Progress />} />
+         <Route path="/student/apps/calendar" element={<Calendar />} />
+         <Route path="/student/apps/todo" element={<Todo />} />
+         <Route path="/student/apps/chat" element={<Chat />} />
+         <Route path="/student/apps/teams" element={<Teams />} />
 
 
         {/* 🧑‍🏫 Educator Routes (Protected) */}
