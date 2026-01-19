@@ -70,11 +70,11 @@ const StudentSidebar = () => {
       label: "Teams",
       path: "/student/apps/teams"
     },
-    {
-      icon: <MessageSquare size={20} />,
-      label: "Chat",
-      path: "/student/apps/chat"
-    },
+    // {
+    //   icon: <MessageSquare size={20} />,
+    //   label: "Chat",
+    //   path: "/student/apps/chat"
+    // },
     {
       icon: <CheckSquare size={20} />,
       label: "Todo",
