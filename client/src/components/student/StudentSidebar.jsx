@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   FolderKanban,
@@ -18,16 +18,15 @@ import {
   CalendarDays,
   MessageSquare,
   Users,
-  CheckSquare,
-  ChevronDown,
-  ChevronUp
+  CheckSquare
 } from "lucide-react";
 import { AppContext } from "../../context/AppContext";
 
 const StudentSidebar = () => {
   const [isOpen, setIsOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [appsOpen, setAppsOpen] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
   
   // Get user data from context
   const { userData, enrolledCourses = [] } = useContext(AppContext) || {};
@@ -128,27 +127,8 @@ const StudentSidebar = () => {
     return userData?.batch || getUserDomain();
   };
 
-  // Handle link click - close mobile menu but NOT apps dropdown
-  const handleLinkClick = () => {
-    setMobileMenuOpen(false);
-    // DO NOT close apps dropdown here
-  };
-
-  // Handle apps dropdown click - toggle only
-  const handleAppsClick = () => {
-    setAppsOpen(!appsOpen);
-  };
-
-  // Handle menu item click (Dashboard, My Projects, etc.) - close apps dropdown
+  // Handle menu item click
   const handleMenuItemClick = () => {
-    setAppsOpen(false);
-    setMobileMenuOpen(false);
-  };
-
-  // Handle app item click (Calendar, Teams, etc.) - DO NOT close apps dropdown, only close mobile menu
-  const handleAppItemClick = () => {
-    // Keep apps dropdown open on desktop
-    // Only close mobile menu on mobile
     setMobileMenuOpen(false);
   };
 
@@ -170,7 +150,6 @@ const StudentSidebar = () => {
     const handleClickOutside = (event) => {
       if (mobileMenuOpen && !event.target.closest('aside')) {
         setMobileMenuOpen(false);
-        setAppsOpen(false);
       }
     };
 
@@ -181,15 +160,11 @@ const StudentSidebar = () => {
   // DeepSeek-style hamburger menu toggle
   const toggleMobileMenu = () => {
     setMobileMenuOpen(!mobileMenuOpen);
-    if (!mobileMenuOpen) {
-      // When opening mobile menu, reset apps dropdown state
-      setAppsOpen(false);
-    }
   };
 
   return (
     <>
-      {/* DeepSeek-style Hamburger Button - MOBILE ONLY (Hidden on desktop) */}
+      {/* DeepSeek-style Hamburger Button - MOBILE ONLY */}
       <div className="lg:hidden">
         <button
           onClick={toggleMobileMenu}
@@ -198,12 +173,12 @@ const StudentSidebar = () => {
             bg-gradient-to-r from-cyan-600 to-teal-500 
             text-white shadow-xl hover:shadow-2xl 
             transition-all duration-300 hover:scale-110 active:scale-95
-            top-20 left-2
+            top-18 left-1
             ${mobileMenuOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}
           `}
           style={{
-            width: '44px',
-            height: '44px',
+            width: '35px',
+            height: '35px',
             borderRadius: '8px',
             display: 'flex',
             alignItems: 'center',
@@ -235,10 +210,7 @@ const StudentSidebar = () => {
         {mobileMenuOpen && (
           <div 
             className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 transition-opacity duration-300"
-            onClick={() => {
-              setMobileMenuOpen(false);
-              setAppsOpen(false);
-            }}
+            onClick={() => setMobileMenuOpen(false)}
           />
         )}
       </div>
@@ -275,7 +247,7 @@ const StudentSidebar = () => {
             </div>
           </div>
 
-          {/* User Profile - Simple Version when collapsed */}
+          {/* User Profile */}
           {isOpen ? (
             <div className="p-4 border-b border-gray-200 bg-white">
               <div className="flex items-center gap-3">
@@ -362,46 +334,58 @@ const StudentSidebar = () => {
               </NavLink>
             </div>
 
-            {/* Apps Section with Dropdown */}
+            {/* Apps Section (Non-Dropdown) */}
             <div className="mb-4">
-              {/* Apps Header */}
-              <button
-                onClick={handleAppsClick}
-                className={`
-                  w-full flex items-center gap-3 px-3 py-2.5 rounded-lg 
-                  transition-all duration-200
-                  ${appsOpen 
-                    ? 'bg-gradient-to-r from-cyan-50 to-blue-50 text-cyan-700' 
-                    : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-                  }
-                `}
-                aria-expanded={appsOpen}
-              >
-                <div className="w-5 h-5 flex items-center justify-center">
-                  {appsOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                </div>
-                {isOpen && <span className="font-medium">Apps</span>}
-              </button>
-
-              {/* Apps Dropdown */}
-              {appsOpen && isOpen && (
-                <div className="mt-1 ml-8 space-y-1">
+              {isOpen ? (
+                <>
+                  <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Apps
+                  </div>
+                  <div className="space-y-1">
+                    {appItems.map((item, index) => (
+                      <NavLink
+                        key={index}
+                        to={item.path}
+                        className={({ isActive }) => `
+                          flex items-center gap-3 px-3 py-2 rounded-lg 
+                          transition-all duration-200
+                          ${isActive 
+                            ? 'bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700' 
+                            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                          }
+                        `}
+                        onClick={handleMenuItemClick}
+                      >
+                        {({ isActive }) => (
+                          <>
+                            <span className={isActive ? 'text-blue-600' : 'text-gray-500'}>
+                              {item.icon}
+                            </span>
+                            <span className="text-sm font-medium">{item.label}</span>
+                          </>
+                        )}
+                      </NavLink>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-2">
                   {appItems.map((item, index) => (
                     <NavLink
                       key={index}
                       to={item.path}
                       className={({ isActive }) => `
-                        flex items-center gap-3 px-3 py-2 rounded-lg 
+                        flex items-center justify-center p-2 rounded-lg 
                         transition-all duration-200
                         ${isActive 
                           ? 'bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700' 
                           : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                         }
                       `}
-                      onClick={handleAppItemClick}
+                      onClick={handleMenuItemClick}
+                      title={item.label}
                     >
                       {item.icon}
-                      <span className="text-sm font-medium">{item.label}</span>
                     </NavLink>
                   ))}
                 </div>
@@ -410,6 +394,11 @@ const StudentSidebar = () => {
 
             {/* Main Menu Items */}
             <div className="space-y-1">
+              {isOpen && (
+                <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Menu
+                </div>
+              )}
               {menuItems.slice(1).map((item, index) => (
                 <NavLink
                   key={index}
@@ -469,7 +458,7 @@ const StudentSidebar = () => {
         </div>
       </aside>
 
-      {/* Mobile Sidebar Menu - Also wrapped in lg:hidden */}
+      {/* Mobile Sidebar Menu */}
       <div className="lg:hidden">
         <aside className={`
           fixed top-16 left-0 h-[calc(100vh-4rem)] z-50
@@ -480,7 +469,7 @@ const StudentSidebar = () => {
           ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
         `}>
           <div className="flex flex-col h-full">
-            {/* User Profile Section - Updated with your design */}
+            {/* User Profile Section */}
             <div className="p-4 border-b border-cyan-100 bg-gradient-to-r from-white to-cyan-50/50">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
@@ -498,10 +487,7 @@ const StudentSidebar = () => {
                 </div>
                 
                 <button
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    setAppsOpen(false);
-                  }}
+                  onClick={() => setMobileMenuOpen(false)}
                   className="text-cyan-600 hover:text-cyan-800 hover:bg-cyan-100 p-2 rounded-full transition-all duration-300"
                   aria-label="Close menu"
                 >
@@ -584,53 +570,38 @@ const StudentSidebar = () => {
                 </NavLink>
               </div>
 
-              {/* Apps Section with Dropdown */}
+              {/* Apps Section (Mobile - Non-Dropdown) */}
               <div className="mb-4">
-                <button
-                  onClick={handleAppsClick}
-                  className={`
-                    w-full flex items-center justify-between px-3 py-2.5 rounded-lg 
-                    transition-all duration-200 mb-1
-                    ${appsOpen 
-                      ? 'bg-gradient-to-r from-cyan-50 to-blue-50 text-cyan-700' 
-                      : 'text-gray-700 hover:bg-cyan-50'
-                    }
-                  `}
-                  aria-expanded={appsOpen}
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="font-medium">Apps</span>
-                  </div>
-                  {appsOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                </button>
-
-                {/* Apps Dropdown */}
-                {appsOpen && (
-                  <div className="ml-6 space-y-1">
-                    {appItems.map((item, index) => (
-                      <NavLink
-                        key={index}
-                        to={item.path}
-                        className={({ isActive }) => `
-                          flex items-center gap-3 px-3 py-2 rounded-lg 
-                          transition-all duration-200
-                          ${isActive 
-                            ? 'bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700' 
-                            : 'text-gray-600 hover:bg-gray-100'
-                          }
-                        `}
-                        onClick={handleLinkClick}
-                      >
-                        {item.icon}
-                        <span className="text-sm font-medium">{item.label}</span>
-                      </NavLink>
-                    ))}
-                  </div>
-                )}
+                <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Apps
+                </div>
+                <div className="space-y-1">
+                  {appItems.map((item, index) => (
+                    <NavLink
+                      key={index}
+                      to={item.path}
+                      className={({ isActive }) => `
+                        flex items-center gap-3 px-3 py-2 rounded-lg 
+                        transition-all duration-200
+                        ${isActive 
+                          ? 'bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700' 
+                          : 'text-gray-600 hover:bg-gray-100'
+                        }
+                      `}
+                      onClick={handleMenuItemClick}
+                    >
+                      {item.icon}
+                      <span className="text-sm font-medium">{item.label}</span>
+                    </NavLink>
+                  ))}
+                </div>
               </div>
 
               {/* Main Menu Items */}
               <div className="space-y-1">
+                <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Menu
+                </div>
                 {menuItems.slice(1).map((item, index) => (
                   <NavLink
                     key={index}

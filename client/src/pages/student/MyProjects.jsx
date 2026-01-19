@@ -107,6 +107,26 @@ const MyProjects = () => {
     return calculateNoOfLectures(course);
   };
 
+  // Handle card click - navigate to course player
+  const handleCardClick = (courseId, e) => {
+    // Prevent if click is on button or action elements
+    if (
+      e.target.closest('button') || 
+      e.target.closest('.no-click') ||
+      e.target.tagName === 'BUTTON' ||
+      e.target.tagName === 'A'
+    ) {
+      return;
+    }
+    navigate("/player/" + courseId);
+  };
+
+  // Handle button click - stop propagation to prevent card click
+  const handleButtonClick = (courseId, e) => {
+    e.stopPropagation();
+    navigate("/player/" + courseId);
+  };
+
   if (loading) {
     return (
       <StudentLayout>
@@ -175,7 +195,8 @@ const MyProjects = () => {
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.3, delay: index * 0.1 }}
                   whileHover={{ y: -5, scale: 1.02 }}
-                  className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 border border-gray-100"
+                  onClick={(e) => handleCardClick(course._id, e)}
+                  className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 border border-gray-100 cursor-pointer group"
                 >
                   {/* Course Thumbnail */}
                   <div className="h-48 relative overflow-hidden bg-gradient-to-br from-cyan-500/20 to-blue-500/20">
@@ -183,7 +204,7 @@ const MyProjects = () => {
                       <img 
                         src={course.courseThumbnail} 
                         alt={course.courseTitle}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
@@ -214,11 +235,11 @@ const MyProjects = () => {
                   {/* Course Details */}
                   <div className="p-5">
                     <div className="flex items-start justify-between mb-3">
-                      <h3 className="text-xl font-bold text-gray-800 line-clamp-2">
+                      <h3 className="text-xl font-bold text-gray-800 line-clamp-2 group-hover:text-cyan-700 transition-colors duration-300">
                         {course.courseTitle}
                       </h3>
                       {course.isTrending && (
-                        <span className="bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-full font-medium flex items-center gap-1">
+                        <span className="bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-full font-medium flex items-center gap-1 no-click">
                           <TrendingUp size={12} />
                           Trending
                         </span>
@@ -283,8 +304,8 @@ const MyProjects = () => {
                       <motion.button
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
-                        onClick={() => navigate("/player/" + course._id)}
-                        className="flex-1 bg-gradient-to-r from-cyan-600 to-teal-500 text-white py-2.5 px-4 rounded-lg font-medium hover:from-cyan-700 hover:to-teal-600 transition-all duration-300 text-center flex items-center justify-center gap-2"
+                        onClick={(e) => handleButtonClick(course._id, e)}
+                        className="flex-1 bg-gradient-to-r from-cyan-600 to-teal-500 text-white py-2.5 px-4 rounded-lg font-medium hover:from-cyan-700 hover:to-teal-600 transition-all duration-300 text-center flex items-center justify-center gap-2 no-click"
                       >
                         {progress > 0 ? (
                           <>
@@ -302,8 +323,8 @@ const MyProjects = () => {
                       <motion.button
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
-                        onClick={() => navigate(`/course-details/${course._id}`)}
-                        className="px-4 py-2.5 border border-cyan-600 text-cyan-600 rounded-lg font-medium hover:bg-cyan-50 transition-all duration-300 flex items-center justify-center"
+                        onClick={(e) => handleButtonClick(course._id, e)}
+                        className="px-4 py-2.5 border border-cyan-600 text-cyan-600 rounded-lg font-medium hover:bg-cyan-50 transition-all duration-300 flex items-center justify-center no-click"
                       >
                         <ExternalLink size={18} />
                       </motion.button>
