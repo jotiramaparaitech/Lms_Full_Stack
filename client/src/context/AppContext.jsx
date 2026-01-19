@@ -16,7 +16,7 @@ export const AppContextProvider = (props) => {
   const rawCurrency = (import.meta.env.VITE_CURRENCY || "₹").toString();
   const normalizedCurrency = rawCurrency.trim().toLowerCase();
   const currency = ["$", "usd", "rs", "rs.", "inr", "rupees"].includes(
-    normalizedCurrency
+    normalizedCurrency,
   )
     ? "₹"
     : rawCurrency;
@@ -48,9 +48,7 @@ export const AppContextProvider = (props) => {
       }
     } catch (error) {
       if (error.code === "ERR_NETWORK") {
-        toast.error(
-          "Cannot connect to backend. Check your internet or backend deployment."
-        );
+        toast.error("Check your internet.");
       } else if (error.response?.status === 500) {
         toast.error("Server error while fetching courses.");
       } else if (error.message?.includes("CORS")) {
@@ -104,7 +102,7 @@ export const AppContextProvider = (props) => {
                   {
                     headers: { Authorization: `Bearer ${retryToken}` },
                     timeout: 8000,
-                  }
+                  },
                 );
                 if (retryResponse?.data?.success) {
                   setUserData(retryResponse.data.user);
@@ -118,7 +116,7 @@ export const AppContextProvider = (props) => {
               console.error("Retry failed:", retryError);
             }
             toast.error(
-              "Setting up your account... Please refresh the page if this persists."
+              "Setting up your account... Please refresh the page if this persists.",
             );
           }, 1000);
         } else {
@@ -141,7 +139,7 @@ export const AppContextProvider = (props) => {
                 {
                   headers: { Authorization: `Bearer ${retryToken}` },
                   timeout: 8000,
-                }
+                },
               );
               if (retryResponse?.data?.success) {
                 setUserData(retryResponse.data.user);
@@ -154,12 +152,12 @@ export const AppContextProvider = (props) => {
             console.error("Retry failed:", retryError);
           }
           toast.error(
-            "Setting up your account... Please refresh the page if this persists."
+            "Setting up your account... Please refresh the page if this persists.",
           );
         }, 1000);
       } else if (error.message?.includes("CORS")) {
         toast.error(
-          "CORS error — backend not configured to allow this origin."
+          "CORS error — backend not configured to allow this origin.",
         );
       } else {
         toast.error(error.message || "Unknown error fetching user data.");
@@ -188,14 +186,14 @@ export const AppContextProvider = (props) => {
 
       const response = await axios.get(
         `${backendUrl}/api/user/enrolled-courses`,
-        { headers: { Authorization: `Bearer ${token}` }, timeout: 8000 }
+        { headers: { Authorization: `Bearer ${token}` }, timeout: 8000 },
       );
 
       if (response?.data?.success) {
         setEnrolledCourses(response.data.enrolledCourses.reverse());
       } else {
         toast.error(
-          response?.data?.message || "Failed to load enrolled courses."
+          response?.data?.message || "Failed to load enrolled courses.",
         );
       }
     } catch (error) {
@@ -234,7 +232,7 @@ export const AppContextProvider = (props) => {
   const calculateChapterTime = (chapter) => {
     let time = 0;
     chapter.chapterContent.forEach(
-      (lecture) => (time += lecture.lectureDuration)
+      (lecture) => (time += lecture.lectureDuration),
     );
     return humanizeDuration(time * 60 * 1000, { units: ["h", "m"] });
   };
@@ -243,8 +241,8 @@ export const AppContextProvider = (props) => {
     let time = 0;
     course.courseContent.forEach((chapter) =>
       chapter.chapterContent.forEach(
-        (lecture) => (time += lecture.lectureDuration)
-      )
+        (lecture) => (time += lecture.lectureDuration),
+      ),
     );
     return humanizeDuration(time * 60 * 1000, { units: ["h", "m"] });
   };
@@ -275,15 +273,15 @@ export const AppContextProvider = (props) => {
     }
 
     // ✅ Show welcome toast only once per session
-       const hasShownWelcome = sessionStorage.getItem("welcome_shown");
-       if (!hasShownWelcome) {
-         toast.success(
-           `Welcome ${
-             user.firstName || user.emailAddresses[0]?.emailAddress || "User"
-           } 🎉`
-         );
-         sessionStorage.setItem("welcome_shown", "true");
-       }
+    const hasShownWelcome = sessionStorage.getItem("welcome_shown");
+    if (!hasShownWelcome) {
+      toast.success(
+        `Welcome ${
+          user.firstName || user.emailAddresses[0]?.emailAddress || "User"
+        } 🎉`,
+      );
+      sessionStorage.setItem("welcome_shown", "true");
+    }
 
     previousUserRef.current = user;
 

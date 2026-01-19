@@ -15,6 +15,7 @@ import razorpayRoute from "./routes/razorpayRoute.js";
 
 import ticketRoutes from "./routes/ticketRoutes.js";
 import assessmentRoutes from "./routes/assessmentRoutes.js";
+import teamRouter from "./routes/teamRoutes.js";
 
 
 
@@ -96,6 +97,7 @@ app.use("/api/razorpay", express.json(), razorpayRoute);
 app.use("/api/tickets", express.json(), ticketRoutes);
 
 app.use("/api/assessment", express.json(), assessmentRoutes);
+app.use("/api/teams", express.json(), teamRouter);
 
 // Debug network
 app.get("/api/network", (req, res) => res.json(os.networkInterfaces()));

@@ -11,6 +11,8 @@ import {
   removeStudentAccess,
   getAllStudents,
   assignCourse,
+  assignTeamLeader,
+  getTeamLeaders,
 } from "../controllers/educatorController.js";
 import upload from "../configs/multer.js";
 import { requireAuth } from "@clerk/express"; // ✅ FIXED IMPORT
@@ -94,6 +96,15 @@ educatorRouter.get("/all-students", requireAuth(), getAllStudents);
 // -----------------------------
 // Assign Course to Student
 // -----------------------------
-educatorRouter.post("/assign-course", requireAuth(), assignCourse);
+
+// -----------------------------
+// Assign Team Leader
+// -----------------------------
+educatorRouter.post("/assign-team-leader", requireAuth(), assignTeamLeader);
+
+// -----------------------------
+// Get Team Leaders
+// -----------------------------
+educatorRouter.get("/team-leaders", requireAuth(), getTeamLeaders);
 
 export default educatorRouter;

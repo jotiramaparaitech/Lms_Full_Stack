@@ -1,607 +1,506 @@
 import StudentLayout from "../../../components/student/StudentLayout";
-import { useState, useEffect, useContext } from "react";
+import { useState, useEffect, useContext, useRef } from "react";
 import { AppContext } from "../../../context/AppContext";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
+import axios from "axios";
 import {
   Users,
   Search,
-  Filter,
   MessageSquare,
   Video,
-  Calendar,
-  FileText,
+  Phone,
+  Plus,
+  Send,
+  MoreVertical,
+  Image as ImageIcon,
+  Paperclip,
+  Trash2,
   UserPlus,
-  BookOpen,
-  Award,
-  Clock,
-  ChevronRight,
-  Eye,
-  Download,
-  Share2,
-  Settings,
-  Loader2,
-  User,
-  Mail,
-  CheckCircle,
-  XCircle
+  Check,
+  X,
+  LogOut
 } from "lucide-react";
+import moment from "moment";
 
 const Teams = () => {
-  const { 
-    userData, 
-    enrolledCourses = [], 
-    fetchUserEnrolledCourses,
-    backendUrl,
-    getToken
-  } = useContext(AppContext) || {};
-  
-  const [teams, setTeams] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [activeTeam, setActiveTeam] = useState(null);
+  const { userData, backendUrl, getToken } = useContext(AppContext);
   const navigate = useNavigate();
 
-  // Function to fetch student details - FIXED APPROACH
-  const fetchStudentDetails = async (studentId) => {
+  const [teams, setTeams] = useState([]);
+  const [activeTeam, setActiveTeam] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [messages, setMessages] = useState([]);
+  const [messageInput, setMessageInput] = useState("");
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [activeTab, setActiveTab] = useState("posts"); // posts, members, requests
+  
+  // Create Team Form
+  const [newTeamName, setNewTeamName] = useState("");
+  const [newTeamDesc, setNewTeamDesc] = useState("");
+
+  const scrollRef = useRef();
+
+  // -----------------------------
+  // Data Fetching
+  // -----------------------------
+  const fetchTeams = async () => {
     try {
       const token = await getToken();
-      // Use the correct endpoint format based on your backend
-      const response = await fetch(`${backendUrl}/api/user/${studentId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        }
+      const { data } = await axios.get(`${backendUrl}/api/teams/list`, {
+        headers: { Authorization: `Bearer ${token}` },
       });
-      
-      if (response.ok) {
-        const data = await response.json();
-        return data;
+      if (data.success) {
+        setTeams(data.teams);
+        // If active team exists, update it with fresh data
+        if (activeTeam) {
+          const updated = data.teams.find((t) => t._id === activeTeam._id);
+          if (updated) setActiveTeam(updated);
+        }
       }
     } catch (error) {
-      console.error(`Error fetching student ${studentId}:`, error);
-    }
-    return null;
-  };
-
-  // Function to get student progress
-  const fetchStudentProgress = async (studentId, courseId) => {
-    try {
-      const token = await getToken();
-      const response = await fetch(`${backendUrl}/api/user/get-course-progress`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ 
-          courseId: courseId,
-          studentId: studentId 
-        })
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        // Check if the response has progress data
-        if (data.progressData) {
-          // Get total lectures from the course
-          const course = enrolledCourses.find(c => c._id === courseId);
-          if (course && course.courseContent) {
-            let totalLectures = 0;
-            course.courseContent.forEach(chapter => {
-              totalLectures += (chapter.chapterContent?.length || 0);
-            });
-            
-            const completedLectures = data.progressData.lectureCompleted?.length || 0;
-            return totalLectures > 0 ? Math.round((completedLectures / totalLectures) * 100) : 0;
-          }
-        }
-        return data.progressPercent || 0;
-      }
-    } catch (error) {
-      console.error(`Error fetching progress for ${studentId}:`, error);
-    }
-    return 0;
-  };
-
-  // Build teams from enrolled courses - SIMPLIFIED & CORRECTED
-  useEffect(() => {
-    const buildTeams = async () => {
-      try {
-        setLoading(true);
-        console.log("Building teams from enrolled courses:", enrolledCourses);
-        
-        if (!enrolledCourses || enrolledCourses.length === 0) {
-          console.log("No enrolled courses found");
-          setTeams([]);
-          setLoading(false);
-          return;
-        }
-
-        const formattedTeams = [];
-        
-        // Create a team for EACH enrolled course
-        for (const course of enrolledCourses) {
-          console.log(`Processing course: ${course.courseTitle}`, course.enrolledStudents);
-          
-          // Check if course has enrolled students
-          if (course.enrolledStudents && course.enrolledStudents.length > 0) {
-            
-            // Get ALL student IDs for this course
-            const studentIds = course.enrolledStudents;
-            console.log(`Course has ${studentIds.length} students:`, studentIds);
-            
-            // Create team members array
-            const teamMembers = [];
-            
-            // Process each student in the course
-            for (const studentId of studentIds) {
-              try {
-                // Get student details
-                const studentDetails = await fetchStudentDetails(studentId);
-                
-                if (studentDetails) {
-                  // Get progress for this student in this course
-                  const progress = await fetchStudentProgress(studentId, course._id);
-                  
-                  const member = {
-                    _id: studentId,
-                    name: studentDetails.name || 'Unknown Student',
-                    email: studentDetails.email || '',
-                    imageUrl: studentDetails.imageUrl,
-                    role: studentDetails.role || 'student',
-                    isCurrentUser: studentId === userData?._id,
-                    progress: progress
-                  };
-                  
-                  teamMembers.push(member);
-                  console.log(`Added student: ${member.name} (${studentId})`);
-                } else {
-                  // If student details not found, create placeholder
-                  teamMembers.push({
-                    _id: studentId,
-                    name: 'Loading...',
-                    email: '',
-                    imageUrl: null,
-                    role: 'student',
-                    isCurrentUser: studentId === userData?._id,
-                    progress: 0
-                  });
-                }
-              } catch (error) {
-                console.error(`Error processing student ${studentId}:`, error);
-              }
-            }
-            
-            // Only create team if we have members
-            if (teamMembers.length > 0) {
-              // Calculate average progress
-              const avgProgress = teamMembers.length > 0
-                ? Math.round(teamMembers.reduce((sum, member) => sum + member.progress, 0) / teamMembers.length)
-                : 0;
-              
-              // Separate current user from others
-              const currentUser = teamMembers.find(m => m.isCurrentUser);
-              const otherMembers = teamMembers.filter(m => !m.isCurrentUser);
-              
-              const team = {
-                _id: course._id,
-                courseId: course._id,
-                courseTitle: course.courseTitle || 'Untitled Project',
-                courseDescription: course.courseDescription || 'No description',
-                courseThumbnail: course.courseThumbnail,
-                educator: course.educator || 'Unknown Educator',
-                teamName: `${course.courseTitle || 'Project'} Team`,
-                currentUser: currentUser,
-                members: otherMembers,
-                allMembers: teamMembers,
-                totalMembers: teamMembers.length,
-                projectStatus: "Active",
-                resources: course.pdfResources || [],
-                createdAt: course.createdAt || new Date(),
-                avgProgress: avgProgress
-              };
-              
-              console.log(`Created team: ${team.teamName} with ${team.totalMembers} members`);
-              formattedTeams.push(team);
-            }
-          } else {
-            console.log(`Course has no enrolledStudents array or it's empty`);
-          }
-        }
-        
-        console.log("Final teams:", formattedTeams);
-        setTeams(formattedTeams);
-        
-        // Set first team as active if available
-        if (formattedTeams.length > 0) {
-          setActiveTeam(formattedTeams[0]);
-        } else {
-          console.log("No teams were created. Check enrolledCourses data structure.");
-        }
-        
-      } catch (error) {
-        console.error("Error building teams:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    // Initial load
-    if (userData) {
-      // If enrolledCourses is empty, fetch them first
-      if (enrolledCourses.length === 0) {
-        console.log("No enrolled courses in context, fetching...");
-        fetchUserEnrolledCourses().then(() => {
-          // Give a small delay for data to load
-          setTimeout(() => {
-            buildTeams();
-          }, 1000);
-        });
-      } else {
-        console.log("Building teams with existing enrolledCourses");
-        buildTeams();
-      }
-    } else {
-      console.log("No userData available");
+      console.error(error);
+      toast.error("Failed to load teams");
+    } finally {
       setLoading(false);
     }
-  }, [userData, enrolledCourses]);
+  };
 
-  // Debug function to log current state
-  const debugState = () => {
-    console.log("=== DEBUG INFO ===");
-    console.log("User Data:", userData);
-    console.log("Enrolled Courses:", enrolledCourses);
-    console.log("Number of Courses:", enrolledCourses.length);
-    
-    if (enrolledCourses.length > 0) {
-      enrolledCourses.forEach((course, index) => {
-        console.log(`Course ${index + 1}: ${course.courseTitle}`);
-        console.log(`  - ID: ${course._id}`);
-        console.log(`  - Enrolled Students:`, course.enrolledStudents);
-        console.log(`  - Number of Students:`, course.enrolledStudents?.length || 0);
+  const fetchMessages = async (teamId) => {
+    try {
+      const token = await getToken();
+      const { data } = await axios.get(`${backendUrl}/api/teams/messages/${teamId}`, {
+        headers: { Authorization: `Bearer ${token}` },
       });
+      if (data.success) {
+        setMessages(data.messages);
+      }
+    } catch (error) {
+      console.error(error);
     }
-    
-    console.log("Teams:", teams);
-    console.log("Active Team:", activeTeam);
-    console.log("Loading:", loading);
-    console.log("===================");
   };
 
-  // Get progress color
-  const getProgressColor = (progress) => {
-    if (progress === 100) return 'bg-green-500 text-green-800';
-    if (progress >= 70) return 'bg-blue-500 text-blue-800';
-    if (progress >= 40) return 'bg-yellow-500 text-yellow-800';
-    return 'bg-red-500 text-red-800';
+  useEffect(() => {
+    if (userData) fetchTeams();
+  }, [userData]);
+
+  useEffect(() => {
+    if (activeTeam && activeTeam.isMember) {
+      fetchMessages(activeTeam._id);
+    }
+  }, [activeTeam]);
+
+  // Scroll to bottom of chat
+  useEffect(() => {
+    scrollRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // -----------------------------
+  // Actions
+  // -----------------------------
+  const handleCreateTeam = async (e) => {
+    e.preventDefault();
+    try {
+      const token = await getToken();
+      const { data } = await axios.post(
+        `${backendUrl}/api/teams/create`,
+        { name: newTeamName, description: newTeamDesc },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (data.success) {
+        toast.success("Team created!");
+        setShowCreateModal(false);
+        setNewTeamName("");
+        setNewTeamDesc("");
+        fetchTeams();
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to create team");
+    }
   };
 
-  // Get member initials
-  const getMemberInitials = (name) => {
-    if (!name || name === 'Loading...') return '?';
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+  const handleJoinRequest = async (teamId) => {
+    try {
+      const token = await getToken();
+      const { data } = await axios.post(
+        `${backendUrl}/api/teams/join-request`,
+        { teamId },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (data.success) {
+        toast.success("Request sent!");
+        fetchTeams();
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed");
+    }
   };
 
-  // Handle actions
-  const handleSendMessage = (member) => {
-    navigate(`/student/apps/chat?user=${member._id}&name=${encodeURIComponent(member.name)}`);
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!messageInput.trim()) return;
+    try {
+      const token = await getToken();
+      const { data } = await axios.post(
+        `${backendUrl}/api/teams/message/send`,
+        { teamId: activeTeam._id, content: messageInput, type: "text" },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (data.success) {
+        setMessages([...messages, data.message]);
+        setMessageInput("");
+      }
+    } catch (error) {
+      toast.error("Failed to send");
+    }
   };
 
-  if (loading) {
-    return (
-      <StudentLayout>
-        <div className="p-6">
-          <h1 className="text-2xl font-bold mb-6">Project Teams</h1>
-          <div className="flex flex-col items-center justify-center h-96">
-            <Loader2 className="h-12 w-12 text-cyan-600 animate-spin mb-4" />
-            <p className="text-gray-600">Loading project teams...</p>
-            <p className="text-sm text-gray-500 mt-2">
-              Processing {enrolledCourses.length} courses...
-            </p>
-            <button 
-              onClick={debugState}
-              className="mt-4 px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
-            >
-              Debug Info
-            </button>
-          </div>
-        </div>
-      </StudentLayout>
-    );
+  const postMeetingLink = async (type) => {
+    const link = prompt(`Enter ${type} Meeting URL (e.g., Zoom/Meet):`);
+    if (!link) return;
+    try {
+        const token = await getToken();
+        // Post a message with type 'call_link'
+        const { data } = await axios.post(
+          `${backendUrl}/api/teams/message/send`,
+          { 
+            teamId: activeTeam._id, 
+            content: `Started a ${type} meeting`, 
+            type: "call_link",
+            linkData: { title: `${type} Meeting`, url: link }
+          },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (data.success) {
+          setMessages([...messages, data.message]);
+        }
+      } catch (error) {
+        toast.error("Failed to post meeting");
+      }
   }
+
+  const handleMemberAction = async (studentId, action) => {
+      try {
+        const token = await getToken();
+        const endpoint = action === 'remove' ? 'remove-member' : 'manage-request';
+        const payload = action === 'remove' 
+            ? { teamId: activeTeam._id, memberId: studentId }
+            : { teamId: activeTeam._id, studentId, action };
+
+        const { data } = await axios.post(
+            `${backendUrl}/api/teams/${endpoint}`,
+            payload,
+            { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        if(data.success) {
+            toast.success("Success");
+            fetchTeams();
+        }
+      } catch (error) {
+          toast.error(error.message);
+      }
+  }
+
+  // -----------------------------
+  // Render
+  // -----------------------------
+  if (loading) return <div className="p-10 text-center">Loading Teams...</div>;
 
   return (
     <StudentLayout>
-      <div className="p-4 md:p-6">
-        {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-8">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Project Teams</h1>
-            <p className="text-gray-600 mt-1">
-              {teams.length > 0 
-                ? `Showing ${teams.reduce((sum, team) => sum + team.totalMembers, 0)} students across ${teams.length} projects`
-                : "No project teams available"}
-            </p>
-          </div>
-          
-          <div className="flex items-center gap-3">
-            <button 
-              onClick={debugState}
-              className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm"
-            >
-              Debug
-            </button>
-            <button className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2">
-              <Filter size={16} />
-              <span>Filter</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Search Bar */}
-        <div className="mb-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-            <input
-              type="text"
-              placeholder="Search projects or students..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-            />
-          </div>
-        </div>
-
-        {/* Debug Info Button */}
-        <div className="mb-4">
-          <button 
-            onClick={debugState}
-            className="text-sm text-cyan-600 hover:text-cyan-800 underline"
-          >
-            Click here to see debug info in console
-          </button>
-        </div>
-
-        {/* No Teams Found */}
-        {teams.length === 0 ? (
-          <div className="bg-white rounded-xl shadow p-8 text-center">
-            <Users size={64} className="mx-auto mb-4 text-gray-300" />
-            <h3 className="text-xl font-semibold text-gray-700 mb-2">No Project Teams Found</h3>
-            <div className="text-left bg-gray-50 p-4 rounded-lg mb-6">
-              <h4 className="font-medium text-gray-800 mb-2">Debug Information:</h4>
-              <ul className="text-sm text-gray-600 space-y-1">
-                <li>• Enrolled Courses: {enrolledCourses.length}</li>
-                <li>• User ID: {userData?._id || 'Not logged in'}</li>
-                <li>• User Name: {userData?.name || 'Unknown'}</li>
-              </ul>
-            </div>
-            <button
-              onClick={() => navigate("/course-list")}
-              className="px-4 py-2 bg-gradient-to-r from-cyan-600 to-teal-500 text-white rounded-lg hover:opacity-90 transition-opacity"
-            >
-              Browse Projects
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left Side - Teams List */}
-            <div className="lg:col-span-1">
-              <div className="bg-white rounded-xl shadow overflow-hidden">
-                <div className="p-4 border-b border-gray-200">
-                  <div className="flex justify-between items-center">
-                    <h3 className="font-semibold text-gray-800">
-                      My Projects ({teams.length})
-                    </h3>
-                    <span className="text-xs text-gray-500">
-                      {teams.reduce((sum, team) => sum + team.totalMembers, 0)} students
-                    </span>
-                  </div>
-                </div>
-                <div className="divide-y divide-gray-100 max-h-[600px] overflow-y-auto">
-                  {teams.map((team) => (
-                    <div
-                      key={team._id}
-                      onClick={() => setActiveTeam(team)}
-                      className={`p-4 cursor-pointer transition-colors hover:bg-gray-50 ${
-                        activeTeam?._id === team._id ? 'bg-cyan-50 border-l-4 border-cyan-500' : ''
-                      }`}
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0">
-                          {team.courseThumbnail ? (
-                            <img
-                              src={team.courseThumbnail}
-                              alt={team.courseTitle}
-                              className="w-12 h-12 rounded-lg object-cover"
-                            />
-                          ) : (
-                            <div className="w-12 h-12 bg-gradient-to-r from-cyan-500 to-teal-400 rounded-lg flex items-center justify-center">
-                              <BookOpen size={20} className="text-white" />
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-gray-900 truncate">
-                            {team.teamName}
-                          </h4>
-                          <p className="text-sm text-gray-600 truncate">
-                            {team.totalMembers} student{team.totalMembers !== 1 ? 's' : ''}
-                          </p>
-                          <div className="mt-2">
-                            <div className="flex items-center gap-2">
-                              <div className={`px-2 py-1 rounded-full text-xs ${getProgressColor(team.avgProgress)}`}>
-                                {team.avgProgress}% avg
-                              </div>
-                              <span className="text-xs text-gray-500">
-                                {team.members.length} other{team.members.length !== 1 ? 's' : ''}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        <ChevronRight size={20} className="text-gray-400" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Right Side - Active Team Details */}
-            {activeTeam && (
-              <div className="lg:col-span-2 space-y-6">
-                <div className="bg-white rounded-xl shadow overflow-hidden">
-                  {/* Team Header */}
-                  <div className="p-6 border-b border-gray-200">
-                    <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
-                      <div className="flex items-start gap-4">
-                        {activeTeam.courseThumbnail ? (
-                          <img
-                            src={activeTeam.courseThumbnail}
-                            alt={activeTeam.courseTitle}
-                            className="w-16 h-16 rounded-lg object-cover"
-                          />
-                        ) : (
-                          <div className="w-16 h-16 bg-gradient-to-r from-cyan-500 to-teal-400 rounded-lg flex items-center justify-center">
-                            <BookOpen size={24} className="text-white" />
-                          </div>
-                        )}
-                        <div className="flex-1">
-                          <h2 className="text-xl font-bold text-gray-900">
-                            {activeTeam.teamName}
-                          </h2>
-                          <p className="text-gray-600 mt-1">{activeTeam.courseDescription}</p>
-                          <div className="flex flex-wrap gap-4 mt-3">
-                            <div className="flex items-center gap-2 text-sm">
-                              <Users size={16} className="text-gray-500" />
-                              <span className="text-gray-700">{activeTeam.totalMembers} total students</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-sm">
-                              <Award size={16} className="text-gray-500" />
-                              <span className="text-gray-700">Educator: {activeTeam.educator}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Team Members */}
-                  <div className="p-6">
-                    <div className="flex items-center justify-between mb-6">
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-800">
-                          All Students in this Project ({activeTeam.totalMembers})
-                        </h3>
-                        <p className="text-sm text-gray-600">Including you and {activeTeam.members.length} others</p>
-                      </div>
-                    </div>
-                    
-                    {/* Current User Card */}
-                    {activeTeam.currentUser && (
-                      <div className="mb-6 p-4 bg-cyan-50 rounded-lg border border-cyan-100">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            {activeTeam.currentUser.imageUrl ? (
-                              <img
-                                src={activeTeam.currentUser.imageUrl}
-                                alt={activeTeam.currentUser.name}
-                                className="w-12 h-12 rounded-full border-2 border-cyan-500 object-cover"
-                              />
-                            ) : (
-                              <div className="w-12 h-12 bg-gradient-to-r from-cyan-500 to-teal-400 rounded-full flex items-center justify-center text-white font-semibold text-lg">
-                                {getMemberInitials(activeTeam.currentUser.name)}
-                              </div>
-                            )}
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <h4 className="font-semibold text-gray-900">
-                                  {activeTeam.currentUser.name} (You)
-                                </h4>
-                                <span className="px-2 py-1 bg-cyan-100 text-cyan-800 text-xs rounded-full">
-                                  You
-                                </span>
-                              </div>
-                              <p className="text-sm text-gray-600">{activeTeam.currentUser.email}</p>
-                              <div className="mt-2">
-                                <span className={`px-2 py-1 rounded-full text-xs ${getProgressColor(activeTeam.currentUser.progress)}`}>
-                                  Progress: {activeTeam.currentUser.progress}%
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Other Members Grid */}
-                    {activeTeam.members.length > 0 ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {activeTeam.members.map((member) => (
-                          <div
-                            key={member._id}
-                            className="bg-white border border-gray-200 rounded-lg p-4 hover:border-cyan-200 transition-colors"
-                          >
-                            <div className="flex items-start justify-between">
-                              <div className="flex items-start gap-3">
-                                {member.imageUrl ? (
-                                  <img
-                                    src={member.imageUrl}
-                                    alt={member.name}
-                                    className="w-12 h-12 rounded-full object-cover border-2 border-gray-100"
-                                  />
-                                ) : (
-                                  <div className="w-12 h-12 bg-gradient-to-r from-gray-600 to-gray-700 rounded-full flex items-center justify-center text-white font-semibold text-lg">
-                                    {getMemberInitials(member.name)}
-                                  </div>
-                                )}
-                                <div className="min-w-0">
-                                  <h4 className="font-semibold text-gray-900 truncate">{member.name}</h4>
-                                  <p className="text-sm text-gray-600 truncate mt-1">{member.email}</p>
-                                  <div className="mt-2">
-                                    <span className={`px-2 py-1 rounded-full text-xs ${getProgressColor(member.progress)}`}>
-                                      {member.progress}% complete
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                              <button
-                                onClick={() => handleSendMessage(member)}
-                                className="p-2 text-gray-400 hover:text-cyan-600 hover:bg-cyan-50 rounded-lg transition-colors"
-                                title="Send Message"
-                              >
-                                <MessageSquare size={18} />
-                              </button>
-                            </div>
-                            
-                            {/* Progress Bar */}
-                            <div className="mt-4 pt-4 border-t border-gray-100">
-                              <div className="flex items-center justify-between text-xs mb-2">
-                                <span className="text-gray-600">Course Progress</span>
-                                <span className="font-semibold">{member.progress}%</span>
-                              </div>
-                              <div className="w-full bg-gray-200 rounded-full h-2">
-                                <div
-                                  className={`h-2 rounded-full ${getProgressColor(member.progress).split(' ')[0]}`}
-                                  style={{ width: `${Math.min(member.progress, 100)}%` }}
-                                ></div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-center py-8 text-gray-500">
-                        <Users size={48} className="mx-auto mb-4 text-gray-300" />
-                        <p>No other students enrolled in this project yet.</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
+      <div className="flex h-[calc(100vh-80px)] bg-gray-50 font-sans">
+        
+        {/* SIDEBAR: TEAM LIST */}
+        <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
+          <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+            <h2 className="font-bold text-lg text-gray-800">Teams</h2>
+            {userData?.isTeamLeader && (
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 shadow-md transition-all"
+                title="Create Team"
+              >
+                <Plus size={18} />
+              </button>
             )}
           </div>
-        )}
+          <div className="p-3">
+             <div className="relative">
+                <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
+                <input placeholder="Search or Join..." className="w-full bg-gray-100 pl-9 pr-3 py-2 rounded-md text-sm outline-none focus:ring-1 focus:ring-blue-500" />
+             </div>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto">
+            {teams.length === 0 && <div className="p-4 text-center text-gray-500 text-sm">No teams found. Join or create one!</div>}
+            {teams.map((team) => (
+              <div
+                key={team._id}
+                onClick={() => setActiveTeam(team)}
+                className={`p-4 cursor-pointer hover:bg-gray-50 border-b border-gray-100 transition-colors ${
+                  activeTeam?._id === team._id ? "bg-blue-50 border-l-4 border-blue-600" : ""
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
+                    {team.name.substring(0, 2).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-gray-800 truncate text-sm">{team.name}</h3>
+                    <p className="text-xs text-gray-500 truncate">{team.members.length} members</p>
+                  </div>
+                  {!team.isMember && !team.isPending && (
+                       <button 
+                        onClick={(e) => { e.stopPropagation(); handleJoinRequest(team._id); }}
+                        className="text-xs bg-gray-100 px-2 py-1 rounded hover:bg-gray-200"
+                        >
+                           Join
+                       </button>
+                  )}
+                  {team.isPending && <span className="text-xs text-orange-500">Pending</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* MAIN AREA */}
+        <div className="flex-1 flex flex-col bg-white">
+          {activeTeam ? (
+            <>
+              {/* HEADER */}
+              <div className="h-16 border-b border-gray-200 flex items-center justify-between px-6 bg-white shadow-sm z-10">
+                 <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center font-bold">
+                         {activeTeam.name.substring(0,2).toUpperCase()}
+                    </div>
+                    <div>
+                        <h2 className="font-bold text-gray-800">{activeTeam.name}</h2>
+                        <p className="text-xs text-gray-500">{activeTeam.description || "Active Project Team"}</p>
+                    </div>
+                 </div>
+                 
+                 {activeTeam.isMember && (
+                    <div className="flex items-center gap-3 text-gray-600">
+                        <button onClick={() => postMeetingLink('Video')} className="p-2 hover:bg-gray-100 rounded-full transition-colors" title="Start Video Call">
+                            <Video size={20} />
+                        </button>
+                        <button onClick={() => postMeetingLink('Voice')} className="p-2 hover:bg-gray-100 rounded-full transition-colors" title="Start Voice Call">
+                            <Phone size={20} />
+                        </button>
+                        <div className="h-6 w-px bg-gray-300 mx-1"></div>
+                        <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                            <MoreVertical size={20} />
+                        </button>
+                    </div>
+                 )}
+              </div>
+
+               {/* TABS (Only visible if member) */}
+              {activeTeam.isMember && (
+                  <div className="flex border-b border-gray-200 px-6 gap-6 text-sm">
+                      <button onClick={() => setActiveTab('posts')} className={`py-3 font-medium border-b-2 transition-colors ${activeTab === 'posts' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}>Posts</button>
+                      <button onClick={() => setActiveTab('files')} className={`py-3 font-medium border-b-2 transition-colors ${activeTab === 'files' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}>Files</button>
+                      <button onClick={() => setActiveTab('members')} className={`py-3 font-medium border-b-2 transition-colors ${activeTab === 'members' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}>Members ({activeTeam.members.length})</button>
+                  </div>
+              )}
+
+              {/* CONTENT AREA */}
+              <div className="flex-1 overflow-hidden relative bg-gray-50/50">
+                  {/* NON-MEMBER VIEW */}
+                  {!activeTeam.isMember && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-500">
+                          <Users size={64} className="mb-4 text-gray-300" />
+                          <p className="text-lg font-medium">You are not a member of this team.</p>
+                          {activeTeam.isPending ? (
+                              <p className="text-orange-500 mt-2">Join request pending approval.</p>
+                          ) : (
+                             <button onClick={() => handleJoinRequest(activeTeam._id)} className="mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                                 Request to Join
+                             </button>
+                          )}
+                      </div>
+                  )}
+
+                  {/* POSTS TAB */}
+                  {activeTeam.isMember && activeTab === 'posts' && (
+                      <div className="flex flex-col h-full">
+                          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                              {messages.map((msg) => (
+                                  <div key={msg._id} className="flex gap-4 group">
+                                      <img src={msg.sender?.imageUrl || "/default-avatar.png"} className="w-10 h-10 rounded-full object-cover shadow-sm bg-white" />
+                                      <div className="flex-1">
+                                          <div className="flex items-baseline gap-2">
+                                              <span className="font-bold text-gray-900 text-sm">{msg.sender?.name}</span>
+                                              <span className="text-xs text-gray-400">{moment(msg.createdAt).format("h:mm A")}</span>
+                                          </div>
+                                          
+                                          {msg.type === 'text' && (
+                                              <p className="text-gray-800 text-sm mt-1 leading-relaxed bg-white p-3 rounded-tr-xl rounded-br-xl rounded-bl-xl shadow-sm inline-block max-w-[80%] border border-gray-100">
+                                                  {msg.content}
+                                              </p>
+                                          )}
+                                          
+                                          {msg.type === 'call_link' && (
+                                              <div className="mt-2 bg-blue-50 border border-blue-100 rounded-lg p-4 max-w-md">
+                                                  <div className="flex items-center gap-3 mb-2">
+                                                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
+                                                          <Video size={20} />
+                                                      </div>
+                                                      <div>
+                                                          <h4 className="font-bold text-gray-900">{msg.linkData?.title || "Meeting"}</h4>
+                                                          <p className="text-xs text-gray-500">Video call started</p>
+                                                      </div>
+                                                  </div>
+                                                  <a href={msg.linkData?.url} target="_blank" rel="noreferrer" className="block w-full text-center bg-blue-600 text-white py-2 rounded-md text-sm font-semibold hover:bg-blue-700 transition-colors">
+                                                      Join Meeting
+                                                  </a>
+                                              </div>
+                                          )}
+                                      </div>
+                                  </div>
+                              ))}
+                              <div ref={scrollRef}></div>
+                          </div>
+
+                          {/* INPUT DECK */}
+                          <div className="p-4 bg-white border-t border-gray-200">
+                              <form onSubmit={handleSendMessage} className="flex flex-col gap-2 relative">
+                                  <textarea 
+                                    className="w-full border border-gray-300 rounded-lg p-3 pr-12 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none text-sm min-h-[50px]"
+                                    placeholder="Type a new message"
+                                    rows={2}
+                                    value={messageInput}
+                                    onChange={(e) => setMessageInput(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                            e.preventDefault();
+                                            handleSendMessage(e);
+                                        }
+                                    }}
+                                  />
+                                  <div className="flex justify-between items-center px-1">
+                                      <div className="flex gap-2 text-gray-400">
+                                          <button type="button" className="hover:text-gray-600 p-1"><ImageIcon size={18} /></button>
+                                          <button type="button" className="hover:text-gray-600 p-1"><Paperclip size={18} /></button>
+                                      </div>
+                                      <button type="submit" className="bg-transparent text-blue-600 hover:bg-blue-50 p-2 rounded-full absolute bottom-3 right-2">
+                                          <Send size={20} />
+                                      </button>
+                                  </div>
+                              </form>
+                          </div>
+                      </div>
+                  )}
+
+                  {/* MEMBERS TAB */}
+                  {activeTeam.isMember && activeTab === 'members' && (
+                      <div className="p-6 h-full overflow-y-auto">
+                           {/* PENDING REQUESTS (Leader Only) */}
+                           {activeTeam.isLeader && activeTeam.pendingRequests?.length > 0 && (
+                               <div className="mb-8 p-4 bg-orange-50 border border-orange-100 rounded-lg">
+                                   <h3 className="font-bold text-orange-800 mb-3 text-sm flex items-center gap-2">
+                                       <UserPlus size={16} /> Pending Requests
+                                   </h3>
+                                   <div className="space-y-2">
+                                       {activeTeam.pendingRequests.map(userId => (
+                                           <div key={userId} className="flex justify-between items-center bg-white p-2 rounded border border-orange-100 shadow-sm">
+                                               <span className="text-sm font-medium text-gray-700">User ID: {userId.substring(0,8)}...</span>
+                                               <div className="flex gap-2">
+                                                   <button onClick={() => handleMemberAction(userId, 'accept')} className="p-1 bg-green-100 text-green-700 rounded hover:bg-green-200"><Check size={16}/></button>
+                                                   <button onClick={() => handleMemberAction(userId, 'reject')} className="p-1 bg-red-100 text-red-700 rounded hover:bg-red-200"><X size={16}/></button>
+                                               </div>
+                                           </div>
+                                       ))}
+                                   </div>
+                               </div>
+                           )}
+
+                           <h3 className="font-bold text-gray-800 mb-4">Team Members</h3>
+                           <div className="space-y-2">
+                               {activeTeam.members.map((member) => (
+                                   <div key={member.userId._id} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-lg hover:shadow-sm transition-shadow">
+                                       <div className="flex items-center gap-3">
+                                            <img src={member.userId.imageUrl || '/default-avatar.png'} className="w-10 h-10 rounded-full object-cover" />
+                                            <div>
+                                                <p className="font-semibold text-gray-800 text-sm">{member.userId.name}</p>
+                                                <p className="text-xs text-gray-500 capitalize">{member.role}</p>
+                                            </div>
+                                       </div>
+                                       {activeTeam.isLeader && member.userId._id !== userData._id && (
+                                           <button onClick={() => handleMemberAction(member.userId._id, 'remove')} className="text-gray-400 hover:text-red-500 p-2">
+                                               <Trash2 size={16} />
+                                           </button>
+                                       )}
+                                   </div>
+                               ))}
+                           </div>
+                      </div>
+                  )}
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center text-gray-400 bg-gray-50">
+               <div className="w-32 h-32 bg-gray-100 rounded-full flex items-center justify-center mb-6">
+                   <Users size={64} className="text-gray-300" />
+               </div>
+               <h3 className="text-xl font-semibold text-gray-600">Select a Team</h3>
+               <p className="text-sm mt-2 max-w-xs text-center">Choose a team from the sidebar to start collaborating or create a new one.</p>
+            </div>
+          )}
+        </div>
       </div>
+
+       {/* CREATE TEAM MODAL */}
+       {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 transform transition-all scale-100">
+            <h2 className="text-xl font-bold mb-4 text-gray-800">Create New Team</h2>
+            <form onSubmit={handleCreateTeam}>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Team Name</label>
+                  <input
+                    type="text"
+                    required
+                    className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
+                    value={newTeamName}
+                    onChange={(e) => setNewTeamName(e.target.value)}
+                    placeholder="e.g. Web Dev Project Alpha"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                  <textarea
+                    className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none h-24 resize-none"
+                    value={newTeamDesc}
+                    onChange={(e) => setNewTeamDesc(e.target.value)}
+                    placeholder="What's this team about?"
+                  />
+                </div>
+              </div>
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium shadow-sm"
+                >
+                  Create Team
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </StudentLayout>
   );
 };

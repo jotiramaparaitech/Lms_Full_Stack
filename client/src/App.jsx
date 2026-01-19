@@ -47,6 +47,9 @@ import Todo from "./pages/student/apps/Todo";
 import Chat from "./pages/student/apps/Chat";
 import Teams from "./pages/student/apps/Teams";
 
+import AssignTeamLeader from "./pages/educator/AssignTeamLeader";
+import TeamLeaders from "./pages/educator/TeamLeaders";
+
 const App = () => {
   const { isEducator } = useContext(AppContext);
   const isEducatorRoute = useMatch("/educator/*");
@@ -119,6 +122,8 @@ const AppContent = ({ isEducatorRoute, isEducator }) => {
           <Route path="course/:courseId/edit" element={<EditCourse />} />
           <Route path="student-enrolled" element={<StudentsEnrolled />} />
           <Route path="assign-course" element={<AssignCourse />} />
+          <Route path="assign-team-leader" element={<AssignTeamLeader />} />
+          <Route path="team-leaders" element={<TeamLeaders />} />
           <Route path="tickets" element={<SupportTickets />} />
         </Route>
       </Routes>

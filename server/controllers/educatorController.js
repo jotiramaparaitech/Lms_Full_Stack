@@ -602,3 +602,52 @@ export const assignCourse = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// -----------------------------
+// Assign Team Leader
+// -----------------------------
+export const assignTeamLeader = async (req, res) => {
+  try {
+    const { userId, isTeamLeader } = req.body;
+    const auth = req.auth();
+    const educatorId = auth?.userId;
+
+    if (!educatorId) {
+      return res.status(401).json({ success: false, message: "Unauthorized educator" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    user.isTeamLeader = isTeamLeader;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: `User ${isTeamLeader ? "promoted to" : "removed from"} Team Leader`,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// -----------------------------
+// Get Team Leaders
+// -----------------------------
+export const getTeamLeaders = async (req, res) => {
+  try {
+    const auth = req.auth();
+    const educatorId = auth?.userId;
+
+    if (!educatorId) {
+      return res.status(401).json({ success: false, message: "Unauthorized educator" });
+    }
+
+    const teamLeaders = await User.find({ isTeamLeader: true }, "name email imageUrl");
+    res.json({ success: true, teamLeaders });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

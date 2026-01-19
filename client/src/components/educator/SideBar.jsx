@@ -40,10 +40,21 @@ const SideBar = () => {
       path: "/educator/tickets",
       icon: assets.support, 
     },
+// ✅ NEW MENU ITEMS
     {
-      name: "My Enrollments",
-      path: "/my-enrollments",
-      icon: assets.lesson_icon,
+      name: "Assign Team Leader",
+      path: "/educator/assign-team-leader",
+      icon: assets.person_tick_icon, 
+    },
+    {
+      name: "Team Leaders",
+      path: "/educator/team-leaders",
+      icon: assets.people_icon || assets.person_tick_icon, // Use existing icon or fallback
+    },
+    {
+      name: "Student Dashboard",
+      path: "/student/dashboard",
+      icon: assets.person_tick_icon,
     },
   ];
 
