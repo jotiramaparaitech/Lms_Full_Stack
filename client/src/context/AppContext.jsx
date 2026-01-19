@@ -48,7 +48,9 @@ export const AppContextProvider = (props) => {
       }
     } catch (error) {
       if (error.code === "ERR_NETWORK") {
-        toast.error("Check your internet.");
+        toast.error(
+          "Cannot connect to backend. Check your internet or backend deployment.",
+        );
       } else if (error.response?.status === 500) {
         toast.error("Server error while fetching courses.");
       } else if (error.message?.includes("CORS")) {
