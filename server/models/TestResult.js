@@ -1,24 +1,30 @@
 import mongoose from "mongoose";
 
 const testResultSchema = new mongoose.Schema({
-  // Link to your existing User (using String ID as per your schema)
-  studentId: { type: String, required: true, ref: "User" }, 
-  studentEmail: { type: String, required: true }, // For your email tracking
+  // Link to your existing User
+  studentId: { 
+    type: String, 
+    required: true, 
+    ref: "User", 
+    index: true 
+  }, 
   
-  domain: String,       // e.g. "React"
-  topic: String,        // e.g. "Hooks"
-  difficulty: String,
+  studentEmail: { type: String, required: true }, 
   
-  score: Number,
-  totalQuestions: Number,
-  percentage: Number,
+  domain: { type: String, required: true },      
+  topic: { type: String, required: true },       
+  difficulty: { type: String, default: "Medium" }, 
+  
+  score: { type: Number, required: true },
+  totalQuestions: { type: Number, required: true },
+  percentage: { type: Number, required: true },
 
-  // We snapshot the questions here since we aren't saving them to a bank
+  // Snapshot of the Q&A
   answers: [{
-    questionText: String,
-    selectedOption: String,
-    correctOption: String,
-    isCorrect: Boolean
+    questionText: { type: String, required: true },
+    selectedOption: { type: String, required: true },
+    correctOption: { type: String, required: true },
+    isCorrect: { type: Boolean, required: true }
   }],
 
   attemptDate: { type: Date, default: Date.now }
