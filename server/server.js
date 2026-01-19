@@ -16,6 +16,7 @@ import razorpayRoute from "./routes/razorpayRoute.js";
 import ticketRoutes from "./routes/ticketRoutes.js";
 import assessmentRoutes from "./routes/assessmentRoutes.js";
 
+import todoRouter from "./routes/todoRoutes.js";
 
 
 
@@ -57,7 +58,7 @@ app.use(
       if (allowedOrigins.includes(origin)) return callback(null, true);
       return callback(new Error("Not allowed by CORS"));
     },
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
   })
@@ -70,7 +71,7 @@ app.options("*", (req, res) => {
     "Access-Control-Allow-Headers",
     "Content-Type, Authorization, X-Requested-With"
   );
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
   res.sendStatus(200);
 });
 
@@ -96,6 +97,11 @@ app.use("/api/razorpay", express.json(), razorpayRoute);
 app.use("/api/tickets", express.json(), ticketRoutes);
 
 app.use("/api/assessment", express.json(), assessmentRoutes);
+
+/// Todo
+app.use("/api/todo", express.json(), requireAuth(), todoRouter);
+app.use("/api/user", express.json(), requireAuth(), userRouter);
+
 
 // Debug network
 app.get("/api/network", (req, res) => res.json(os.networkInterfaces()));

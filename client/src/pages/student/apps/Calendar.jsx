@@ -1,3 +1,4 @@
+import React from "react"; // Added React import
 import StudentLayout from "../../../components/student/StudentLayout";
 import { useState, useEffect } from "react";
 import {
@@ -29,7 +30,8 @@ import {
   BookOpen,
   GraduationCap,
   Briefcase,
-  Coffee
+  Coffee,
+  Menu
 } from "lucide-react";
 
 const Calendar = () => {
@@ -38,6 +40,7 @@ const Calendar = () => {
   const [viewMode, setViewMode] = useState("month");
   const [showEventModal, setShowEventModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [events, setEvents] = useState([
     {
       id: 1,
@@ -347,6 +350,15 @@ const Calendar = () => {
     });
   };
 
+  // Format date for mobile (shorter version)
+  const formatDateMobile = (date) => {
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
   // Handle date click - open event modal
   const handleDateClick = (date) => {
     setSelectedDate(date);
@@ -538,30 +550,40 @@ const Calendar = () => {
 
   return (
     <StudentLayout>
-      <div className="p-6 space-y-6">
+      <div className="p-4 md:p-6 space-y-6">
         {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Calendar</h1>
-            <p className="text-gray-600 mt-1">Track your project meetings, deadlines, and schedules</p>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center justify-between md:justify-start">
+            <div>
+              <h1 className="text-xl md:text-2xl font-bold text-gray-900">Calendar</h1>
+              <p className="text-sm md:text-base text-gray-600 mt-1">Track your project meetings, deadlines, and schedules</p>
+            </div>
+            <button 
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden p-2 hover:bg-gray-100 rounded-lg"
+            >
+              <Menu size={24} />
+            </button>
           </div>
           
-          <div className="flex items-center gap-3">
-            <button className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2">
-              <Filter size={16} />
-              <span>Filter</span>
-            </button>
-            <button className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2">
-              <Share2 size={16} />
-              <span>Share</span>
-            </button>
+          <div className={`flex-col md:flex-row items-center gap-3 ${mobileMenuOpen ? 'flex' : 'hidden md:flex'}`}>
+            <div className="flex flex-wrap gap-2 mb-2 md:mb-0">
+              <button className="px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2">
+                <Filter size={14} />
+                <span>Filter</span>
+              </button>
+              <button className="px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2">
+                <Share2 size={14} />
+                <span>Share</span>
+              </button>
+            </div>
             <button 
               onClick={() => {
                 setEditingEvent(null);
                 resetEventForm();
                 setShowEventModal(true);
               }}
-              className="px-4 py-2 bg-gradient-to-r from-cyan-600 to-teal-500 text-white rounded-lg hover:opacity-90 transition-opacity flex items-center gap-2"
+              className="px-4 py-2 bg-gradient-to-r from-cyan-600 to-teal-500 text-white rounded-lg hover:opacity-90 transition-opacity flex items-center gap-2 w-full md:w-auto justify-center"
             >
               <Plus size={16} />
               <span>Add Event</span>
@@ -575,8 +597,8 @@ const Calendar = () => {
             <div className="bg-white rounded-xl shadow">
               {/* Calendar Header */}
               <div className="p-4 border-b border-gray-200">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <button 
                         onClick={prevMonth}
@@ -584,7 +606,7 @@ const Calendar = () => {
                       >
                         <ChevronLeft size={20} />
                       </button>
-                      <h2 className="text-xl font-semibold">
+                      <h2 className="text-lg md:text-xl font-semibold min-w-[180px] text-center">
                         {months[currentMonth.getMonth()]} {currentMonth.getFullYear()}
                       </h2>
                       <button 
@@ -594,41 +616,43 @@ const Calendar = () => {
                         <ChevronRight size={20} />
                       </button>
                     </div>
-                    
-                    <div className="hidden lg:flex items-center gap-1 bg-gray-100 p-1 rounded-lg">
+                  </div>
+                  
+                  <div className="flex flex-col sm:flex-row items-center gap-3">
+                    <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg w-full sm:w-auto">
                       <button 
                         onClick={() => setViewMode("month")}
-                        className={`px-3 py-1 rounded ${viewMode === "month" ? 'bg-white shadow' : 'hover:bg-gray-200'}`}
+                        className={`px-3 py-1 text-sm rounded ${viewMode === "month" ? 'bg-white shadow' : 'hover:bg-gray-200'}`}
                       >
                         Month
                       </button>
                       <button 
                         onClick={() => setViewMode("week")}
-                        className={`px-3 py-1 rounded ${viewMode === "week" ? 'bg-white shadow' : 'hover:bg-gray-200'}`}
+                        className={`px-3 py-1 text-sm rounded ${viewMode === "week" ? 'bg-white shadow' : 'hover:bg-gray-200'}`}
                       >
                         Week
                       </button>
                       <button 
                         onClick={() => setViewMode("day")}
-                        className={`px-3 py-1 rounded ${viewMode === "day" ? 'bg-white shadow' : 'hover:bg-gray-200'}`}
+                        className={`px-3 py-1 text-sm rounded ${viewMode === "day" ? 'bg-white shadow' : 'hover:bg-gray-200'}`}
                       >
                         Day
                       </button>
                     </div>
-                  </div>
-                  
-                  <div className="text-sm text-gray-600">
-                    Today: {new Date().toLocaleDateString()}
+                    
+                    <div className="text-sm text-gray-600 text-center sm:text-left">
+                      Today: {formatDateMobile(new Date())}
+                    </div>
                   </div>
                 </div>
               </div>
 
               {/* Calendar Grid */}
-              <div className="p-4">
+              <div className="p-2 md:p-4">
                 {/* Days of Week Header */}
                 <div className="grid grid-cols-7 gap-1 mb-2">
                   {daysOfWeek.map((day) => (
-                    <div key={day} className="text-center font-medium text-gray-500 py-2">
+                    <div key={day} className="text-center text-xs md:text-sm font-medium text-gray-500 py-2">
                       {day}
                     </div>
                   ))}
@@ -643,54 +667,59 @@ const Calendar = () => {
                         key={index}
                         onClick={() => handleDateClick(day.date)}
                         className={`
-                          min-h-32 p-2 border rounded-lg cursor-pointer transition-all
+                          min-h-16 md:min-h-24 p-1 md:p-2 border rounded-lg cursor-pointer transition-all text-xs md:text-sm
                           ${day.isCurrentMonth ? 'bg-white' : 'bg-gray-50'}
                           ${day.isToday ? 'border-cyan-500 border-2' : 'border-gray-200'}
-                          ${day.isSelected ? 'ring-2 ring-cyan-500' : ''}
+                          ${day.isSelected ? 'ring-1 md:ring-2 ring-cyan-500' : ''}
                           hover:bg-gray-50
                         `}
                       >
-                        <div className="flex justify-between items-start mb-1">
+                        <div className="flex justify-between items-start mb-0 md:mb-1">
                           <span className={`
-                            text-sm font-medium
+                            font-medium
                             ${day.isToday ? 'text-cyan-600' : 
                               day.isCurrentMonth ? 'text-gray-900' : 'text-gray-400'}
                           `}>
                             {day.date.getDate()}
                           </span>
                           {dayEvents.length > 0 && (
-                            <span className="text-xs bg-cyan-100 text-cyan-800 px-2 py-1 rounded-full">
+                            <span className="hidden md:inline text-xs bg-cyan-100 text-cyan-800 px-1.5 py-0.5 rounded-full">
                               {dayEvents.length}
                             </span>
                           )}
                         </div>
                         
                         {/* Event Indicators */}
-                        <div className="space-y-1 mt-1">
-                          {dayEvents.slice(0, 2).map((event) => {
+                        <div className="space-y-0.5 mt-0.5 md:mt-1">
+                          {dayEvents.slice(0, viewMode === "month" ? 1 : 2).map((event) => {
                             const eventType = eventTypes.find(type => type.id === event.type);
                             return (
                               <div
                                 key={event.id}
-                                className={`text-xs px-2 py-1 rounded truncate ${event.color} text-white flex items-center gap-1`}
+                                className={`text-xs px-1.5 py-0.5 md:px-2 md:py-1 rounded truncate ${event.color} text-white`}
                                 title={event.title}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleEditEvent(event);
                                 }}
                               >
-                                <span className="flex-shrink-0">
-                                  {eventType?.icon || <Users size={12} />}
-                                </span>
-                                <span className="truncate">
-                                  {formatTime(event.date)} {event.title}
-                                </span>
+                                <div className="hidden md:flex items-center gap-1">
+                                  <span className="flex-shrink-0">
+                                    {eventType?.icon || <Users size={10} />}
+                                  </span>
+                                  <span className="truncate">
+                                    {formatTime(event.date)} {event.title}
+                                  </span>
+                                </div>
+                                <div className="md:hidden text-center">
+                                  •
+                                </div>
                               </div>
                             );
                           })}
-                          {dayEvents.length > 2 && (
+                          {dayEvents.length > (viewMode === "month" ? 1 : 2) && (
                             <div className="text-xs text-gray-500 text-center">
-                              +{dayEvents.length - 2} more
+                              +{dayEvents.length - (viewMode === "month" ? 1 : 2)} more
                             </div>
                           )}
                         </div>
@@ -709,32 +738,32 @@ const Calendar = () => {
                   Upcoming Deadlines & Events
                 </h3>
               </div>
-              <div className="p-4">
+              <div className="p-2 md:p-4">
                 {events
                   .sort((a, b) => new Date(a.date) - new Date(b.date))
                   .slice(0, 5)
                   .map((event) => (
                     <div 
                       key={event.id} 
-                      className="mb-4 p-3 border border-gray-200 rounded-lg hover:border-cyan-200 transition-colors"
+                      className="mb-3 md:mb-4 p-3 border border-gray-200 rounded-lg hover:border-cyan-200 transition-colors"
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex items-start gap-3">
-                          <div className={`p-2 rounded-lg ${event.color} text-white`}>
+                          <div className={`p-2 rounded-lg ${event.color} text-white hidden sm:block`}>
                             {eventTypes.find(type => type.id === event.type)?.icon || <Users size={16} />}
                           </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-semibold text-gray-900">{event.title}</h4>
-                              <span className={`px-2 py-0.5 text-xs rounded-full ${priorityOptions.find(p => p.id === event.priority)?.color}`}>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                              <h4 className="font-semibold text-gray-900 truncate">{event.title}</h4>
+                              <span className={`px-2 py-0.5 text-xs rounded-full ${priorityOptions.find(p => p.id === event.priority)?.color} self-start sm:self-center`}>
                                 {event.priority}
                               </span>
                             </div>
-                            <p className="text-sm text-gray-600 mt-1">{event.description}</p>
-                            <div className="flex items-center gap-3 mt-2 text-sm text-gray-700">
+                            <p className="text-sm text-gray-600 mt-1 line-clamp-2">{event.description}</p>
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 mt-2 text-sm text-gray-700">
                               <span className="flex items-center gap-1">
                                 <CalendarIcon size={14} />
-                                {formatDate(event.date)}
+                                <span className="truncate">{formatDateMobile(event.date)}</span>
                               </span>
                               <span className="flex items-center gap-1">
                                 <Clock size={14} />
@@ -750,7 +779,7 @@ const Calendar = () => {
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1 ml-2">
                           <button
                             onClick={() => handleEditEvent(event)}
                             className="p-1 text-gray-400 hover:text-cyan-600"
@@ -779,27 +808,27 @@ const Calendar = () => {
             <div className="bg-white rounded-xl shadow">
               <div className="p-4 border-b border-gray-200">
                 <h3 className="text-lg font-semibold">
-                  {formatDate(selectedDate)}
+                  {formatDateMobile(selectedDate)}
                 </h3>
               </div>
               <div className="p-4">
                 {getEventsForDate(selectedDate).length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <CalendarIcon size={48} className="mx-auto mb-3 text-gray-300" />
-                    <p>No events scheduled</p>
+                  <div className="text-center py-6 md:py-8 text-gray-500">
+                    <CalendarIcon size={36} className="mx-auto mb-2 md:mb-3 text-gray-300" />
+                    <p className="text-sm md:text-base">No events scheduled</p>
                     <button 
                       onClick={() => {
                         setEditingEvent(null);
                         resetEventForm();
                         setShowEventModal(true);
                       }}
-                      className="mt-3 text-cyan-600 hover:text-cyan-800 text-sm font-medium"
+                      className="mt-2 md:mt-3 text-cyan-600 hover:text-cyan-800 text-sm font-medium"
                     >
                       + Add an event
                     </button>
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-3 md:space-y-4">
                     {getEventsForDate(selectedDate).map((event) => {
                       const eventType = eventTypes.find(type => type.id === event.type);
                       return (
@@ -808,24 +837,24 @@ const Calendar = () => {
                           className="p-3 border border-gray-200 rounded-lg hover:border-cyan-200 transition-colors"
                         >
                           <div className="flex justify-between items-start">
-                            <div className="flex items-start gap-3">
-                              <div className={`w-3 h-3 rounded-full mt-1 ${event.color}`}></div>
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <h4 className="font-semibold">{event.title}</h4>
-                                  <span className={`px-2 py-0.5 text-xs rounded-full ${priorityOptions.find(p => p.id === event.priority)?.color}`}>
+                            <div className="flex items-start gap-3 flex-1 min-w-0">
+                              <div className={`w-3 h-3 rounded-full mt-1 ${event.color} flex-shrink-0`}></div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                                  <h4 className="font-semibold truncate">{event.title}</h4>
+                                  <span className={`px-2 py-0.5 text-xs rounded-full ${priorityOptions.find(p => p.id === event.priority)?.color} self-start sm:self-center`}>
                                     {event.priority}
                                   </span>
                                 </div>
-                                <p className="text-sm text-gray-600 mt-1">{event.description}</p>
-                                <div className="flex flex-wrap gap-3 mt-2 text-xs text-gray-500">
+                                <p className="text-sm text-gray-600 mt-1 line-clamp-2">{event.description}</p>
+                                <div className="flex flex-col sm:flex-row sm:flex-wrap gap-1 sm:gap-3 mt-2 text-xs text-gray-500">
                                   <span className="flex items-center gap-1">
                                     <Clock size={12} />
                                     {formatTime(event.date)} ({event.duration} min)
                                   </span>
                                   <span className="flex items-center gap-1">
                                     <MapPin size={12} />
-                                    {event.location}
+                                    <span className="truncate">{event.location}</span>
                                   </span>
                                   <span className="flex items-center gap-1">
                                     <Tag size={12} />
@@ -834,7 +863,7 @@ const Calendar = () => {
                                 </div>
                               </div>
                             </div>
-                            <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-1 ml-2 flex-shrink-0">
                               <button
                                 onClick={() => handleEditEvent(event)}
                                 className="p-1 text-gray-400 hover:text-cyan-600"
@@ -853,14 +882,14 @@ const Calendar = () => {
                           </div>
                           
                           <div className="mt-3 pt-3 border-t border-gray-100">
-                            <div className="flex justify-between items-center">
+                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
                               <div className="flex items-center gap-2">
                                 <Users size={14} className="text-gray-400" />
                                 <span className="text-xs text-gray-600">
                                   {event.participants.length} participants
                                 </span>
                               </div>
-                              <div className="flex items-center gap-1">
+                              <div className="flex flex-wrap gap-1">
                                 {event.reminders.map((reminder, idx) => (
                                   <span 
                                     key={idx}
@@ -886,8 +915,8 @@ const Calendar = () => {
               <div className="p-4 border-b border-gray-200">
                 <h3 className="text-lg font-semibold">Event Types</h3>
               </div>
-              <div className="p-4">
-                <div className="grid grid-cols-2 gap-3">
+              <div className="p-3 md:p-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 gap-2 md:gap-3">
                   {eventTypes.map((type) => (
                     <button
                       key={type.id}
@@ -897,15 +926,15 @@ const Calendar = () => {
                           setShowEventModal(true);
                         }
                       }}
-                      className="p-3 border border-gray-200 rounded-lg hover:border-cyan-200 transition-colors text-left"
+                      className="p-2 md:p-3 border border-gray-200 rounded-lg hover:border-cyan-200 transition-colors text-left"
                     >
                       <div className="flex items-center gap-2">
-                        <div className={`p-2 rounded-lg ${type.color} text-white`}>
-                          {type.icon}
+                        <div className={`p-1.5 md:p-2 rounded-lg ${type.color} text-white`}>
+                          {React.cloneElement(type.icon, { size: 14 })}
                         </div>
-                        <div>
-                          <div className="font-medium text-gray-900">{type.name}</div>
-                          <div className="text-xs text-gray-500">{type.description}</div>
+                        <div className="min-w-0">
+                          <div className="font-medium text-gray-900 text-sm md:text-base truncate">{type.name}</div>
+                          <div className="text-xs text-gray-500 hidden md:block">{type.description}</div>
                         </div>
                       </div>
                     </button>
@@ -919,10 +948,10 @@ const Calendar = () => {
               <div className="p-4 border-b border-gray-200">
                 <h3 className="text-lg font-semibold">This Month</h3>
               </div>
-              <div className="p-4">
-                <div className="grid grid-cols-2 gap-3">
+              <div className="p-3 md:p-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 gap-2 md:gap-3">
                   <div className="text-center p-3 bg-blue-50 rounded-lg">
-                    <div className="text-2xl font-bold text-blue-700">
+                    <div className="text-xl md:text-2xl font-bold text-blue-700">
                       {events.filter(e => 
                         e.date.getMonth() === currentMonth.getMonth() && 
                         e.date.getFullYear() === currentMonth.getFullYear()
@@ -931,19 +960,19 @@ const Calendar = () => {
                     <div className="text-sm text-blue-600">Total Events</div>
                   </div>
                   <div className="text-center p-3 bg-green-50 rounded-lg">
-                    <div className="text-2xl font-bold text-green-700">
+                    <div className="text-xl md:text-2xl font-bold text-green-700">
                       {events.filter(e => e.type === "team-meeting").length}
                     </div>
                     <div className="text-sm text-green-600">Meetings</div>
                   </div>
                   <div className="text-center p-3 bg-red-50 rounded-lg">
-                    <div className="text-2xl font-bold text-red-700">
+                    <div className="text-xl md:text-2xl font-bold text-red-700">
                       {events.filter(e => e.type === "deadline").length}
                     </div>
                     <div className="text-sm text-red-600">Deadlines</div>
                   </div>
                   <div className="text-center p-3 bg-purple-50 rounded-lg">
-                    <div className="text-2xl font-bold text-purple-700">
+                    <div className="text-xl md:text-2xl font-bold text-purple-700">
                       {events.filter(e => e.type === "class").length}
                     </div>
                     <div className="text-sm text-purple-600">Classes</div>
@@ -957,11 +986,11 @@ const Calendar = () => {
 
       {/* Event Modal */}
       {showEventModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 md:p-4">
           <div className="bg-white rounded-xl shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-gray-900">
+            <div className="p-4 md:p-6">
+              <div className="flex items-center justify-between mb-4 md:mb-6">
+                <h2 className="text-lg md:text-xl font-bold text-gray-900">
                   {editingEvent ? 'Edit Event' : 'Add New Event'}
                 </h2>
                 <button
@@ -970,34 +999,34 @@ const Calendar = () => {
                     setEditingEvent(null);
                     resetEventForm();
                   }}
-                  className="p-2 hover:bg-gray-100 rounded-lg"
+                  className="p-1 md:p-2 hover:bg-gray-100 rounded-lg"
                 >
                   <X size={20} />
                 </button>
               </div>
 
-              <div className="space-y-6">
+              <div className="space-y-4 md:space-y-6">
                 {/* Event Type Selection */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Event Type
                   </label>
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="grid grid-cols-4 sm:grid-cols-8 gap-1 md:gap-2">
                     {eventTypes.map((type) => (
                       <button
                         key={type.id}
                         type="button"
                         onClick={() => setEventForm(prev => ({ ...prev, type: type.id }))}
-                        className={`p-3 border rounded-lg flex flex-col items-center justify-center gap-2 ${
+                        className={`p-2 md:p-3 border rounded-lg flex flex-col items-center justify-center gap-1 md:gap-2 ${
                           eventForm.type === type.id
                             ? 'border-cyan-500 bg-cyan-50'
                             : 'border-gray-200 hover:border-gray-300'
                         }`}
                       >
-                        <div className={`p-2 rounded-lg ${type.color} text-white`}>
-                          {type.icon}
+                        <div className={`p-1.5 md:p-2 rounded-lg ${type.color} text-white`}>
+                          {React.cloneElement(type.icon, { size: 14 })}
                         </div>
-                        <span className="text-xs font-medium">{type.name}</span>
+                        <span className="text-xs font-medium text-center">{type.name}</span>
                       </button>
                     ))}
                   </div>
@@ -1014,7 +1043,7 @@ const Calendar = () => {
                     value={eventForm.title}
                     onChange={handleInputChange}
                     placeholder="Enter event title"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm md:text-base"
                   />
                 </div>
 
@@ -1028,12 +1057,12 @@ const Calendar = () => {
                     onChange={handleInputChange}
                     placeholder="Enter event description"
                     rows="3"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm md:text-base"
                   />
                 </div>
 
                 {/* Date & Time */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Date
@@ -1046,7 +1075,7 @@ const Calendar = () => {
                         newDate.setHours(eventForm.date.getHours(), eventForm.date.getMinutes());
                         setEventForm(prev => ({ ...prev, date: newDate }));
                       }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm md:text-base"
                     />
                   </div>
 
@@ -1060,7 +1089,7 @@ const Calendar = () => {
                         name="startTime"
                         value={eventForm.startTime}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm md:text-base"
                       />
                     </div>
                     <div>
@@ -1072,14 +1101,14 @@ const Calendar = () => {
                         name="endTime"
                         value={eventForm.endTime}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm md:text-base"
                       />
                     </div>
                   </div>
                 </div>
 
                 {/* Location & Team */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Location
@@ -1090,7 +1119,7 @@ const Calendar = () => {
                       value={eventForm.location}
                       onChange={handleInputChange}
                       placeholder="Zoom, Room, etc."
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm md:text-base"
                     />
                   </div>
                   <div>
@@ -1103,18 +1132,18 @@ const Calendar = () => {
                       value={eventForm.team}
                       onChange={handleInputChange}
                       placeholder="Team name"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm md:text-base"
                     />
                   </div>
                 </div>
 
                 {/* Priority & Reminder */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Priority
                     </label>
-                    <div className="flex gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2">
                       {priorityOptions.map((priority) => (
                         <button
                           key={priority.id}
@@ -1139,7 +1168,7 @@ const Calendar = () => {
                     <select
                       value={eventForm.reminders[0] || 0}
                       onChange={(e) => handleReminderChange(parseInt(e.target.value))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm md:text-base"
                     >
                       {reminderOptions.map((option) => (
                         <option key={option.value} value={option.value}>
@@ -1151,20 +1180,20 @@ const Calendar = () => {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex justify-end gap-3 pt-6 border-t border-gray-200">
+                <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 md:pt-6 border-t border-gray-200">
                   <button
                     onClick={() => {
                       setShowEventModal(false);
                       setEditingEvent(null);
                       resetEventForm();
                     }}
-                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm md:text-base order-2 sm:order-1"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleSaveEvent}
-                    className="px-4 py-2 bg-gradient-to-r from-cyan-600 to-teal-500 text-white rounded-lg hover:opacity-90 transition-opacity flex items-center gap-2"
+                    className="px-4 py-2 bg-gradient-to-r from-cyan-600 to-teal-500 text-white rounded-lg hover:opacity-90 transition-opacity flex items-center justify-center gap-2 text-sm md:text-base order-1 sm:order-2"
                   >
                     <Save size={16} />
                     {editingEvent ? 'Update Event' : 'Save Event'}
