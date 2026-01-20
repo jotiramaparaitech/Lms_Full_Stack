@@ -19,6 +19,9 @@ import teamRouter from "./routes/teamRoutes.js";
 
 import todoRouter from "./routes/todoRoutes.js";
 
+import calendarRouter from "./routes/calendarEventRoutes.js";
+import debugRouter from "./routes/debugRoutes.js";
+
 
 
 // Initialize Express
@@ -104,6 +107,9 @@ app.use("/api/teams", express.json(), teamRouter);
 app.use("/api/todo", express.json(), requireAuth(), todoRouter);
 app.use("/api/user", express.json(), requireAuth(), userRouter);
 
+
+// Calendar
+app.use("/api/calendar-event", express.json(), calendarRouter);
 
 // Debug network
 app.get("/api/network", (req, res) => res.json(os.networkInterfaces()));
