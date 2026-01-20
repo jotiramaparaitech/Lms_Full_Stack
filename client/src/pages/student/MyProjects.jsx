@@ -274,39 +274,6 @@ const MyProjects = () => {
                         : ""}
                     </p>
 
-                    {/* Course Stats */}
-                    <div className="grid grid-cols-3 gap-4 mb-4">
-                      <div className="text-center">
-                        <div className="flex items-center justify-center gap-1 text-gray-500 mb-1">
-                          <BookOpen size={16} />
-                          <span className="text-xs">Lectures</span>
-                        </div>
-                        <span className="font-bold text-gray-800">
-                          {totalLectures}
-                        </span>
-                      </div>
-
-                      <div className="text-center">
-                        <div className="flex items-center justify-center gap-1 text-gray-500 mb-1">
-                          <Clock size={16} />
-                          <span className="text-xs">Duration</span>
-                        </div>
-                        <span className="font-bold text-gray-800 text-sm">
-                          {formatDuration(course)}
-                        </span>
-                      </div>
-
-                      <div className="text-center">
-                        <div className="flex items-center justify-center gap-1 text-gray-500 mb-1">
-                          <Users size={16} />
-                          <span className="text-xs">Students</span>
-                        </div>
-                        <span className="font-bold text-gray-800">
-                          {course.enrolledStudents?.length || 0}
-                        </span>
-                      </div>
-                    </div>
-
                     {/* Progress Line */}
                     <div className="mb-4">
                       <div className="flex items-center justify-between text-sm text-gray-600 mb-1">
