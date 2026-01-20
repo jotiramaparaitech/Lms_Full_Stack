@@ -34,11 +34,23 @@ const Tests = () => {
   const [result, setResult] = useState(null);
   const [dailyCount, setDailyCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   // --- LOGIC: Limits ---
   const hasActiveEnrollment = enrolledCourses && enrolledCourses.length > 0;
   const maxDailyLimit = hasActiveEnrollment ? 5 : 3;
   const isLimitReached = dailyCount >= maxDailyLimit;
+
+  // Detect mobile screen
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // --- FETCH DATA ---
   useEffect(() => {
@@ -105,11 +117,18 @@ const Tests = () => {
       setQuestions(data.data);
       setPhase("testing");
       
-      if (data.isFallback) toast('Serving from backup question bank', { icon: '📂' });
+      if (data.isFallback) {
+        toast('Serving from backup question bank', { 
+          icon: '📂',
+          position: isMobile ? 'top-center' : 'top-right'
+        });
+      }
 
     } catch (error) {
       console.error(error);
-      toast.error("Failed to generate test.");
+      toast.error("Failed to generate test.", {
+        position: isMobile ? 'top-center' : 'top-right'
+      });
       setPhase("dashboard");
     } finally {
       setLoading(false);
@@ -138,9 +157,13 @@ const Tests = () => {
       
       setResult(data);
       setPhase("result");
-      toast.success("Assessment submitted successfully");
+      toast.success("Assessment submitted successfully", {
+        position: isMobile ? 'top-center' : 'top-right'
+      });
     } catch (error) {
-      toast.error("Submission failed");
+      toast.error("Submission failed", {
+        position: isMobile ? 'top-center' : 'top-right'
+      });
     }
   };
 
@@ -153,21 +176,63 @@ const Tests = () => {
 
   return (
     <StudentLayout>
-      <div className="min-h-screen bg-gray-50 p-4 md:p-6 font-sans">
+      {/* ✅ FIX 1: Main Container Constraints
+         - w-full max-w-full: Ensures it takes available space but NEVER exceeds it.
+         - overflow-x-hidden: Cuts off any rogue elements trying to scroll horizontally.
+      */}
+      <div className="min-h-screen bg-gray-50 p-3 sm:p-4 md:p-6 font-sans w-full max-w-full overflow-x-hidden">
         
-        {/* Header - Always visible with custom loader for better context */}
-        <div className="mb-8">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight">Skill Assessment</h1>
-              <p className="text-gray-500 mt-1">Validate your skills with AI-powered tests.</p>
+        {/* Header - Mobile Responsive */}
+        <div className="mb-6 sm:mb-8 w-full">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 w-full">
+            
+            {/* ✅ FIX 2: min-w-0 on text container to allow truncation */}
+            <div className="flex-1 min-w-0">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 tracking-tight truncate">
+                Skill Assessment
+              </h1>
+              <p className="text-gray-500 text-sm sm:text-base mt-1 truncate">
+                Validate your skills with AI-powered tests.
+              </p>
             </div>
-            <div className="flex items-center gap-4">
-              <div className={`px-4 py-1.5 rounded-full text-sm font-semibold border ${isLimitReached ? 'bg-red-50 text-red-600 border-red-200' : 'bg-blue-50 text-blue-600 border-blue-200'}`}>
-                Tests Today: {dailyCount} / {maxDailyLimit}
+
+            <div className="flex items-center justify-between sm:justify-end gap-3 flex-shrink-0">
+              <div className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold border whitespace-nowrap ${
+                isLimitReached 
+                  ? 'bg-red-50 text-red-600 border-red-200' 
+                  : 'bg-blue-50 text-blue-600 border-blue-200'
+              }`}>
+                <span className="sm:hidden">Tests: {dailyCount}/{maxDailyLimit}</span>
+                <span className="hidden sm:inline">Tests Today: {dailyCount}/{maxDailyLimit}</span>
               </div>
+              
+              {phase !== "dashboard" && isMobile && (
+                <button
+                  onClick={() => phase === "testing" ? setPhase("dashboard") : resetTest()}
+                  className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors whitespace-nowrap"
+                >
+                  Back
+                </button>
+              )}
             </div>
           </div>
+          
+          {/* Mobile Progress Indicator */}
+          {isMobile && phase !== "dashboard" && (
+            <div className="mt-4 bg-white rounded-lg p-3 shadow-sm border w-full">
+              <div className="flex items-center justify-between">
+                <div className="min-w-0 flex-1 mr-2">
+                  <p className="text-sm font-medium text-gray-900 truncate">{topic.domain}</p>
+                  <p className="text-xs text-gray-500 capitalize truncate">{difficulty} • {topic.subtopic || "General"}</p>
+                </div>
+                <div className="text-xs font-medium px-2 py-1 rounded bg-gray-100 text-gray-700 whitespace-nowrap flex-shrink-0">
+                  {phase === "loading" && "Generating..."}
+                  {phase === "testing" && `${Object.keys(answers).length}/${questions.length}`}
+                  {phase === "result" && "Completed"}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <AnimatePresence mode="wait">
@@ -185,15 +250,16 @@ const Tests = () => {
               setTopic={setTopic}
               difficulty={difficulty}
               setDifficulty={setDifficulty}
+              isMobile={isMobile}
             />
           )}
 
-          {/* ✅ Using Custom LoadingView with props */}
           {phase === "loading" && (
              <LoadingView 
                 key="loading" 
                 difficulty={difficulty} 
                 domain={topic.domain} 
+                isMobile={isMobile}
              />
           )}
 
@@ -207,6 +273,7 @@ const Tests = () => {
               setAnswers={setAnswers}
               handleSubmit={handleSubmit}
               onCancel={() => setPhase("dashboard")}
+              isMobile={isMobile}
             />
           )}
 
@@ -216,10 +283,12 @@ const Tests = () => {
               result={result}
               topic={topic}
               onReset={resetTest}
+              isMobile={isMobile}
             />
           )}
 
         </AnimatePresence>
+        
       </div>
     </StudentLayout>
   );
