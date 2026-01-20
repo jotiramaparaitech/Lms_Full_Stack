@@ -1,7 +1,23 @@
-import React from "react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
 
-const TestInterface = ({ 
+/*************  ✨ Windsurf Command ⭐  *************/
+/**
+ * TestInterface Component
+ * 
+ * This component renders a test interface for a given topic and difficulty.
+ * It displays the test header, test questions, and options for each question.
+ * It also displays the progress of the test and allows the user to submit the test.
+ * 
+ * @param {Object} topic - The topic of the test.
+ * @param {String} difficulty - The difficulty of the test.
+ * @param {Object[]} questions - The questions of the test.
+ * @param {Object} answers - The answers of the test.
+ * @param {Function} setAnswers - A function to set the answers of the test.
+ * @param {Function} handleSubmit - A function to handle the submission of the test.
+ * @param {Function} onCancel - A function to handle the cancellation of the test.
+ */
+/*******  7380f963-cca7-4aef-b027-61fe7febdd59  *******/const TestInterface = ({ 
   topic, 
   difficulty, 
   questions, 
@@ -10,6 +26,23 @@ const TestInterface = ({
   handleSubmit, 
   onCancel 
 }) => {
+  
+  // ✅ Local state to prevent multiple clicks
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // ✅ Wrapper function to handle the loading state
+  const handleSafeSubmit = async () => {
+    if (isSubmitting) return; // Stop if already submitting
+    
+    setIsSubmitting(true);
+    try {
+      await handleSubmit();
+    } catch (error) {
+      console.error(error);
+      setIsSubmitting(false); // Reset if there was an error and we are still on this screen
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
@@ -46,11 +79,12 @@ const TestInterface = ({
                   <button
                     key={optIdx}
                     onClick={() => setAnswers({...answers, [qIdx]: opt})}
+                    disabled={isSubmitting} // Disable options during submit
                     className={`px-5 py-4 text-left rounded-xl border transition-all duration-200 group relative overflow-hidden ${
                       answers[qIdx] === opt 
                         ? "border-blue-600 bg-blue-600 text-white shadow-lg shadow-blue-500/30 transform scale-[1.02]" 
                         : "border-gray-200 hover:border-blue-300 hover:bg-blue-50/50 text-gray-600"
-                    }`}
+                    } ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""}`}
                   >
                     <span className="relative z-10 font-medium">{opt}</span>
                   </button>
@@ -61,11 +95,28 @@ const TestInterface = ({
         </div>
 
         <div className="bg-gray-50 px-8 py-6 border-t border-gray-100 flex justify-between items-center">
-            <button onClick={onCancel} className="px-6 py-2 text-gray-500 font-bold hover:text-gray-800 transition-colors">
+            <button 
+              onClick={onCancel} 
+              disabled={isSubmitting}
+              className="px-6 py-2 text-gray-500 font-bold hover:text-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               Cancel
             </button>
-            <button onClick={handleSubmit} className="px-8 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold shadow-lg shadow-green-500/20 transition-all hover:-translate-y-0.5">
-              Submit Assessment
+            
+            {/* ✅ Updated Submit Button */}
+            <button 
+              onClick={handleSafeSubmit} 
+              disabled={isSubmitting}
+              className={`px-8 py-3 rounded-xl font-bold shadow-lg transition-all flex items-center gap-2 ${
+                isSubmitting 
+                ? "bg-gray-400 text-white cursor-not-allowed shadow-none" 
+                : "bg-green-600 hover:bg-green-700 text-white shadow-green-500/20 hover:-translate-y-0.5"
+              }`}
+            >
+              {isSubmitting && (
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              )}
+              {isSubmitting ? "Submitting..." : "Submit Assessment"}
             </button>
         </div>
       </div>
