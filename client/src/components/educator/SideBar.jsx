@@ -38,13 +38,14 @@ const SideBar = () => {
     {
       name: "Support Tickets",
       path: "/educator/tickets",
-      icon: assets.support, 
+      icon: assets.support,
     },
-// ✅ NEW MENU ITEMS
+    // ✅ NEW MENU ITEMS
+    // ✅ NEW MENU ITEMS
     {
       name: "Assign Team Leader",
       path: "/educator/assign-team-leader",
-      icon: assets.person_tick_icon, 
+      icon: assets.person_tick_icon,
     },
     {
       name: "Team Leaders",

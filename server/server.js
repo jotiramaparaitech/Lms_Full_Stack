@@ -1,5 +1,4 @@
 import express from "express";
-import os from "os";
 import cors from "cors";
 import "dotenv/config";
 import connectDB from "./configs/mongodb.js";
@@ -20,7 +19,6 @@ import teamRouter from "./routes/teamRoutes.js";
 import todoRouter from "./routes/todoRoutes.js";
 
 import calendarRouter from "./routes/calendarEventRoutes.js";
-import debugRouter from "./routes/debugRoutes.js";
 
 
 
@@ -90,7 +88,7 @@ app.post("/clerk", express.json(), clerkWebhooks);
 
 // Protected routes
 app.use("/api/educator", express.json(), requireAuth(), educatorRouter);
-app.use("/api/user", express.json(), requireAuth(), userRouter);
+
 
 // Public course routes
 app.use("/api/course", express.json(), courseRouter);
@@ -111,8 +109,6 @@ app.use("/api/user", express.json(), requireAuth(), userRouter);
 // Calendar
 app.use("/api/calendar-event", express.json(), calendarRouter);
 
-// Debug network
-app.get("/api/network", (req, res) => res.json(os.networkInterfaces()));
 
 // Start server
 const PORT = process.env.PORT || 5000;
