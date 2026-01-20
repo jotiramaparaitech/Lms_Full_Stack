@@ -4,21 +4,18 @@ import Team from "../models/Team.js";
 // ✅ Get events for student (only view)
 export const getMyTeamEvents = async (req, res) => {
   try {
-    console.log("📥 [getMyTeamEvents] called");
-
+   
     const auth = req.auth();
     const userId = auth?.userId;
 
-    console.log("👤 [getMyTeamEvents] userId:", userId);
 
     const team = await Team.findOne({
       $or: [{ leader: userId }, { "members.userId": userId }],
     });
 
-    console.log("🏷️ [getMyTeamEvents] team found:", team);
 
     if (!team) {
-      console.log("⚠️ [getMyTeamEvents] No team found for this user");
+     
       return res.json({
         success: true,
         events: [],
@@ -33,10 +30,6 @@ export const getMyTeamEvents = async (req, res) => {
 
     const isLeader = String(team.leader) === String(userId);
 
-    console.log("👑 [getMyTeamEvents] team.leader:", team.leader);
-    console.log("👑 [getMyTeamEvents] isLeader:", isLeader);
-    console.log("📅 [getMyTeamEvents] events count:", events.length);
-
     return res.json({
       success: true,
       events,
@@ -50,17 +43,12 @@ export const getMyTeamEvents = async (req, res) => {
 };
 
 
-
 // ✅ Create event (Leader only)
 export const createEvent = async (req, res) => {
   try {
-    console.log("📥 [createEvent] called");
-
+    
     const auth = req.auth();
     const userId = auth?.userId;
-
-    console.log("📥 [createEvent] userId:", userId);
-    console.log("📥 [createEvent] body:", req.body);
 
     const {
       teamId,
@@ -101,8 +89,6 @@ export const createEvent = async (req, res) => {
       priority: priority || "medium",
     });
 
-    console.log("✅ [createEvent] Event created:", newEvent);
-
     return res.json({
       success: true,
       message: "Event Created",
@@ -138,7 +124,6 @@ export const updateEvent = async (req, res) => {
   });
 }
 
-
     const updated = await CalendarEvent.findByIdAndUpdate(id, req.body, {
       new: true,
     });
@@ -169,7 +154,6 @@ export const deleteEvent = async (req, res) => {
     message: "Only leader can delete"
   });
 }
-
 
     await CalendarEvent.findByIdAndDelete(id);
 

@@ -49,14 +49,14 @@ const CoursesList = () => {
 
   // Refined card animation variants
   const cardVariants = {
-    hidden: { 
-      opacity: 0, 
+    hidden: {
+      opacity: 0,
       y: 30,
       scale: 0.98,
-      filter: "blur(4px)"
+      filter: "blur(4px)",
     },
-    visible: { 
-      opacity: 1, 
+    visible: {
+      opacity: 1,
       y: 0,
       scale: 1,
       filter: "blur(0px)",
@@ -65,9 +65,9 @@ const CoursesList = () => {
         stiffness: 80,
         damping: 20,
         mass: 1,
-        duration: 0.6
-      }
-    }
+        duration: 0.6,
+      },
+    },
   };
 
   // Hover animation variant
@@ -75,7 +75,7 @@ const CoursesList = () => {
     rest: {
       scale: 1,
       y: 0,
-      boxShadow: "0 4px 20px rgba(0, 0, 0, 0.08)"
+      boxShadow: "0 4px 20px rgba(0, 0, 0, 0.08)",
     },
     hover: {
       scale: 1.03,
@@ -84,9 +84,9 @@ const CoursesList = () => {
       transition: {
         type: "spring",
         stiffness: 400,
-        damping: 25
-      }
-    }
+        damping: 25,
+      },
+    },
   };
 
   // Container animation for staggered cards
@@ -96,29 +96,29 @@ const CoursesList = () => {
       opacity: 1,
       transition: {
         staggerChildren: 0.08,
-        delayChildren: 0.15
-      }
-    }
+        delayChildren: 0.15,
+      },
+    },
   };
 
   // Domain header animation
   const domainHeaderVariants = {
-    hidden: { 
-      opacity: 0, 
+    hidden: {
+      opacity: 0,
       x: -20,
-      filter: "blur(4px)"
+      filter: "blur(4px)",
     },
-    visible: { 
-      opacity: 1, 
+    visible: {
+      opacity: 1,
       x: 0,
       filter: "blur(0px)",
       transition: {
         type: "spring",
         stiffness: 100,
         damping: 15,
-        duration: 0.5
-      }
-    }
+        duration: 0.5,
+      },
+    },
   };
 
   return (
@@ -164,17 +164,17 @@ const CoursesList = () => {
           >
             <div className="flex items-center gap-3">
               <div className="p-2 bg-gradient-to-br from-blue-100 to-cyan-100 rounded-lg">
-                <svg 
-                  className="w-5 h-5 text-blue-600" 
-                  fill="none" 
-                  stroke="currentColor" 
+                <svg
+                  className="w-5 h-5 text-blue-600"
+                  fill="none"
+                  stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
-                  <path 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth="2" 
-                    d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" 
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
                   />
                 </svg>
               </div>
@@ -182,7 +182,7 @@ const CoursesList = () => {
                 Filter Projects by Domain
               </label>
             </div>
-            
+
             <div className="relative flex-1 max-w-md">
               <select
                 value={selectedDomain}
@@ -193,49 +193,51 @@ const CoursesList = () => {
                          appearance-none cursor-pointer
                          transition-all duration-200 hover:border-blue-300"
               >
-                <option value="All" className="py-2">🌐 All Domains</option>
+                <option value="All" className="py-2">
+                  🌐 All Domains
+                </option>
                 {uniqueDomains.map((domain, index) => (
                   <option key={index} value={domain} className="py-2">
                     {domain}
                   </option>
                 ))}
               </select>
-              
+
               {/* Custom dropdown arrow */}
               <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                <svg 
-                  className="w-5 h-5 text-blue-500" 
-                  fill="none" 
-                  stroke="currentColor" 
+                <svg
+                  className="w-5 h-5 text-blue-500"
+                  fill="none"
+                  stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
-                  <path 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth="2" 
-                    d="M19 9l-7 7-7-7" 
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M19 9l-7 7-7-7"
                   />
                 </svg>
               </div>
-              
+
               {/* Filter icon inside select */}
               <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                <svg 
-                  className="w-5 h-5 text-blue-400" 
-                  fill="none" 
-                  stroke="currentColor" 
+                <svg
+                  className="w-5 h-5 text-blue-400"
+                  fill="none"
+                  stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
-                  <path 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth="2" 
-                    d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" 
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"
                   />
                 </svg>
               </div>
             </div>
-            
+
             {/* Active filter indicator */}
             {selectedDomain !== "All" && (
               <motion.div
@@ -279,42 +281,48 @@ const CoursesList = () => {
                   className="text-2xl font-semibold text-gray-800 mb-8 border-l-4 border-blue-500 pl-4 relative"
                 >
                   {domain}
-                  <motion.span 
+                  <motion.span
                     className="absolute -bottom-1 left-0 h-0.5 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full"
                     initial={{ width: 0 }}
                     animate={{ width: "60%" }}
-                    transition={{ delay: 0.3, duration: 0.8, ease: "easeOut" }}
+                    transition={{
+                      delay: 0.3,
+                      duration: 0.8,
+                      ease: "easeOut",
+                    }}
                   />
                 </motion.h2>
 
-                {/* Cards Grid with refined animations */}
+                {/* ✅ FIXED GRID (Perfect for 1 card also) */}
                 <motion.div
                   variants={containerVariants}
                   initial="hidden"
                   animate="visible"
-                  className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-6 md:gap-8 place-items-start"
+                  className="grid gap-6 md:gap-8
+                             grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4
+                             justify-items-start"
                 >
                   {courses.map((course, index) => (
                     <motion.div
-                       key={index}
-                       variants={cardVariants}
-                       initial="hidden"
-                       animate="visible"
-                       whileHover="hover"
-                       onClick={() => navigate(`/course/${course._id}`)}
-                       className="w-full flex justify-center relative cursor-pointer"
-                     >
+                      key={index}
+                      variants={cardVariants}
+                      initial="hidden"
+                      animate="visible"
+                      whileHover="hover"
+                      onClick={() => navigate(`/course/${course._id}`)}
+                      className="w-full max-w-[340px] relative cursor-pointer"
+                    >
                       {/* Elegant hover overlay */}
                       <motion.div
                         className="absolute -inset-2 bg-gradient-to-r from-blue-500/5 via-cyan-500/5 to-blue-500/5 rounded-2xl opacity-0"
                         variants={{
                           hover: {
                             opacity: 1,
-                            transition: { duration: 0.3 }
-                          }
+                            transition: { duration: 0.3 },
+                          },
                         }}
                       />
-                      
+
                       {/* Main card container with subtle effects */}
                       <motion.div
                         variants={hoverVariants}
@@ -322,13 +330,13 @@ const CoursesList = () => {
                         whileHover="hover"
                         className="relative w-full rounded-xl overflow-hidden bg-white shadow-lg"
                         style={{
-                          transformStyle: "preserve-3d"
+                          transformStyle: "preserve-3d",
                         }}
                       >
                         {/* Card content wrapper */}
                         <div className="relative">
                           <CourseCard course={course} />
-                          
+
                           {/* Subtle shine effect on hover */}
                           <motion.div
                             className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0"
@@ -339,13 +347,13 @@ const CoursesList = () => {
                                 transition: {
                                   x: {
                                     duration: 0.8,
-                                    ease: "easeInOut"
+                                    ease: "easeInOut",
                                   },
                                   opacity: {
-                                    duration: 0.3
-                                  }
-                                }
-                              }
+                                    duration: 0.3,
+                                  },
+                                },
+                              },
                             }}
                           />
                         </div>
@@ -363,12 +371,25 @@ const CoursesList = () => {
               className="text-center py-20"
             >
               <div className="inline-block p-8 bg-gradient-to-br from-white to-blue-50 rounded-2xl shadow-lg border border-blue-100">
-                <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <svg
+                  className="w-16 h-16 text-gray-400 mx-auto mb-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="1.5"
+                    d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
                 </svg>
-                <h3 className="text-xl font-semibold text-gray-700 mb-2">No Projects Found</h3>
+                <h3 className="text-xl font-semibold text-gray-700 mb-2">
+                  No Projects Found
+                </h3>
                 <p className="text-gray-500 max-w-md mx-auto">
-                  Try adjusting your search or filter criteria to find what you're looking for.
+                  Try adjusting your search or filter criteria to find what
+                  you're looking for.
                 </p>
               </div>
             </motion.div>
