@@ -54,17 +54,17 @@ const InquiryModal = () => {
       phone: formData.phone || "Not provided",
       subject: "Inquiry from Website Popup",
       message: formData.message,
-      to_email: "info@aparaitech.org",
+      to_email: "info@aparaitechsoftware.org",
     };
 
     try {
       console.log("Sending email with params:", templateParams);
-      
+
       const response = await emailjs.send(
         "service_wdj15jn",
         "template_xtmll8h",
         templateParams,
-        "gpm7Cf-quPRpX09xI"
+        "gpm7Cf-quPRpX09xI",
       );
 
       console.log("EmailJS success:", response);
@@ -79,7 +79,7 @@ const InquiryModal = () => {
     } catch (error) {
       console.error("EmailJS error details:", error);
       console.error("Full error object:", JSON.stringify(error, null, 2));
-      
+
       // More specific error messages
       let errorMessage = "Failed to send message. Please try again.";
       if (error?.text) {
@@ -87,7 +87,7 @@ const InquiryModal = () => {
       } else if (error?.message) {
         errorMessage = `Error: ${error.message}`;
       }
-      
+
       toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);

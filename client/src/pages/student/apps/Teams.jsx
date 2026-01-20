@@ -368,10 +368,10 @@ const Teams = () => {
 
                           {/* INPUT DECK */}
                           <div className="p-4 bg-white border-t border-gray-200">
-                              <form onSubmit={handleSendMessage} className="flex flex-col gap-2 relative">
+                              <form onSubmit={handleSendMessage} className="flex flex-col gap-3 bg-gray-50 p-3 rounded-xl border border-gray-200">
                                   <textarea 
-                                    className="w-full border border-gray-300 rounded-lg p-3 pr-12 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none text-sm min-h-[50px]"
-                                    placeholder="Type a new message"
+                                    className="w-full bg-white border border-gray-200 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none text-sm min-h-[60px]"
+                                    placeholder="Type a new message..."
                                     rows={2}
                                     value={messageInput}
                                     onChange={(e) => setMessageInput(e.target.value)}
@@ -383,12 +383,20 @@ const Teams = () => {
                                     }}
                                   />
                                   <div className="flex justify-between items-center px-1">
-                                      <div className="flex gap-2 text-gray-400">
-                                          <button type="button" className="hover:text-gray-600 p-1"><ImageIcon size={18} /></button>
-                                          <button type="button" className="hover:text-gray-600 p-1"><Paperclip size={18} /></button>
+                                      <div className="flex gap-3 text-gray-400 bg-white p-1.5 rounded-lg border border-gray-100 shadow-sm">
+                                          <button type="button" className="hover:text-blue-500 p-1.5 rounded-md hover:bg-blue-50 transition-colors"><ImageIcon size={18} /></button>
+                                          <button type="button" className="hover:text-blue-500 p-1.5 rounded-md hover:bg-blue-50 transition-colors"><Paperclip size={18} /></button>
                                       </div>
-                                      <button type="submit" className="bg-transparent text-blue-600 hover:bg-blue-50 p-2 rounded-full absolute bottom-3 right-2">
-                                          <Send size={20} />
+                                      <button 
+                                        type="submit" 
+                                        disabled={!messageInput.trim()}
+                                        className={`p-2.5 rounded-lg transition-all flex items-center gap-2 shadow-sm font-medium text-xs ${
+                                            messageInput.trim() 
+                                            ? "bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md transform hover:-translate-y-0.5" 
+                                            : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                        }`}
+                                      >
+                                          Send <Send size={16} />
                                       </button>
                                   </div>
                               </form>
@@ -406,12 +414,30 @@ const Teams = () => {
                                        <UserPlus size={16} /> Pending Requests
                                    </h3>
                                    <div className="space-y-2">
-                                       {activeTeam.pendingRequests.map(userId => (
-                                           <div key={userId} className="flex justify-between items-center bg-white p-2 rounded border border-orange-100 shadow-sm">
-                                               <span className="text-sm font-medium text-gray-700">User ID: {userId.substring(0,8)}...</span>
+                                       {activeTeam.pendingRequests.map(user => (
+                                           <div key={user._id} className="flex justify-between items-center bg-white p-3 rounded-lg border border-orange-100 shadow-sm hover:shadow-md transition-shadow">
+                                               <div className="flex items-center gap-3">
+                                                    <img src={user.imageUrl || '/default-avatar.png'} className="w-9 h-9 rounded-full object-cover border border-gray-200" />
+                                                    <div>
+                                                        <p className="font-semibold text-gray-800 text-sm">{user.name}</p>
+                                                        <p className="text-xs text-gray-500">{user.email}</p>
+                                                    </div>
+                                               </div>
                                                <div className="flex gap-2">
-                                                   <button onClick={() => handleMemberAction(userId, 'accept')} className="p-1 bg-green-100 text-green-700 rounded hover:bg-green-200"><Check size={16}/></button>
-                                                   <button onClick={() => handleMemberAction(userId, 'reject')} className="p-1 bg-red-100 text-red-700 rounded hover:bg-red-200"><X size={16}/></button>
+                                                   <button 
+                                                    onClick={() => handleMemberAction(user._id, 'accept')} 
+                                                    className="p-1.5 bg-green-100 text-green-600 rounded-md hover:bg-green-200 transition-colors"
+                                                    title="Accept"
+                                                   >
+                                                       <Check size={18}/>
+                                                   </button>
+                                                   <button 
+                                                    onClick={() => handleMemberAction(user._id, 'reject')} 
+                                                    className="p-1.5 bg-red-100 text-red-600 rounded-md hover:bg-red-200 transition-colors"
+                                                    title="Reject"
+                                                   >
+                                                       <X size={18}/>
+                                                   </button>
                                                </div>
                                            </div>
                                        ))}

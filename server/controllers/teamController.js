@@ -47,6 +47,7 @@ export const getTeams = async (req, res) => {
     // In a production app, you might want pagination and filtering
     const teams = await Team.find()
       .populate("members.userId", "name imageUrl email") // Populate member details
+      .populate("pendingRequests", "name imageUrl email") // Populate pending requests
       .sort({ updatedAt: -1 });
 
     const formattedTeams = teams.map((team) => {

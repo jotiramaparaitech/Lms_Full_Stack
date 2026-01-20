@@ -61,7 +61,7 @@ const AdminFooter = () => {
         </a>
 
         <a
-          href="https://www.facebook.com/yourpage"
+          href="https://www.facebook.com/profile.php?id=61586032508393"
           target="_blank"
           rel="noopener noreferrer"
           className="transition-all duration-300 hover:scale-110 text-blue-600"

@@ -64,7 +64,7 @@ const Footer = () => {
         "service_wdj15jn",
         "template_xtmll8h",
         templateParams,
-        "gpm7Cf-quPRpX09xI"
+        "gpm7Cf-quPRpX09xI",
       )
       .then(
         (response) => {
@@ -73,7 +73,7 @@ const Footer = () => {
         },
         (error) => {
           setMessage("Failed to subscribe. Please try again.");
-        }
+        },
       );
   };
 
@@ -122,7 +122,7 @@ const Footer = () => {
               <div className="flex items-center justify-center md:justify-start gap-2">
                 <FaEnvelope className="text-blue-400 flex-shrink-0" />
                 <span className="text-sm sm:text-base">
-                  <strong>Email:</strong> info@aparaitech.org
+                  <strong>Email:</strong> info@aparaitechsoftware.org
                 </span>
               </div>
 
@@ -376,7 +376,7 @@ const Footer = () => {
                 },
                 {
                   Icon: FaFacebookF,
-                  link: "https://www.facebook.com/yourpage",
+                  link: "https://www.facebook.com/profile.php?id=61586032508393",
                   color: "group-hover:text-blue-600",
                   bg: "group-hover:bg-blue-600/20",
                   glow: "group-hover:shadow-blue-500/30",

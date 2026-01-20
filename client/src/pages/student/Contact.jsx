@@ -39,7 +39,7 @@ const Contact = () => {
       phone: formData.phone || "Not provided",
       subject: formData.subject || "General Inquiry",
       message: formData.message,
-      to_email: "info@aparaitech.org",
+      to_email: "info@aparaitechsoftware.org",
     };
 
     try {
@@ -47,7 +47,7 @@ const Contact = () => {
         "service_wdj15jn",
         "template_xtmll8h",
         templateParams,
-        "gpm7Cf-quPRpX09xI"
+        "gpm7Cf-quPRpX09xI",
       );
 
       toast.success("Message sent successfully! We'll get back to you soon.");
@@ -247,10 +247,10 @@ const Contact = () => {
                     Send us an email anytime
                   </p>
                   <a
-                    href="mailto:info@aparaitech.org"
+                    href="mailto:info@aparaitechsoftware.org"
                     className="text-cyan-600 hover:text-cyan-700 font-medium text-sm mt-1 block"
                   >
-                    info@aparaitech.org
+                    info@aparaitechsoftware.org
                   </a>
                 </div>
               </motion.div>

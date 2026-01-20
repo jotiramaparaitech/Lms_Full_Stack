@@ -33,7 +33,7 @@ const COMMANDS = [
   {
     keywords: ["facebook"],
     type: "external",
-    url: "https://www.facebook.com/yourpage",
+    url: "https://www.facebook.com/profile.php?id=61586032508393",
     message: "Opening Facebook.",
   },
 
@@ -81,21 +81,21 @@ const COMMANDS = [
     // Broad keywords for the Features section
     // Triggers only if 'project', 'contact', etc. (above) didn't match
     keywords: [
-      "feature", 
-      "service", 
-      "certificate", 
+      "feature",
+      "service",
+      "certificate",
       "certification",
-      "learn", 
+      "learn",
       "study",
-      "register", 
+      "register",
       "registration",
-      "job", 
+      "job",
       "apply",
-      "enquiry", 
+      "enquiry",
       // "contact" is removed here to prevent conflict with the Contact Page above
       "question",
-      "support", 
-      "help"
+      "support",
+      "help",
     ],
     type: "scroll",
     id: "features",
@@ -129,8 +129,9 @@ const AiAssistant = () => {
 
   const getAudioContext = () => {
     if (!audioCtxRef.current) {
-      audioCtxRef.current = new (window.AudioContext ||
-        window.webkitAudioContext)();
+      audioCtxRef.current = new (
+        window.AudioContext || window.webkitAudioContext
+      )();
     }
     if (audioCtxRef.current.state === "suspended") {
       audioCtxRef.current.resume();
@@ -150,10 +151,7 @@ const AiAssistant = () => {
       oscillator.type = "sine";
       oscillator.frequency.setValueAtTime(600, ctx.currentTime);
       gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(
-        0.001,
-        ctx.currentTime + 0.15
-      );
+      gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
 
       oscillator.start();
       oscillator.stop(ctx.currentTime + 0.15);
@@ -171,7 +169,7 @@ const AiAssistant = () => {
 
     const voices = window.speechSynthesis.getVoices();
     const preferredVoice = voices.find(
-      (v) => v.name.includes("Google US English") || v.name.includes("Female")
+      (v) => v.name.includes("Google US English") || v.name.includes("Female"),
     );
     if (preferredVoice) utterance.voice = preferredVoice;
     if (onEndCallback) utterance.onend = onEndCallback;
@@ -236,7 +234,7 @@ const AiAssistant = () => {
 
     // 3. Command List Logic (Iterates from top to bottom)
     const matchedCommand = COMMANDS.find((cmd) =>
-      cmd.keywords.some((keyword) => transcript.includes(keyword))
+      cmd.keywords.some((keyword) => transcript.includes(keyword)),
     );
 
     if (matchedCommand) {
@@ -302,7 +300,7 @@ const AiAssistant = () => {
       setHasGreeted(true);
       speak(
         "Hello! Welcome to Aparaitech Software Solution. I am your AI assistant. How may I assist you today?",
-        () => startListening()
+        () => startListening(),
       );
     } else {
       startListening();
