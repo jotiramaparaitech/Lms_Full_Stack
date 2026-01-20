@@ -204,7 +204,7 @@ export const submitTest = async (req, res) => {
     if (!auth?.userId) return res.status(401).json({ success: false, message: "Unauthorized" });
 
     const user = await User.findOne({ clerkId: auth.userId }); 
-    const { domain, topic, questionsData } = req.body;
+    const { domain, topic, difficulty, questionsData } = req.body;
 
     if (!questionsData || !Array.isArray(questionsData)) {
       return res.status(400).json({ success: false, message: "Invalid submission data" });
@@ -225,12 +225,18 @@ export const submitTest = async (req, res) => {
 
     const total = questionsData.length;
     const percentage = total > 0 ? (correctCount / total) * 100 : 0;
+    const cleanDifficulty = difficulty?.toLowerCase();
+    
+    if (!["basic", "medium", "hard"].includes(cleanDifficulty)) {
+        return res.status(400).json({ success: false, message: "Invalid difficulty level" });
+      }
 
     const testResult = await TestResult.create({
       studentId: auth.userId,
       studentEmail: user?.email || "Unknown",
       domain,
       topic,
+      difficulty: cleanDifficulty,
       score: correctCount,
       totalQuestions: total,
       percentage: parseFloat(percentage.toFixed(2)),
