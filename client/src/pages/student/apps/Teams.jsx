@@ -19,7 +19,8 @@ import {
   UserPlus,
   Check,
   X,
-  LogOut
+  LogOut,
+  ArrowLeft
 } from "lucide-react";
 import moment from "moment";
 
@@ -214,7 +215,7 @@ const Teams = () => {
       <div className="flex h-[calc(100vh-80px)] bg-gray-50 font-sans">
         
         {/* SIDEBAR: TEAM LIST */}
-        <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
+        <div className={`${activeTeam ? "hidden md:flex" : "flex w-full"} md:w-80 bg-white border-r border-gray-200 flex-col`}>
           <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
             <h2 className="font-bold text-lg text-gray-800">Teams</h2>
             {userData?.isTeamLeader && (
@@ -268,12 +269,18 @@ const Teams = () => {
         </div>
 
         {/* MAIN AREA */}
-        <div className="flex-1 flex flex-col bg-white">
+        <div className={`${activeTeam ? "flex w-full" : "hidden md:flex"} flex-1 flex-col bg-white`}>
           {activeTeam ? (
             <>
               {/* HEADER */}
-              <div className="h-16 border-b border-gray-200 flex items-center justify-between px-6 bg-white shadow-sm z-10">
+              <div className="h-16 border-b border-gray-200 flex items-center justify-between px-4 md:px-6 bg-white shadow-sm z-10">
                  <div className="flex items-center gap-3">
+                    <button 
+                      onClick={() => setActiveTeam(null)} 
+                      className="md:hidden text-gray-500 hover:text-gray-700 -ml-1"
+                    >
+                        <ArrowLeft size={20} />
+                    </button>
                     <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center font-bold">
                          {activeTeam.name.substring(0,2).toUpperCase()}
                     </div>
