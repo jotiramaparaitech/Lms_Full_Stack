@@ -10,8 +10,8 @@ import TestDashboard from "../../components/TestDashboard";
 import TestInterface from "../../components/TestInterface";
 import TestResult from "../../components/TestResult";
 
-// ✅ Import your existing Loading component
-import Loading from "../../components/student/Loading"; 
+// ✅ Reverted to Custom Loader
+import LoadingView from "../../components/LoadingView"; 
 
 const Tests = () => {
   const { 
@@ -153,28 +153,22 @@ const Tests = () => {
 
   return (
     <StudentLayout>
-      {/* ✅ FIX: Removed 'min-h-screen' here when loading.
-         Your Loading component has 'min-h-screen' inside it, so this prevents 
-         double scrollbars/layout shifts.
-      */}
-      <div className={`${phase === 'loading' ? '' : 'min-h-screen'} bg-gray-50 p-4 md:p-6 font-sans`}>
+      <div className="min-h-screen bg-gray-50 p-4 md:p-6 font-sans">
         
-        {/* ✅ FIX: Hide Header when loading to show only the spinner */}
-        {phase !== 'loading' && (
-          <div className="mb-8">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                <h1 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight">Skill Assessment</h1>
-                <p className="text-gray-500 mt-1">Validate your skills with AI-powered tests.</p>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className={`px-4 py-1.5 rounded-full text-sm font-semibold border ${isLimitReached ? 'bg-red-50 text-red-600 border-red-200' : 'bg-blue-50 text-blue-600 border-blue-200'}`}>
-                  Tests Today: {dailyCount} / {maxDailyLimit}
-                </div>
+        {/* Header - Always visible with custom loader for better context */}
+        <div className="mb-8">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight">Skill Assessment</h1>
+              <p className="text-gray-500 mt-1">Validate your skills with AI-powered tests.</p>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className={`px-4 py-1.5 rounded-full text-sm font-semibold border ${isLimitReached ? 'bg-red-50 text-red-600 border-red-200' : 'bg-blue-50 text-blue-600 border-blue-200'}`}>
+                Tests Today: {dailyCount} / {maxDailyLimit}
               </div>
             </div>
           </div>
-        )}
+        </div>
 
         <AnimatePresence mode="wait">
           
@@ -194,14 +188,13 @@ const Tests = () => {
             />
           )}
 
-          {/* ✅ FIX: Replaced custom LoadingView with your existing component */}
+          {/* ✅ Using Custom LoadingView with props */}
           {phase === "loading" && (
-             <motion.div 
-               key="loading"
-               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-             >
-                <Loading />
-             </motion.div>
+             <LoadingView 
+                key="loading" 
+                difficulty={difficulty} 
+                domain={topic.domain} 
+             />
           )}
 
           {phase === "testing" && (
