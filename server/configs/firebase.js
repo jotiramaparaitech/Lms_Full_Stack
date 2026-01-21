@@ -1,6 +1,6 @@
 // server/config/firebase.js
 import admin from "firebase-admin";
-import { createRequire } from "module"; 
+import { createRequire } from "module";
 
 // 1. Create a 'require' function specifically to load JSON files
 const require = createRequire(import.meta.url);
@@ -17,3 +17,4 @@ if (!admin.apps.length) {
 }
 
 export default admin;
+//hello
