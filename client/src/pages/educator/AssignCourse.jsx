@@ -54,11 +54,11 @@ const AssignCourse = () => {
       const { data } = await axios.post(
         `${backendUrl}/api/educator/assign-course`,
         { studentId: selectedStudent, courseId: selectedCourse },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
 
       if (data.success) {
-        toast.success("Course assigned successfully");
+        toast.success("Project assigned successfully");
         setSelectedStudent("");
         setSelectedCourse("");
       } else {

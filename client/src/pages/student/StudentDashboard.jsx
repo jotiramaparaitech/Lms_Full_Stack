@@ -425,7 +425,7 @@ const DashboardHome = () => {
             >
               {enrolledCourses.length > 0 ? (
                 <>
-                  You're enrolled in <span className="font-bold">{enrolledCourses.length} project{enrolledCourses.length !== 1 ? 's' : ''}</span>. 
+                  You're assigned in <span className="font-bold">{enrolledCourses.length} project{enrolledCourses.length !== 1 ? 's' : ''}</span>. 
                   Overall progress is <span className="font-bold">{stats.progress}%</span>.
                 </>
               ) : (
@@ -438,9 +438,6 @@ const DashboardHome = () => {
               transition={{ delay: 0.2 }}
               className="flex flex-wrap items-center gap-4 text-sm"
             >
-              <span className="flex items-center gap-1 bg-white/20 px-3 py-1 rounded-full">
-                <Users size={14} /> {getUserBatch()}
-              </span>
               {userData?.email && (
                 <span className="flex items-center gap-1">
                   📧 {userData.email}
@@ -559,9 +556,6 @@ const DashboardHome = () => {
                         <h3 className="font-semibold text-gray-800 truncate group-hover:text-cyan-700">
                           {course.courseTitle}
                         </h3>
-                        <p className="text-xs text-gray-500 truncate">
-                          {course.educator || "Instructor"} • {calculateCourseDuration(course)}
-                        </p>
                       </div>
                       <span className={`text-xs px-3 py-1 rounded-full font-medium ml-2 flex-shrink-0 ${
                         progress === 100 
@@ -576,7 +570,7 @@ const DashboardHome = () => {
                     
                     <div className="mb-2">
                       <div className="flex items-center justify-between text-sm text-gray-600 mb-1">
-                        <span>Progress ({completedLectures}/{totalLectures} lectures)</span>
+                        <span>Progress</span>
                         <span className="font-semibold">{progress}%</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
@@ -590,14 +584,6 @@ const DashboardHome = () => {
                     </div>
                     
                     <div className="flex items-center justify-between text-xs text-gray-500">
-                      <div className="flex items-center gap-3">
-                        <span className="flex items-center gap-1">
-                          <PlayCircle size={12} /> {course.courseContent?.length || 0} chapters
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Users size={12} /> {course.enrolledStudents?.length || 0} students
-                        </span>
-                      </div>
                       <div className="flex items-center gap-3">
                         <button
                           onClick={() => navigate("/player/" + course._id)}
@@ -750,7 +736,6 @@ const DashboardHome = () => {
             <div>
               <h3 className="text-xl font-bold mb-2">Learning Summary</h3>
               <p className="text-cyan-100">
-                You've completed {stats.completedTasks} lectures out of {stats.completedTasks + stats.pendingTasks} total lectures.
                 {stats.progress >= 80 && " Keep up the excellent work! 💪"}
                 {stats.progress >= 50 && stats.progress < 80 && " Great progress so far! ✨"}
                 {stats.progress < 50 && " Every step counts, keep going! 🚀"}

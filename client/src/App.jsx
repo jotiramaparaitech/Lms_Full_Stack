@@ -109,7 +109,7 @@ const AppContent = ({ isEducatorRoute, isEducator }) => {
         <Route path="/AllTestimonials" element={<AllTestimonials />} />
        
         {/* ✅ Student Dashboard Route */}
-         <Route path="/student/dashboard" element={<StudentDashboard />} />
+         <Route path="/student/dashboard/*" element={<StudentDashboard />} />
          <Route path="/student/projects" element={<MyProjects />} />
          <Route path="/student/tests" element={<Tests />} />
          <Route path="/student/certificates" element={<Certificates />} />

@@ -34,7 +34,7 @@ educatorRouter.post(
     { name: "image", maxCount: 1 },
     { name: "pdfs", maxCount: 10 },
   ]),
-  addCourse
+  addCourse,
 );
 
 // -----------------------------
@@ -57,7 +57,7 @@ educatorRouter.put(
     { name: "image", maxCount: 1 },
     { name: "pdfs", maxCount: 10 },
   ]),
-  updateCourse
+  updateCourse,
 );
 
 // -----------------------------
@@ -76,7 +76,7 @@ educatorRouter.get("/dashboard", requireAuth(), educatorDashboardData);
 educatorRouter.get(
   "/enrolled-students",
   requireAuth(),
-  getEnrolledStudentsData
+  getEnrolledStudentsData,
 );
 
 // -----------------------------
@@ -85,7 +85,7 @@ educatorRouter.get(
 educatorRouter.delete(
   "/remove-student/:courseId/:studentId",
   requireAuth(),
-  removeStudentAccess
+  removeStudentAccess,
 );
 
 // -----------------------------
@@ -96,6 +96,7 @@ educatorRouter.get("/all-students", requireAuth(), getAllStudents);
 // -----------------------------
 // Assign Course to Student
 // -----------------------------
+educatorRouter.post("/assign-course", requireAuth(), assignCourse);
 
 // -----------------------------
 // Assign Team Leader

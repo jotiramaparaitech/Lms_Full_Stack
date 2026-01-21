@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import SideBar from "../../components/educator/SideBar";
 import Navbar from "../../components/educator/Navbar";
 import Footer from "../../components/educator/Footer";
@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 const Educator = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const location = useLocation();
 
   const toggleSidebar = (state) => {
     if (typeof state === "boolean") setIsSidebarOpen(state);
