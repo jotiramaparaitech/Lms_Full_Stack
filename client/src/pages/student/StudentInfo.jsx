@@ -57,32 +57,6 @@ const StudentInfo = () => {
     }
   };
 
-  const updateProjectName = async (studentId, projectName) => {
-    try {
-      const token = await getToken();
-
-      const res = await axios.put(
-        `${backendUrl}/api/teams/update-progress`,
-        {
-          studentId,
-          projectName,
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      if (res.data.success) {
-        toast.success("Project updated ✅");
-        fetchStudentInfo();
-      } else {
-        toast.error(res.data.message || "Update failed");
-      }
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Update failed");
-    }
-  };
-
   useEffect(() => {
     if (isTeamLeader) fetchStudentInfo();
   }, [isTeamLeader]);
@@ -118,32 +92,45 @@ const StudentInfo = () => {
                 key={s.userId}
                 className="bg-white shadow rounded-xl p-5 border border-gray-200"
               >
+                {/* Student Name */}
                 <h2 className="text-lg font-semibold text-gray-900">
-                    Student:{" "}
-                    <span className="text-lg font-normal text-gray-700">
-                      {s.name}
-                    </span>
-                  </h2>
-                  
-                  {s.email && (
-                    <p className="text-xs text-gray-500 mt-1">{s.email}</p>
+                  Student:{" "}
+                  <span className="text-lg font-normal text-gray-700">
+                    {s.name}
+                  </span>
+                </h2>
+
+                {/* Email */}
+                {s.email && (
+                  <p className="text-xs text-gray-500 mt-1">{s.email}</p>
+                )}
+
+                {/* ✅ Auto Enrolled Projects */}
+                <div className="mt-4">
+                  <p className="text-sm font-medium text-gray-700">
+                    Enrolled Project(s)
+                  </p>
+
+                  {s.projects?.length > 0 ? (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {s.projects.map((p, idx) => (
+                        <span
+                          key={idx}
+                          className="px-3 py-1 rounded-full text-xs font-medium bg-cyan-50 text-cyan-700 border border-cyan-100"
+                        >
+                          {p}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-sm text-gray-500">
+                      No project assigned
+                    </p>
                   )}
-
-
-                <div className="mt-3">
-                  <label className="text-sm font-medium text-gray-700">
-                    Project Name
-                  </label>
-                  <input
-                    type="text"
-                    defaultValue={s.projectName || ""}
-                    placeholder="Enter project name"
-                    className="mt-1 w-full border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-cyan-400"
-                    onBlur={(e) => updateProjectName(s.userId, e.target.value)}
-                  />
                 </div>
 
-                <div className="mt-4">
+                {/* Progress */}
+                <div className="mt-5">
                   <p className="text-sm font-medium text-gray-700">
                     Progress: {s.progress}%
                   </p>
