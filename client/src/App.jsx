@@ -50,6 +50,8 @@ import Teams from "./pages/student/apps/Teams";
 import AssignTeamLeader from "./pages/educator/AssignTeamLeader";
 import TeamLeaders from "./pages/educator/TeamLeaders";
 
+import StudentInfo from "./pages/student/StudentInfo";
+
 
 
 const App = () => {
@@ -111,6 +113,8 @@ const AppContent = ({ isEducatorRoute, isEducator }) => {
          <Route path="/student/apps/todo" element={<Todo />} />
          <Route path="/student/apps/chat" element={<Chat />} />
          <Route path="/student/apps/teams" element={<Teams />} />
+
+         <Route path="/student/student-info" element={<StudentInfo />} />
 
 
         {/* 🧑‍🏫 Educator Routes (Protected) */}

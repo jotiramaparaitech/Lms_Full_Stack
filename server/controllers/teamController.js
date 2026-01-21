@@ -15,10 +15,11 @@ export const createTeam = async (req, res) => {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    // Optional: Check if user is allowed to create teams (e.g., isTeamLeader)
     const user = await User.findById(userId);
     if (!user || !user.isTeamLeader) {
-       return res.status(403).json({ success: false, message: "Only Team Leaders can create teams" });
+      return res
+        .status(403)
+        .json({ success: false, message: "Only Team Leaders can create teams" });
     }
 
     const newTeam = await Team.create({
@@ -26,32 +27,36 @@ export const createTeam = async (req, res) => {
       description,
       banner,
       leader: userId,
-      members: [{ userId, role: "admin" }], // Leader is first member and admin
+      members: [{ userId, role: "admin" }],
     });
 
-    res.json({ success: true, team: newTeam, message: "Team created successfully" });
+    res.json({
+      success: true,
+      team: newTeam,
+      message: "Team created successfully",
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
 // -----------------------------
-// Get All Teams (Explore + My Teams)
+// Get All Teams
 // -----------------------------
 export const getTeams = async (req, res) => {
   try {
     const auth = req.auth();
     const userId = auth?.userId;
 
-    // Fetch all teams
-    // In a production app, you might want pagination and filtering
     const teams = await Team.find()
-      .populate("members.userId", "name imageUrl email") // Populate member details
-      .populate("pendingRequests", "name imageUrl email") // Populate pending requests
+      .populate("members.userId", "name imageUrl email")
+      .populate("pendingRequests", "name imageUrl email")
       .sort({ updatedAt: -1 });
 
     const formattedTeams = teams.map((team) => {
-      const isMember = team.members.some((m) => m.userId?._id === userId || m.userId === userId);
+      const isMember = team.members.some(
+        (m) => m.userId?._id === userId || m.userId === userId
+      );
       const isLeader = team.leader === userId;
       const isPending = team.pendingRequests.includes(userId);
 
@@ -80,13 +85,16 @@ export const joinTeamRequest = async (req, res) => {
     const userId = auth?.userId;
 
     const team = await Team.findById(teamId);
-    if (!team) return res.status(404).json({ success: false, message: "Team not found" });
+    if (!team)
+      return res.status(404).json({ success: false, message: "Team not found" });
 
     if (team.members.some((m) => m.userId === userId)) {
       return res.status(400).json({ success: false, message: "Already a member" });
     }
     if (team.pendingRequests.includes(userId)) {
-      return res.status(400).json({ success: false, message: "Request already pending" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Request already pending" });
     }
 
     team.pendingRequests.push(userId);
@@ -99,29 +107,36 @@ export const joinTeamRequest = async (req, res) => {
 };
 
 // -----------------------------
-// Manage Join Request (Accept/Reject)
+// Manage Join Request
 // -----------------------------
 export const manageRequest = async (req, res) => {
   try {
-    const { teamId, studentId, action } = req.body; // action: 'accept' | 'reject'
+    const { teamId, studentId, action } = req.body;
     const auth = req.auth();
     const userId = auth?.userId;
 
     const team = await Team.findById(teamId);
-    if (!team) return res.status(404).json({ success: false, message: "Team not found" });
+    if (!team)
+      return res.status(404).json({ success: false, message: "Team not found" });
 
-    // Verify requester is leader or admin
-    const isAdmin = team.leader === userId || team.members.some(m => m.userId === userId && m.role === 'admin');
+    const isAdmin =
+      team.leader === userId ||
+      team.members.some((m) => m.userId === userId && m.role === "admin");
+
     if (!isAdmin) {
       return res.status(403).json({ success: false, message: "Permission denied" });
     }
 
-    if (action === 'accept') {
-      team.members.push({ userId: studentId, role: 'member' });
+    if (action === "accept") {
+      team.members.push({
+        userId: studentId,
+        role: "member",
+        progress: 0,
+        projectName: "",
+      });
     }
-    
-    // Remove from pending in both cases
-    team.pendingRequests = team.pendingRequests.filter(id => id !== studentId);
+
+    team.pendingRequests = team.pendingRequests.filter((id) => id !== studentId);
     await team.save();
 
     res.json({ success: true, message: `Request ${action}ed` });
@@ -140,10 +155,12 @@ export const sendMessage = async (req, res) => {
     const userId = auth?.userId;
 
     const team = await Team.findById(teamId);
-    if (!team) return res.status(404).json({ success: false, message: "Team not found" });
+    if (!team)
+      return res.status(404).json({ success: false, message: "Team not found" });
 
     const isMember = team.members.some((m) => m.userId === userId);
-    if (!isMember) return res.status(403).json({ success: false, message: "Not a member" });
+    if (!isMember)
+      return res.status(403).json({ success: false, message: "Not a member" });
 
     const message = await TeamMessage.create({
       teamId,
@@ -151,10 +168,9 @@ export const sendMessage = async (req, res) => {
       content,
       type,
       attachmentUrl,
-      linkData
+      linkData,
     });
 
-    // Populate sender info immediately for frontend update
     await message.populate("sender", "name imageUrl");
 
     res.json({ success: true, message });
@@ -173,14 +189,17 @@ export const getMessages = async (req, res) => {
     const userId = auth?.userId;
 
     const team = await Team.findById(teamId);
-    if (!team) return res.status(404).json({ success: false, message: "Team not found" });
-    
-    // Check membership (optional: public teams might allow reading?)
-    const isMember = team.members.some(m => m.userId === userId);
-    if (!isMember) return res.status(403).json({ success: false, message: "Join team to view messages" });
+    if (!team)
+      return res.status(404).json({ success: false, message: "Team not found" });
+
+    const isMember = team.members.some((m) => m.userId === userId);
+    if (!isMember)
+      return res
+        .status(403)
+        .json({ success: false, message: "Join team to view messages" });
 
     const messages = await TeamMessage.find({ teamId })
-      .sort({ createdAt: 1 }) // Oldest first (chat style)
+      .sort({ createdAt: 1 })
       .populate("sender", "name imageUrl");
 
     res.json({ success: true, messages });
@@ -197,52 +216,214 @@ export const deleteTeam = async (req, res) => {
     const { teamId } = req.params;
     const auth = req.auth();
     const userId = auth?.userId;
-    
+
     const team = await Team.findById(teamId);
-    if(!team) return res.status(404).json({ success: false, message: 'Team not found'});
+    if (!team)
+      return res.status(404).json({ success: false, message: "Team not found" });
 
     if (team.leader !== userId) {
-        return res.status(403).json({ success: false, message: "Only the Team Leader can delete the team"});
+      return res.status(403).json({
+        success: false,
+        message: "Only the Team Leader can delete the team",
+      });
     }
 
     await TeamMessage.deleteMany({ teamId });
     await team.deleteOne();
 
-    res.json({ success: true, message: "Team deleted successfully"});
-
+    res.json({ success: true, message: "Team deleted successfully" });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
 // -----------------------------
-// Remove Member (Kick)
+// Remove Member
 // -----------------------------
 export const removeMember = async (req, res) => {
-    try {
-        const { teamId, memberId } = req.body;
-        const auth = req.auth();
-        const userId = auth?.userId; // Requester (Leader)
+  try {
+    const { teamId, memberId } = req.body;
+    const auth = req.auth();
+    const userId = auth?.userId;
 
-        const team = await Team.findById(teamId);
-        if(!team) return res.status(404).json({ success: false, message: 'Team not found'});
+    const team = await Team.findById(teamId);
+    if (!team)
+      return res.status(404).json({ success: false, message: "Team not found" });
 
-         // Verify requester is leader
-         if (team.leader !== userId) {
-            return res.status(403).json({ success: false, message: "Permission denied" });
-        }
-
-        // Cannot remove leader
-        if (memberId === team.leader) {
-             return res.status(400).json({ success: false, message: "Cannot remove team leader" });
-        }
-
-        team.members = team.members.filter(m => m.userId !== memberId);
-        await team.save();
-
-        res.json({ success: true, message: "Member removed" });
-
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+    if (team.leader !== userId) {
+      return res.status(403).json({ success: false, message: "Permission denied" });
     }
-}
+
+    if (memberId === team.leader) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Cannot remove team leader" });
+    }
+
+    team.members = team.members.filter((m) => m.userId !== memberId);
+    await team.save();
+
+    res.json({ success: true, message: "Member removed" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// -----------------------------
+// ✅ Get Student Info (Leader Only) - UPDATED
+// -----------------------------
+export const getStudentInfo = async (req, res) => {
+  try {
+    const auth = req.auth();
+    const leaderId = auth?.userId;
+
+    if (!leaderId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    // ✅ Populate members.userId so we can get name/email/imageUrl
+    const team = await Team.findOne({ leader: leaderId }).populate(
+      "members.userId",
+      "name email imageUrl"
+    );
+
+    if (!team) {
+      return res.status(404).json({
+        success: false,
+        message: "You are not a team leader or no team found",
+      });
+    }
+
+    const students = team.members
+      .filter((m) => {
+        // Remove leader itself
+        const memberId = m.userId?._id || m.userId;
+        return memberId !== leaderId;
+      })
+      .map((m) => ({
+        userId: m.userId?._id || m.userId,
+        name: m.userId?.name || "Unknown",
+        email: m.userId?.email || "",
+        imageUrl: m.userId?.imageUrl || "",
+        role: m.role,
+        progress: m.progress ?? 0,
+        projectName: m.projectName ?? "",
+      }));
+
+    return res.json({
+      success: true,
+      teamId: team._id,
+      students,
+    });
+  } catch (error) {
+    console.log("❌ getStudentInfo error:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// -----------------------------
+// Update Student Progress (Leader Only)
+// -----------------------------
+export const updateStudentProgress = async (req, res) => {
+  try {
+    const auth = req.auth();
+    const leaderId = auth?.userId;
+
+    const { studentId, progress, projectName } = req.body;
+
+    if (!leaderId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    if (!studentId) {
+      return res.status(400).json({ success: false, message: "studentId is required" });
+    }
+
+    const team = await Team.findOne({ leader: leaderId });
+
+    if (!team) {
+      return res.status(404).json({
+        success: false,
+        message: "Team not found for this leader",
+      });
+    }
+
+    const memberIndex = team.members.findIndex((m) => m.userId === studentId);
+
+    if (memberIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: "Student not found in your team",
+      });
+    }
+
+    if (progress !== undefined) {
+      const numProgress = Number(progress);
+
+      if (Number.isNaN(numProgress) || numProgress < 0 || numProgress > 100) {
+        return res.status(400).json({
+          success: false,
+          message: "Progress must be a number between 0 and 100",
+        });
+      }
+
+      team.members[memberIndex].progress = numProgress;
+    }
+
+    if (projectName !== undefined) {
+      team.members[memberIndex].projectName = projectName;
+    }
+
+    await team.save();
+
+    return res.json({
+      success: true,
+      message: "Student progress updated successfully",
+    });
+  } catch (error) {
+    console.log("❌ updateStudentProgress error:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// -----------------------------
+// Get My Team Progress
+// -----------------------------
+export const getMyTeamProgress = async (req, res) => {
+  try {
+    const auth = req.auth();
+    const userId = auth?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    const team = await Team.findOne({
+      $or: [{ leader: userId }, { "members.userId": userId }],
+    });
+
+    if (!team) {
+      return res.json({
+        success: true,
+        teamId: null,
+        progress: 0,
+        projectName: "",
+        isLeader: false,
+      });
+    }
+
+    const isLeader = team.leader === userId;
+    const member = team.members.find((m) => m.userId === userId);
+
+    return res.json({
+      success: true,
+      teamId: team._id,
+      progress: member?.progress ?? 0,
+      projectName: member?.projectName ?? "",
+      isLeader,
+    });
+  } catch (error) {
+    console.log("❌ getMyTeamProgress error:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
