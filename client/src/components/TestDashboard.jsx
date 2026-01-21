@@ -61,12 +61,14 @@ const TestDashboard = ({
       initial={{ opacity: 0 }} 
       animate={{ opacity: 1 }} 
       exit={{ opacity: 0 }}
-      className="space-y-8 w-full max-w-full overflow-hidden" // Added overflow-hidden to prevent horizontal scroll
+      // Adjusted spacing for mobile (space-y-6) vs desktop (space-y-8)
+      className="space-y-6 md:space-y-8 w-full max-w-full overflow-hidden pb-8" 
     >
       
       {/* --- Section A: Active Projects --- */}
       {enrolledCourses.length > 0 && (
-        <div className="bg-white/50 backdrop-blur-sm rounded-2xl border border-gray-200/60 p-6 shadow-sm">
+        // Adjusted padding: p-4 for mobile, md:p-6 for desktop
+        <div className="bg-white/50 backdrop-blur-sm rounded-2xl border border-gray-200/60 p-4 md:p-6 shadow-sm">
           <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
             <span className="text-xl">📂</span> Active Projects
           </h2>
@@ -75,25 +77,25 @@ const TestDashboard = ({
               const currentProjectDifficulty = projectDifficulties[course.courseTitle] || "Medium";
 
               return (
-                <div key={index} className="group bg-white rounded-xl border border-gray-200 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:shadow-md hover:border-blue-300 transition-all duration-300">
+                <div key={index} className="group bg-white rounded-xl border border-gray-200 p-3 md:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:shadow-md hover:border-blue-300 transition-all duration-300">
                   
                   {/* Course Info */}
-                  <div className="flex items-center gap-4 min-w-0"> {/* min-w-0 prevents text overflow */}
-                    <div className="w-14 h-14 rounded-lg overflow-hidden bg-gray-100 shadow-sm flex-shrink-0">
+                  <div className="flex items-center gap-3 md:gap-4 min-w-0"> 
+                    <div className="w-12 h-12 md:w-14 md:h-14 rounded-lg overflow-hidden bg-gray-100 shadow-sm flex-shrink-0">
                       <img src={course.courseThumbnail} alt={course.courseTitle} className="w-full h-full object-cover" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h3 className="font-bold text-gray-900 truncate group-hover:text-blue-700 transition-colors">
+                      <h3 className="font-bold text-gray-900 truncate text-sm md:text-base group-hover:text-blue-700 transition-colors">
                         {course.courseTitle}
                       </h3>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs font-semibold bg-blue-50 text-blue-600 px-2 py-0.5 rounded">Enrolled</span>
+                        <span className="text-[10px] md:text-xs font-semibold bg-blue-50 text-blue-600 px-2 py-0.5 rounded">Enrolled</span>
                       </div>
                     </div>
                   </div>
                   
                   {/* Actions */}
-                  <div className="flex items-center gap-3 w-full sm:w-auto">
+                  <div className="flex items-center gap-2 md:gap-3 w-full sm:w-auto mt-1 sm:mt-0">
                     <select 
                       value={currentProjectDifficulty}
                       disabled={isLimitReached || loading}
@@ -101,7 +103,8 @@ const TestDashboard = ({
                         ...projectDifficulties,
                         [course.courseTitle]: e.target.value
                       })}
-                      className="flex-1 sm:flex-none sm:w-32 px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer hover:bg-gray-100 transition-colors"
+                      // Adjusted padding and width for mobile
+                      className="flex-1 sm:flex-none w-full sm:w-32 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer hover:bg-gray-100 transition-colors"
                     >
                       <option value="Basic">Basic</option>
                       <option value="Medium">Medium</option>
@@ -111,7 +114,7 @@ const TestDashboard = ({
                     <button
                       onClick={() => handleGenerate(course.courseTitle, "Project Assessment", currentProjectDifficulty)}
                       disabled={isLimitReached || loading}
-                      className={`flex-1 sm:flex-none px-6 py-2.5 rounded-lg font-semibold text-sm transition-all flex items-center justify-center gap-2 whitespace-nowrap ${
+                      className={`flex-1 sm:flex-none px-4 md:px-6 py-2 md:py-2.5 rounded-lg font-semibold text-sm transition-all flex items-center justify-center gap-2 whitespace-nowrap ${
                         isLimitReached || loading
                         ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                         : "bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg active:scale-95"
@@ -129,11 +132,13 @@ const TestDashboard = ({
       )}
 
       {/* --- Section B: Custom Test & History --- */}
-      <div className="grid lg:grid-cols-3 gap-6">
+      {/* Changed to single column on mobile, 3 cols on large screens */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Custom Test Card */}
-        <div className="lg:col-span-1 min-w-0">
-          <div className={`bg-white rounded-2xl border border-gray-200 p-6 shadow-sm sticky top-6 ${isLimitReached ? 'opacity-70 grayscale-[0.5]' : ''}`}>
+        <div className="lg:col-span-1 min-w-0 order-1">
+          {/* Removed sticky for mobile (relative), sticky only on lg screens */}
+          <div className={`bg-white rounded-2xl border border-gray-200 p-5 md:p-6 shadow-sm relative lg:sticky lg:top-6 ${isLimitReached ? 'opacity-70 grayscale-[0.5]' : ''}`}>
             <div className="flex items-center gap-2 mb-6">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/30 flex-shrink-0">⚡</div>
               <div>
@@ -283,8 +288,9 @@ const TestDashboard = ({
         </div>
 
         {/* History List */}
-        <div className="lg:col-span-2 w-full min-w-0">
-          <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm w-full">
+        <div className="lg:col-span-2 w-full min-w-0 order-2">
+          {/* Adjusted padding for mobile */}
+          <div className="bg-white rounded-2xl border border-gray-200 p-4 md:p-6 shadow-sm w-full">
             <h3 className="font-bold text-gray-800 mb-6">Recent History</h3>
             {history.length === 0 ? (
               <div className="text-center py-12 border-2 border-dashed border-gray-100 rounded-xl">
@@ -293,9 +299,10 @@ const TestDashboard = ({
             ) : (
               <div className="space-y-3">
                 {history.map((test, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-4 bg-gray-50 hover:bg-white border border-transparent hover:border-gray-200 rounded-xl transition-all w-full">
-                    <div className="flex items-center gap-4 flex-1 min-w-0">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${
+                  // Adjusted padding and hover state
+                  <div key={idx} className="flex items-center justify-between p-3 md:p-4 bg-gray-50 hover:bg-white border border-transparent hover:border-gray-200 rounded-xl transition-all w-full">
+                    <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
+                      <div className={`w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center font-bold text-xs md:text-sm flex-shrink-0 ${
                         test.percentage >= 80 ? 'bg-green-100 text-green-700' : 
                         test.percentage >= 50 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
                       }`}>
@@ -306,7 +313,7 @@ const TestDashboard = ({
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className="text-xs text-gray-500 truncate">{test.topic}</span>
                           {test.difficulty && (
-                            <span className="text-[10px] px-1.5 py-0.5 bg-gray-200 rounded text-gray-600 uppercase flex-shrink-0">
+                            <span className="text-[10px] px-1.5 py-0.5 bg-gray-200 rounded text-gray-600 uppercase flex-shrink-0 sm:inline-block">
                               {test.difficulty}
                             </span>
                           )}
@@ -314,10 +321,10 @@ const TestDashboard = ({
                       </div>
                     </div>
                     <div className="text-right flex-shrink-0 ml-2">
-                      <p className="text-xs font-medium text-gray-400 whitespace-nowrap">
+                      <p className="text-[10px] md:text-xs font-medium text-gray-400 whitespace-nowrap">
                         {new Date(test.attemptDate).toLocaleDateString()}
                       </p>
-                      <p className="text-xs text-gray-500 mt-0.5 whitespace-nowrap">
+                      <p className="text-[10px] md:text-xs text-gray-500 mt-0.5 whitespace-nowrap">
                         {test.score}/{test.total} correct
                       </p>
                     </div>

@@ -8,7 +8,8 @@ import { clerkMiddleware, requireAuth } from "@clerk/express";
 import { clerkWebhooks } from "./controllers/webhooks.js"; // Stripe removed
 import educatorRouter from "./routes/educatorRoutes.js";
 import courseRouter from "./routes/courseRoute.js";
-
+// ✅ CORRECT
+import admin from "./configs/firebase.js";
 // ⬅️ NEW — Razorpay Route
 import razorpayRoute from "./routes/razorpayRoute.js";
 
@@ -20,7 +21,7 @@ import todoRouter from "./routes/todoRoutes.js";
 
 import calendarRouter from "./routes/calendarEventRoutes.js";
 
-
+import notificationRoutes from './routes/notificationRoutes.js'; // ✅ Correct
 
 // Initialize Express
 const app = express();
@@ -109,6 +110,9 @@ app.use("/api/user", express.json(), requireAuth(), userRouter);
 // Calendar
 app.use("/api/calendar-event", express.json(), calendarRouter);
 
+// We add express.json() so we can read the body
+// We add requireAuth() so only logged-in users can save tokens
+app.use('/api/notifications', express.json(), notificationRoutes);
 
 // Start server
 const PORT = process.env.PORT || 5000;

@@ -52,6 +52,8 @@ import TeamLeaders from "./pages/educator/TeamLeaders";
 
 import StudentInfo from "./pages/student/StudentInfo";
 
+// 🔥 IMPORT THE CUSTOM HOOK
+import usePushNotification from "./hooks/usePushNotification";
 
 
 const App = () => {
@@ -69,6 +71,11 @@ const AppContent = ({ isEducatorRoute, isEducator }) => {
   const { isAllProjectsOpen, setIsAllProjectsOpen } =
     useContext(AllProjectsContext);
 
+
+    // 🔥 CALL THE HOOK HERE (One line only)
+  usePushNotification();
+
+  
   return (
     <div className="text-default min-h-screen bg-white relative">
       <ToastContainer />
