@@ -270,7 +270,7 @@ export const removeMember = async (req, res) => {
 };
 
 // -----------------------------
-// ✅ Get Student Info (Leader Only) - UPDATED
+// Get Student Info (Leader Only)
 // -----------------------------
 export const getStudentInfo = async (req, res) => {
   try {
@@ -281,11 +281,8 @@ export const getStudentInfo = async (req, res) => {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    // ✅ Populate members.userId so we can get name/email/imageUrl
-    const team = await Team.findOne({ leader: leaderId }).populate(
-      "members.userId",
-      "name email imageUrl"
-    );
+    // Find team where this user is leader
+    const team = await Team.findOne({ leader: leaderId });
 
     if (!team) {
       return res.status(404).json({
@@ -294,21 +291,38 @@ export const getStudentInfo = async (req, res) => {
       });
     }
 
+    // Get all member IDs except leader
+    const studentIds = team.members
+      .filter((m) => m.userId !== leaderId)
+      .map((m) => m.userId);
+
+    // Fetch student user details + populate enrolledCourses
+    const users = await User.find({ _id: { $in: studentIds } })
+      .populate("enrolledCourses", "courseTitle")
+      .lean();
+
+    // Convert user list into map for fast lookup
+    const userMap = new Map();
+    users.forEach((u) => userMap.set(u._id, u));
+
+    // Format response for frontend
     const students = team.members
-      .filter((m) => {
-        // Remove leader itself
-        const memberId = m.userId?._id || m.userId;
-        return memberId !== leaderId;
-      })
-      .map((m) => ({
-        userId: m.userId?._id || m.userId,
-        name: m.userId?.name || "Unknown",
-        email: m.userId?.email || "",
-        imageUrl: m.userId?.imageUrl || "",
-        role: m.role,
-        progress: m.progress ?? 0,
-        projectName: m.projectName ?? "",
-      }));
+      .filter((m) => m.userId !== leaderId)
+      .map((m) => {
+        const user = userMap.get(m.userId);
+
+        return {
+          userId: m.userId,
+          name: user?.name || "Unknown Student",
+          email: user?.email || "",
+          imageUrl: user?.imageUrl || "",
+          role: m.role,
+          progress: m.progress ?? 0,
+
+          // ✅ AUTO PROJECT FETCH FROM ENROLLED COURSES
+          projects: (user?.enrolledCourses || []).map((c) => c.courseTitle),
+        };
+      });
 
     return res.json({
       success: true,
@@ -320,6 +334,7 @@ export const getStudentInfo = async (req, res) => {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
+
 
 // -----------------------------
 // Update Student Progress (Leader Only)
