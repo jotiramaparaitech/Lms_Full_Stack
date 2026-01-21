@@ -15,6 +15,7 @@
     "axios": "^1.7.8",
     "caniuse-lite": "^1.0.30001747",
     "cors": "^2.8.5",
+    "firebase": "^12.8.0",
     "framer-motion": "^12.23.22",
     "humanize-duration": "^3.33.1",
     "lucide-react": "^0.545.0",
