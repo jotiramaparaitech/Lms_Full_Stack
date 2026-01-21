@@ -8,7 +8,11 @@ import {
   manageRequest,
   removeMember,
   sendMessage,
+  getStudentInfo,
+  updateStudentProgress,
+  getMyTeamProgress, // ✅ NEW
 } from "../controllers/teamController.js";
+
 import { requireAuth } from "@clerk/express";
 
 const teamRouter = express.Router();
@@ -28,5 +32,12 @@ teamRouter.post("/join-request", requireAuth(), joinTeamRequest);
 // Messaging
 teamRouter.post("/message/send", requireAuth(), sendMessage);
 teamRouter.get("/messages/:teamId", requireAuth(), getMessages);
+
+// Student Info (Leader Only)
+teamRouter.get("/student-info", requireAuth(), getStudentInfo);
+teamRouter.put("/update-progress", requireAuth(), updateStudentProgress);
+
+// ✅ NEW: Student progress fetch
+teamRouter.get("/my-progress", requireAuth(), getMyTeamProgress);
 
 export default teamRouter;

@@ -32,6 +32,66 @@ export const AppContextProvider = (props) => {
   const roleRedirectedRef = useRef(false);
   const previousUserRef = useRef(null);
 
+  const [isTeamLeader, setIsTeamLeader] = useState(false);
+
+  const [teamProgress, setTeamProgress] = useState(0);
+  const [teamProjectName, setTeamProjectName] = useState("");
+
+
+  const fetchMyTeamProgress = async () => {
+  try {
+    if (!user) {
+      setTeamProgress(0);
+      setTeamProjectName("");
+      return;
+    }
+
+    const token = await getToken();
+    if (!token) return;
+
+    const res = await axios.get(`${backendUrl}/api/teams/my-progress`, {
+      headers: { Authorization: `Bearer ${token}` },
+      timeout: 8000,
+    });
+
+    if (res?.data?.success) {
+      setTeamProgress(Number(res.data.progress || 0));
+      setTeamProjectName(res.data.projectName || "");
+    }
+  } catch (error) {
+    setTeamProgress(0);
+    setTeamProjectName("");
+  }
+};
+
+
+
+  const fetchTeamLeaderStatus = async () => {
+  try {
+    if (!user) {
+      setIsTeamLeader(false);
+      return;
+    }
+
+    const token = await getToken();
+    if (!token) {
+      setIsTeamLeader(false);
+      return;
+    }
+
+    // 🔥 Use your existing API which returns isLeader
+    const res = await axios.get(`${backendUrl}/api/calendar-event/my-team-events`, {
+      headers: { Authorization: `Bearer ${token}` },
+      timeout: 8000,
+    });
+
+    setIsTeamLeader(Boolean(res?.data?.isLeader));
+  } catch (error) {
+    setIsTeamLeader(false);
+  }
+};
+
+
   // ✅ Fetch all courses (handles errors gracefully)
   const fetchAllCourses = async () => {
     try {
@@ -290,6 +350,8 @@ export const AppContextProvider = (props) => {
     const role = user.publicMetadata?.role || "student";
     fetchUserData();
     fetchUserEnrolledCourses();
+    fetchTeamLeaderStatus();
+    fetchMyTeamProgress();
 
     if (!roleRedirectedRef.current) {
       if (role === "educator" || role === "admin") navigate("/educator");
@@ -324,6 +386,11 @@ export const AppContextProvider = (props) => {
     calculateNoOfLectures,
     isEducator,
     setIsEducator,
+    isTeamLeader,
+    fetchTeamLeaderStatus,
+    teamProgress,
+    teamProjectName,
+    fetchMyTeamProgress,
   };
 
   return (
