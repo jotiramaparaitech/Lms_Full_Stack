@@ -224,6 +224,7 @@ const MyProjects = () => {
                     </div> */}
 
                     {/* Action Buttons */}
+                    {/* Action Buttons */}
                     <div className="flex gap-3">
                       <motion.button
                         whileHover={{ scale: 1.05 }}
