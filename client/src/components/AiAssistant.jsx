@@ -70,6 +70,7 @@ const COMMANDS = [
   },
 
   // --- Scroll Sections (Lower Priority) ---
+  // --- Scroll Sections (Lower Priority) ---
   {
     keywords: ["testimonial", "review"],
     type: "scroll",

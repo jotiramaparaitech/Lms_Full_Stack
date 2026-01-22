@@ -1,7 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 
-const TestResult = ({ result, topic, onReset, isMobile = false }) => {
+const TestResult = ({ result, topic, difficulty, onReset, isMobile = false }) => {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -74,7 +74,7 @@ const TestResult = ({ result, topic, onReset, isMobile = false }) => {
                    then falls back to topic.difficulty, then defaults to "Medium" 
                 */}
                 <span className="font-semibold text-gray-900 capitalize">
-                  {result.difficulty || topic.difficulty || "Medium"}
+                  {result.difficulty || difficulty || "Medium"}
                 </span>
               </div>
               <div className="flex justify-between text-sm">

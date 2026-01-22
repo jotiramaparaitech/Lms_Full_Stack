@@ -1,10 +1,7 @@
 import React, { useContext, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { AppContext } from "../../context/AppContext";
 import {
   BookOpen,
-  Clock,
-  Users,
   CheckCircle,
   PlayCircle,
   FolderOpen,
@@ -21,66 +18,15 @@ const MyProjects = () => {
     enrolledCourses,
     fetchUserEnrolledCourses,
     navigate,
-    backendUrl,
-    getToken,
-    calculateCourseDuration,
-    calculateNoOfLectures,
+    teamProgress, // ✅ MAIN PROGRESS (Leader updated)
   } = useContext(AppContext);
 
-  const [progressArray, setProgressData] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // ✅ Strip HTML tags like <p>, <br>, <strong> etc.
   const stripHtml = (html) => {
     if (!html) return "";
     return html.replace(/<[^>]*>?/gm, "").trim();
-  };
-
-  const getCourseProgress = async () => {
-    try {
-      const token = await getToken();
-      const tempProgressArray = await Promise.all(
-        enrolledCourses.map(async (course) => {
-          try {
-            const response = await fetch(
-              `${backendUrl}/api/user/get-course-progress`,
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${token}`,
-                },
-                body: JSON.stringify({ courseId: course._id }),
-              }
-            );
-            const data = await response.json();
-
-            let totalLectures = calculateNoOfLectures(course);
-            const lectureCompleted = data.progressData
-              ? data.progressData.lectureCompleted.length
-              : 0;
-
-            return {
-              totalLectures,
-              lectureCompleted,
-              progressPercent:
-                totalLectures > 0
-                  ? Math.round((lectureCompleted / totalLectures) * 100)
-                  : 0,
-            };
-          } catch (error) {
-            console.error(
-              `Error fetching progress for course ${course._id}:`,
-              error
-            );
-            return { totalLectures: 0, lectureCompleted: 0, progressPercent: 0 };
-          }
-        })
-      );
-      setProgressData(tempProgressArray);
-    } catch (error) {
-      console.error("Error fetching course progress:", error);
-    }
   };
 
   useEffect(() => {
@@ -90,19 +36,8 @@ const MyProjects = () => {
   }, [userData]);
 
   useEffect(() => {
-    if (enrolledCourses.length > 0) {
-      getCourseProgress();
-      setLoading(false);
-    } else if (enrolledCourses.length === 0) {
-      setLoading(false);
-    }
+    setLoading(false);
   }, [enrolledCourses]);
-
-  const formatDuration = (course) => {
-    const duration = calculateCourseDuration(course);
-    if (!duration) return "0h 0m";
-    return duration;
-  };
 
   const getStatusColor = (progressPercent) => {
     if (progressPercent === 100) return "bg-green-100 text-green-800";
@@ -116,13 +51,8 @@ const MyProjects = () => {
     return "Not Started";
   };
 
-  const calculateTotalLectures = (course) => {
-    return calculateNoOfLectures(course);
-  };
-
   // Handle card click - navigate to course player
   const handleCardClick = (courseId, e) => {
-    // Prevent if click is on button or action elements
     if (
       e.target.closest("button") ||
       e.target.closest(".no-click") ||
@@ -199,10 +129,7 @@ const MyProjects = () => {
         {enrolledCourses.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {enrolledCourses.map((course, index) => {
-              const progress = progressArray[index]?.progressPercent || 0;
-              const totalLectures = calculateTotalLectures(course);
-              const completedLectures =
-                progressArray[index]?.lectureCompleted || 0;
+              const progress = teamProgress ?? 0; // ✅ ONLY REAL PROGRESS
               const statusColor = getStatusColor(progress);
               const statusText = getStatusText(progress);
 
@@ -226,7 +153,10 @@ const MyProjects = () => {
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <BookOpen size={48} className="text-cyan-600 opacity-80" />
+                        <BookOpen
+                          size={48}
+                          className="text-cyan-600 opacity-80"
+                        />
                       </div>
                     )}
 
@@ -238,7 +168,7 @@ const MyProjects = () => {
                     </div>
 
                     {/* Progress Bar */}
-                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
+                    {/* <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
                       <div className="flex items-center justify-between text-white mb-2">
                         <span className="text-sm font-medium">Progress</span>
                         <span className="text-sm font-bold">{progress}%</span>
@@ -249,7 +179,7 @@ const MyProjects = () => {
                           style={{ width: `${progress}%` }}
                         ></div>
                       </div>
-                    </div>
+                    </div> */}
                   </div>
 
                   {/* Course Details */}
@@ -266,18 +196,21 @@ const MyProjects = () => {
                       )}
                     </div>
 
-                    {/* ✅ FIXED DESCRIPTION (no <p> will show now) */}
+                    {/* Description */}
                     <p className="text-gray-600 text-sm mb-4 line-clamp-2">
-                      {stripHtml(course.courseDescription || "").substring(0, 120)}
+                      {stripHtml(course.courseDescription || "").substring(
+                        0,
+                        120
+                      )}
                       {stripHtml(course.courseDescription || "").length > 120
                         ? "..."
                         : ""}
                     </p>
 
                     {/* Progress Line */}
-                    <div className="mb-4">
+                    {/* <div className="mb-4">
                       <div className="flex items-center justify-between text-sm text-gray-600 mb-1">
-                        <span>Course Progress</span>
+                        <span>Overall Progress</span>
                         <span className="font-semibold">{progress}%</span>
                       </div>
                       <Line
@@ -288,8 +221,9 @@ const MyProjects = () => {
                         trailColor="#e5e7eb"
                         className="rounded-full"
                       />
-                    </div>
+                    </div> */}
 
+                    {/* Action Buttons */}
                     {/* Action Buttons */}
                     <div className="flex gap-3">
                       <motion.button
@@ -321,13 +255,13 @@ const MyProjects = () => {
                       </motion.button>
                     </div>
 
-                    {/* Completed Lectures */}
-                    {completedLectures > 0 && (
+                    {/* Optional: Show text */}
+                    {progress > 0 && (
                       <div className="mt-4 pt-4 border-t border-gray-100">
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-gray-600 flex items-center gap-1">
                             <CheckCircle size={16} className="text-green-500" />
-                            {completedLectures} of {totalLectures} lectures completed
+                            Team Leader Progress Updated: {progress}%
                           </span>
                         </div>
                       </div>

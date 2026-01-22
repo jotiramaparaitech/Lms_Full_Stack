@@ -18,6 +18,7 @@ import {
   CalendarDays,
   MessageSquare,
   Users,
+  Info,
   CheckSquare
 } from "lucide-react";
 import { AppContext } from "../../context/AppContext";
@@ -29,35 +30,48 @@ const StudentSidebar = () => {
   const location = useLocation();
   
   // Get user data from context
-  const { userData, enrolledCourses = [] } = useContext(AppContext) || {};
+  const { userData, enrolledCourses = [], isTeamLeader, teamProgress, fetchMyTeamProgress } =
+  useContext(AppContext) || {};
 
-  const menuItems = [
-    {
-      icon: <LayoutDashboard size={20} />,
-      label: "Dashboard",
-      path: "/student/dashboard"
-    },
-    {
-      icon: <FolderKanban size={20} />,
-      label: "My Projects",
-      path: "/student/projects"
-    },
-    {
-      icon: <ClipboardList size={20} />,
-      label: "Tests & Assessments",
-      path: "/student/tests"
-    },
-    {
-      icon: <Award size={20} />,
-      label: "Certificates",
-      path: "/student/certificates"
-    },
-    {
-      icon: <TrendingUp size={20} />,
-      label: "Progress Tracker",
-      path: "/student/progress"
-    }
-  ];
+
+ const menuItems = [
+  {
+    icon: <LayoutDashboard size={20} />,
+    label: "Dashboard",
+    path: "/student/dashboard"
+  },
+  {
+    icon: <FolderKanban size={20} />,
+    label: "My Projects",
+    path: "/student/projects"
+  },
+  {
+    icon: <ClipboardList size={20} />,
+    label: "Tests & Assessments",
+    path: "/student/tests"
+  },
+  {
+    icon: <Award size={20} />,
+    label: "Certificates",
+    path: "/student/certificates"
+  },
+  {
+    icon: <TrendingUp size={20} />,
+    label: "Progress Tracker",
+    path: "/student/progress"
+  },
+
+  // ✅ NEW (ONLY leader)
+  ...(isTeamLeader
+    ? [
+        {
+          icon: <Info size={20} />,
+          label: "Student Info",
+          path: "/student/student-info",
+        },
+      ]
+    : []),
+];
 
   const appItems = [
     {
@@ -108,7 +122,12 @@ const StudentSidebar = () => {
     };
   };
 
-  const userProgress = calculateUserProgress();
+ const userProgress = {
+  progressPercentage: teamProgress ?? 0,
+  completedCourses: 0,
+  totalCourses: enrolledCourses.length,
+};
+
   const userDisplayName = userData?.name || 'Student';
   const userEmail = userData?.email || '';
   

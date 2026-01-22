@@ -1,38 +1,34 @@
-import React, { useContext, useEffect, useState } from 'react';
-import { Routes, Route, useLocation, Link } from 'react-router-dom';
+import React, { useContext, useEffect, useState } from "react";
+import { Routes, Route, useLocation } from "react-router-dom";
 import StudentSidebar from "../../components/student/StudentSidebar";
-import { 
-  BookOpen, 
-  Clock, 
-  Award, 
-  TrendingUp, 
+import {
+  BookOpen,
+  Clock,
+  Award,
+  TrendingUp,
   Users,
   FileText,
   CheckCircle,
   AlertCircle,
   Calendar,
-  Download,
   Eye,
-  Share2,
   FolderKanban,
   ClipboardList,
   PlayCircle,
   ChevronRight,
   BookMarked,
-  BarChart3,
   Target,
-  Timer,
   FolderOpen,
   ExternalLink,
-  Sparkles
-} from 'lucide-react';
+  Sparkles,
+} from "lucide-react";
 import { AppContext } from "../../context/AppContext";
 import { motion } from "framer-motion";
 
 // Placeholder pages for other sections
 const MyProjectsPage = () => {
   const { navigate } = useContext(AppContext);
-  
+
   return (
     <div className="p-6">
       <h1 className="text-3xl font-bold text-gray-800 mb-6">My Projects</h1>
@@ -60,9 +56,13 @@ const MyProjectsPage = () => {
 
 const TestsPage = () => (
   <div className="p-6">
-    <h1 className="text-3xl font-bold text-gray-800 mb-6">Tests & Assessments</h1>
+    <h1 className="text-3xl font-bold text-gray-800 mb-6">
+      Tests & Assessments
+    </h1>
     <div className="bg-white rounded-xl shadow-lg p-6">
-      <p className="text-gray-600">Your tests and assessments will appear here.</p>
+      <p className="text-gray-600">
+        Your tests and assessments will appear here.
+      </p>
     </div>
   </div>
 );
@@ -71,16 +71,22 @@ const CertificatesPage = () => (
   <div className="p-6">
     <h1 className="text-3xl font-bold text-gray-800 mb-6">Certificates</h1>
     <div className="bg-white rounded-xl shadow-lg p-6">
-      <p className="text-gray-600">Your earned certificates will appear here.</p>
+      <p className="text-gray-600">
+        Your earned certificates will appear here.
+      </p>
     </div>
   </div>
 );
 
 const ProgressPage = () => (
   <div className="p-6">
-    <h1 className="text-3xl font-bold text-gray-800 mb-6">Progress Tracker</h1>
+    <h1 className="text-3xl font-bold text-gray-800 mb-6">
+      Progress Tracker
+    </h1>
     <div className="bg-white rounded-xl shadow-lg p-6">
-      <p className="text-gray-600">Your detailed progress analytics will appear here.</p>
+      <p className="text-gray-600">
+        Your detailed progress analytics will appear here.
+      </p>
     </div>
   </div>
 );
@@ -92,88 +98,46 @@ const DashboardHome = () => {
     enrolledCourses,
     fetchUserEnrolledCourses,
     navigate,
-    backendUrl,
-    getToken,
     calculateCourseDuration,
     calculateNoOfLectures,
+
+    // ✅ Team Progress (Leader updated)
+    teamProgress,
+    fetchMyTeamProgress,
   } = useContext(AppContext);
 
   const [progressArray, setProgressData] = useState([]);
   const [recentActivities, setRecentActivities] = useState([]);
   const [loading, setLoading] = useState(true);
+
   const [stats, setStats] = useState({
     activeProjects: 0,
     completedTasks: 0,
     studyHours: 0,
     certificates: 0,
-    progress: 0,
-    pendingTasks: 0
+    pendingTasks: 0,
   });
 
-  // Fetch course progress
-  const getCourseProgress = async () => {
-    try {
-      const token = await getToken();
-      const tempProgressArray = await Promise.all(
-        enrolledCourses.map(async (course) => {
-          try {
-            const response = await fetch(
-              `${backendUrl}/api/user/get-course-progress`,
-              {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  Authorization: `Bearer ${token}`,
-                },
-                body: JSON.stringify({ courseId: course._id }),
-              }
-            );
-            const data = await response.json();
-            
-            let totalLectures = calculateNoOfLectures(course);
-            const lectureCompleted = data.progressData
-              ? data.progressData.lectureCompleted.length
-              : 0;
-            return { 
-              courseId: course._id,
-              totalLectures, 
-              lectureCompleted,
-              progressPercent: totalLectures > 0 ? Math.round((lectureCompleted / totalLectures) * 100) : 0
-            };
-          } catch (error) {
-            console.error(`Error fetching progress for course ${course._id}:`, error);
-            return { 
-              courseId: course._id,
-              totalLectures: 0, 
-              lectureCompleted: 0, 
-              progressPercent: 0 
-            };
-          }
-        })
-      );
-      setProgressData(tempProgressArray);
-      
-      // Update stats based on progress
-      updateStats(tempProgressArray, enrolledCourses);
-      
-    } catch (error) {
-      console.error("Error fetching course progress:", error);
-    }
-  };
+  // ✅ IMPORTANT: refresh teamProgress when dashboard loads
+  useEffect(() => {
+    fetchMyTeamProgress();
+  }, []);
 
   // Calculate study hours from enrolled courses
   const calculateStudyHours = () => {
     if (!enrolledCourses || enrolledCourses.length === 0) return 0;
-    
+
     let totalMinutes = 0;
-    enrolledCourses.forEach(course => {
+    enrolledCourses.forEach((course) => {
+      // your calculateCourseDuration returns "xh ym" so this is not perfect,
+      // but we keep your old logic
       totalMinutes += parseInt(calculateCourseDuration(course, true)) || 0;
     });
-    
-    return Math.round(totalMinutes / 60); // Convert minutes to hours
+
+    return Math.round(totalMinutes / 60);
   };
 
-  // Update dashboard statistics
+  // Update dashboard statistics (lecture based calculations still allowed)
   const updateStats = (progressArray, courses) => {
     if (!courses || courses.length === 0) {
       setStats({
@@ -181,190 +145,226 @@ const DashboardHome = () => {
         completedTasks: 0,
         studyHours: 0,
         certificates: 0,
-        progress: 0,
-        pendingTasks: 0
+        pendingTasks: 0,
       });
       return;
     }
 
-    // Calculate active projects (progress > 0 and < 100)
-    const activeProjects = progressArray.filter(p => 
-      p.progressPercent > 0 && p.progressPercent < 100
+    const activeProjects = progressArray.filter(
+      (p) => p.progressPercent > 0 && p.progressPercent < 100
     ).length;
 
-    // Calculate completed tasks (sum of completed lectures)
-    const completedTasks = progressArray.reduce((sum, p) => sum + p.lectureCompleted, 0);
+    const completedTasks = progressArray.reduce(
+      (sum, p) => sum + p.lectureCompleted,
+      0
+    );
 
-    // Calculate total pending tasks
-    const pendingTasks = progressArray.reduce((sum, p) => sum + (p.totalLectures - p.lectureCompleted), 0);
+    const pendingTasks = progressArray.reduce(
+      (sum, p) => sum + (p.totalLectures - p.lectureCompleted),
+      0
+    );
 
-    // Calculate overall progress
-    const overallProgress = progressArray.length > 0 
-      ? Math.round(progressArray.reduce((sum, p) => sum + p.progressPercent, 0) / progressArray.length)
-      : 0;
-
-    // Calculate study hours
     const studyHours = calculateStudyHours();
 
-    // Count certificates (courses completed 100%)
-    const certificates = progressArray.filter(p => p.progressPercent === 100).length;
+    const certificates = progressArray.filter((p) => p.progressPercent === 100)
+      .length;
 
     setStats({
       activeProjects,
       completedTasks,
       studyHours,
       certificates,
-      progress: overallProgress,
-      pendingTasks
+      pendingTasks,
     });
   };
 
-  // Fetch mock recent activities (you can replace with actual API call)
+  // Fetch course progress (lecture based) - optional
+  const getCourseProgress = async () => {
+    try {
+      // If you want to completely remove lecture-based progress, tell me.
+      // For now we keep it for cards.
+      const tempProgressArray = enrolledCourses.map((course) => {
+        const totalLectures = calculateNoOfLectures(course);
+        return {
+          courseId: course._id,
+          totalLectures,
+          lectureCompleted: 0,
+          progressPercent: 0,
+        };
+      });
+
+      setProgressData(tempProgressArray);
+      updateStats(tempProgressArray, enrolledCourses);
+    } catch (error) {
+      console.error("Error fetching course progress:", error);
+    }
+  };
+
+  // Mock recent activities
   const fetchRecentActivities = async () => {
-    // Simulate API call - replace with actual implementation
     const mockActivities = [
-      { 
-        id: 1, 
-        activity: "Assigned in new project", 
-        time: "2 hours ago", 
+      {
+        id: 1,
+        activity: "Assigned in new project",
+        time: "",
         type: "enrollment",
-        courseName: enrolledCourses[0]?.courseTitle || "New Course"
+        courseName: enrolledCourses[0]?.courseTitle || "New Course",
       },
-      { 
-        id: 2, 
-        activity: "Completed lecture", 
-        time: "1 day ago", 
-        type: "lecture",
-        lectureName: "Introduction to React"
-      },
-      { 
-        id: 3, 
-        activity: "Submitted project", 
-        time: "2 days ago", 
+      {
+        id: 3,
+        activity: "Submitted project",
+        time: "",
         type: "submission",
-        projectName: "E-Commerce Website"
+        projectName: "E-Commerce Website",
       },
-      { 
-        id: 4, 
-        activity: "Received certificate", 
-        time: "3 days ago", 
+      {
+        id: 4,
+        activity: "Received certificate",
+        time: "",
         type: "certificate",
-        certificateName: "Web Development Fundamentals"
+        certificateName: "Web Development Fundamentals",
       },
-      { 
-        id: 5, 
-        activity: "Attended live session", 
-        time: "1 week ago", 
+      {
+        id: 5,
+        activity: "Attended live session",
+        time: "",
         type: "session",
-        sessionTopic: "API Integration"
-      }
+        sessionTopic: "API Integration",
+      },
     ];
     setRecentActivities(mockActivities);
   };
 
   // Mock upcoming deadlines
   const upcomingDeadlines = [
-    { 
-      id: 1, 
-      task: "Complete Project Submission", 
-      date: "Mar 15, 2024", 
+    {
+      id: 1,
+      task: "Complete Project Submission",
+      date: "",
       priority: "high",
-      courseId: enrolledCourses[0]?._id 
+      courseId: enrolledCourses[0]?._id,
     },
-    { 
-      id: 2, 
-      task: "Mid-Term Assessment", 
-      date: "Mar 20, 2024", 
+    {
+      id: 2,
+      task: "Mid-Term Assessment",
+      date: "",
       priority: "medium",
-      courseId: enrolledCourses[0]?._id 
+      courseId: enrolledCourses[0]?._id,
     },
-    { 
-      id: 3, 
-      task: "Final Project Review", 
-      date: "Mar 25, 2024", 
+    {
+      id: 3,
+      task: "Final Project Review",
+      date: "",
       priority: "low",
-      courseId: enrolledCourses[0]?._id 
-    }
+      courseId: enrolledCourses[0]?._id,
+    },
   ];
 
   const statsCards = [
-     { 
-    title: 'Assigned Projects', 
-    value: enrolledCourses.length, // Show total enrolled count
-    icon: <BookOpen size={24} />, 
-    color: 'bg-gradient-to-r from-blue-500 to-cyan-500',
-    // FIX: Change the logic here
-    change: enrolledCourses.length > 0 
-      ? stats.activeProjects > 0 
-        ? `${stats.activeProjects} in progress` 
-        : 'Not started yet'
-      : 'No projects yet'
-  },
-    { 
-      title: 'Completed Work', 
-      value: stats.completedTasks, 
-      icon: <CheckCircle size={24} />, 
-      color: 'bg-gradient-to-r from-green-500 to-emerald-500',
-      change: stats.completedTasks > 0 ? `${Math.round((stats.completedTasks / (stats.completedTasks + stats.pendingTasks)) * 100) || 0}% completion rate` : 'Start learning!'
+    {
+      title: "Assigned Projects",
+      value: enrolledCourses.length,
+      icon: <BookOpen size={24} />,
+      color: "bg-gradient-to-r from-blue-500 to-cyan-500",
+      change:
+        enrolledCourses.length > 0
+          ? stats.activeProjects > 0
+            ? `${stats.activeProjects} in progress`
+            : "Not started yet"
+          : "No projects yet",
     },
-    { 
-      title: 'Study Hours', 
-      value: `${stats.studyHours}h`, 
-      icon: <Clock size={24} />, 
-      color: 'bg-gradient-to-r from-purple-500 to-pink-500',
-      change: stats.studyHours > 0 ? `+${Math.floor(stats.studyHours / 10)}h this week` : 'Track your time'
+    {
+      title: "Completed Work",
+      value: stats.completedTasks,
+      icon: <CheckCircle size={24} />,
+      color: "bg-gradient-to-r from-green-500 to-emerald-500",
+      change:
+        stats.completedTasks > 0
+          ? `${Math.round(
+              (stats.completedTasks /
+                (stats.completedTasks + stats.pendingTasks)) *
+                100
+            ) || 0}% completion rate`
+          : "Start learning!",
     },
-    { 
-      title: 'Certificates', 
-      value: stats.certificates, 
-      icon: <Award size={24} />, 
-      color: 'bg-gradient-to-r from-orange-500 to-red-500',
-      change: stats.certificates > 0 ? 'Great progress!' : 'Complete projects to earn'
+    {
+      title: "Study Hours",
+      value: `${stats.studyHours}h`,
+      icon: <Clock size={24} />,
+      color: "bg-gradient-to-r from-purple-500 to-pink-500",
+      change:
+        stats.studyHours > 0
+          ? `+${Math.floor(stats.studyHours / 10)}h this week`
+          : "Track your time",
     },
-    { 
-      title: 'Overall Progress', 
-      value: `${stats.progress}%`, 
-      icon: <TrendingUp size={24} />, 
-      color: 'bg-gradient-to-r from-indigo-500 to-blue-500',
-      change: stats.progress > 0 ? 'Keep it up!' : 'Start your first project'
+    {
+      title: "Certificates",
+      value: stats.certificates,
+      icon: <Award size={24} />,
+      color: "bg-gradient-to-r from-orange-500 to-red-500",
+      change:
+        stats.certificates > 0 ? "Great progress!" : "Complete projects to earn",
     },
-    { 
-      title: 'Pending Work', 
-      value: stats.pendingTasks, 
-      icon: <AlertCircle size={24} />, 
-      color: 'bg-gradient-to-r from-yellow-500 to-amber-500',
-      change: stats.pendingTasks > 0 ? 'Continue learning' : 'All caught up!'
-    }
+    {
+      title: "Overall Progress",
+      value: `${teamProgress || 0}%`, // ✅ REAL PROGRESS
+      icon: <TrendingUp size={24} />,
+      color: "bg-gradient-to-r from-indigo-500 to-blue-500",
+      change: (teamProgress || 0) > 0 ? "Keep it up!" : "Start your first project",
+    },
+    {
+      title: "Pending Work",
+      value: stats.pendingTasks,
+      icon: <AlertCircle size={24} />,
+      color: "bg-gradient-to-r from-yellow-500 to-amber-500",
+      change: stats.pendingTasks > 0 ? "Continue learning" : "All caught up!",
+    },
   ];
 
   const getPriorityColor = (priority) => {
-    switch(priority) {
-      case 'high': return 'bg-red-100 text-red-800';
-      case 'medium': return 'bg-yellow-100 text-yellow-800';
-      case 'low': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
+    switch (priority) {
+      case "high":
+        return "bg-red-100 text-red-800";
+      case "medium":
+        return "bg-yellow-100 text-yellow-800";
+      case "low":
+        return "bg-green-100 text-green-800";
+      default:
+        return "bg-gray-100 text-gray-800";
     }
   };
 
   const getActivityIcon = (type) => {
-    switch(type) {
-      case 'enrollment': return <BookMarked size={16} />;
-      case 'lecture': return <PlayCircle size={16} />;
-      case 'submission': return <FileText size={16} />;
-      case 'certificate': return <Award size={16} />;
-      case 'session': return <Users size={16} />;
-      default: return <CheckCircle size={16} />;
+    switch (type) {
+      case "enrollment":
+        return <BookMarked size={16} />;
+      case "lecture":
+        return <PlayCircle size={16} />;
+      case "submission":
+        return <FileText size={16} />;
+      case "certificate":
+        return <Award size={16} />;
+      case "session":
+        return <Users size={16} />;
+      default:
+        return <CheckCircle size={16} />;
     }
   };
 
   const getActivityColor = (type) => {
-    switch(type) {
-      case 'enrollment': return 'bg-green-100 text-green-600';
-      case 'lecture': return 'bg-blue-100 text-blue-600';
-      case 'submission': return 'bg-purple-100 text-purple-600';
-      case 'certificate': return 'bg-yellow-100 text-yellow-600';
-      case 'session': return 'bg-cyan-100 text-cyan-600';
-      default: return 'bg-gray-100 text-gray-600';
+    switch (type) {
+      case "enrollment":
+        return "bg-green-100 text-green-600";
+      case "lecture":
+        return "bg-blue-100 text-blue-600";
+      case "submission":
+        return "bg-purple-100 text-purple-600";
+      case "certificate":
+        return "bg-yellow-100 text-yellow-600";
+      case "session":
+        return "bg-cyan-100 text-cyan-600";
+      default:
+        return "bg-gray-100 text-gray-600";
     }
   };
 
@@ -375,25 +375,12 @@ const DashboardHome = () => {
   }, [userData]);
 
   useEffect(() => {
-    if (enrolledCourses.length > 0) {
+    if (enrolledCourses.length >= 0) {
       getCourseProgress();
       fetchRecentActivities();
       setLoading(false);
-    } else if (enrolledCourses.length === 0) {
-      setLoading(false);
     }
   }, [enrolledCourses]);
-
-  const getUserBatch = () => {
-    if (userData?.email) {
-      const domain = userData.email.split('@')[1];
-      if (domain) {
-        const orgName = domain.split('.')[0];
-        return `${orgName.charAt(0).toUpperCase() + orgName.slice(1)} Batch`;
-      }
-    }
-    return "Web Development Batch";
-  };
 
   if (loading) {
     return (
@@ -409,15 +396,16 @@ const DashboardHome = () => {
       <div className="bg-gradient-to-r from-cyan-600 to-teal-600 rounded-2xl p-6 text-white shadow-xl">
         <div className="flex flex-col md:flex-row md:items-center justify-between">
           <div>
-            <motion.h1 
+            <motion.h1
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               className="text-2xl md:text-3xl font-bold mb-2 flex items-center gap-2"
             >
-              Welcome back, {userData?.name || 'Student'}! 
+              Welcome back, {userData?.name || "Student"}!
               <Sparkles className="inline" size={24} />
             </motion.h1>
-            <motion.p 
+
+            <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.1 }}
@@ -425,14 +413,20 @@ const DashboardHome = () => {
             >
               {enrolledCourses.length > 0 ? (
                 <>
-                  You're assigned in <span className="font-bold">{enrolledCourses.length} project{enrolledCourses.length !== 1 ? 's' : ''}</span>. 
-                  Overall progress is <span className="font-bold">{stats.progress}%</span>.
+                  You're assigned in{" "}
+                  <span className="font-bold">
+                    {enrolledCourses.length} project
+                    {enrolledCourses.length !== 1 ? "s" : ""}
+                  </span>
+                  . Overall progress is{" "}
+                  <span className="font-bold">{teamProgress || 0}%</span>.
                 </>
               ) : (
                 "Get started by enrolling in your first project!"
               )}
             </motion.p>
-            <motion.div 
+
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.2 }}
@@ -444,15 +438,17 @@ const DashboardHome = () => {
                 </span>
               )}
               <span className="flex items-center gap-1">
-                <Calendar size={14} /> {new Date().toLocaleDateString('en-US', { 
-                  weekday: 'long', 
-                  month: 'short', 
-                  day: 'numeric' 
+                <Calendar size={14} />{" "}
+                {new Date().toLocaleDateString("en-US", {
+                  weekday: "long",
+                  month: "short",
+                  day: "numeric",
                 })}
               </span>
             </motion.div>
           </div>
-          <motion.div 
+
+          <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             className="mt-4 md:mt-0"
@@ -460,18 +456,21 @@ const DashboardHome = () => {
             <div className="bg-white/20 backdrop-blur-sm rounded-xl p-4">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-medium">Overall Progress</span>
-                <span className="text-lg font-bold">{stats.progress}%</span>
+                <span className="text-lg font-bold">{teamProgress || 0}%</span>
               </div>
               <div className="w-64 bg-white/30 rounded-full h-3">
-                <motion.div 
+                <motion.div
                   initial={{ width: 0 }}
-                  animate={{ width: `${stats.progress}%` }}
+                  animate={{ width: `${teamProgress || 0}%` }}
                   transition={{ duration: 1, ease: "easeOut" }}
                   className="bg-gradient-to-r from-white to-cyan-200 h-3 rounded-full"
                 ></motion.div>
               </div>
               <p className="text-xs text-cyan-100 mt-2">
-                {enrolledCourses.length} project{enrolledCourses.length !== 1 ? 's' : ''} enrolled • {stats.certificates} certificate{stats.certificates !== 1 ? 's' : ''} earned
+                {enrolledCourses.length} project
+                {enrolledCourses.length !== 1 ? "s" : ""} enrolled •{" "}
+                {stats.certificates} certificate
+                {stats.certificates !== 1 ? "s" : ""} earned
               </p>
             </div>
           </motion.div>
@@ -493,11 +492,15 @@ const DashboardHome = () => {
               <div className={`${stat.color} p-3 rounded-xl text-white shadow-md`}>
                 {stat.icon}
               </div>
-              <span className="text-xs font-medium text-gray-500">{stat.change}</span>
+              <span className="text-xs font-medium text-gray-500">
+                {stat.change}
+              </span>
             </div>
             <div>
               <p className="text-sm text-gray-500">{stat.title}</p>
-              <p className="text-2xl font-bold mt-2 text-gray-800">{stat.value}</p>
+              <p className="text-2xl font-bold mt-2 text-gray-800">
+                {stat.value}
+              </p>
             </div>
           </motion.div>
         ))}
@@ -509,7 +512,7 @@ const DashboardHome = () => {
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
               <FolderKanban size={24} className="text-cyan-600" />
-              My Projects Progress
+              My Projects
             </h2>
             <button
               onClick={() => navigate("/student/projects")}
@@ -518,16 +521,20 @@ const DashboardHome = () => {
               <Eye size={16} /> View All
             </button>
           </div>
-          
+
           {enrolledCourses.length === 0 ? (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               className="text-center py-12"
             >
               <FolderOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-600 mb-2">No Projects Enrolled Yet</h3>
-              <p className="text-gray-500 mb-4">Enroll in projects to start your learning journey</p>
+              <h3 className="text-lg font-semibold text-gray-600 mb-2">
+                No Projects Enrolled Yet
+              </h3>
+              <p className="text-gray-500 mb-4">
+                Enroll in projects to start your learning journey
+              </p>
               <button
                 onClick={() => navigate("/courses")}
                 className="inline-flex items-center gap-2 bg-gradient-to-r from-cyan-500 to-teal-500 text-white px-6 py-3 rounded-lg hover:from-cyan-600 hover:to-teal-600 transition-all"
@@ -537,82 +544,71 @@ const DashboardHome = () => {
             </motion.div>
           ) : (
             <div className="space-y-5">
-              {enrolledCourses.slice(0, 3).map((course, index) => {
-                const progress = progressArray.find(p => p.courseId === course._id)?.progressPercent || 0;
-                const completedLectures = progressArray.find(p => p.courseId === course._id)?.lectureCompleted || 0;
-                const totalLectures = calculateNoOfLectures(course);
-                
-                return (
-                  <motion.div
-                    key={course._id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    whileHover={{ x: 5 }}
-                    className="border-l-4 border-cyan-500 pl-4 py-3 hover:bg-gray-50 rounded-r-lg transition-colors group"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-gray-800 truncate group-hover:text-cyan-700">
-                          {course.courseTitle}
-                        </h3>
-                      </div>
-                      <span className={`text-xs px-3 py-1 rounded-full font-medium ml-2 flex-shrink-0 ${
-                        progress === 100 
-                          ? 'bg-green-100 text-green-800' 
-                          : progress > 0
-                          ? 'bg-blue-100 text-blue-800'
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {progress === 100 ? 'Completed' : progress > 0 ? 'In Progress' : 'Not Started'}
-                      </span>
+              {enrolledCourses.slice(0, 3).map((course, index) => (
+                <motion.div
+                  key={course._id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  whileHover={{ x: 5 }}
+                  className="border-l-4 border-cyan-500 pl-4 py-3 hover:bg-gray-50 rounded-r-lg transition-colors group"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-gray-800 truncate group-hover:text-cyan-700">
+                        {course.courseTitle}
+                      </h3>
                     </div>
-                    
-                    <div className="mb-2">
-                      <div className="flex items-center justify-between text-sm text-gray-600 mb-1">
-                        <span>Progress</span>
-                        <span className="font-semibold">{progress}%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <motion.div 
-                          initial={{ width: 0 }}
-                          animate={{ width: `${progress}%` }}
-                          transition={{ duration: 1 }}
-                          className="bg-gradient-to-r from-cyan-500 to-teal-500 h-2 rounded-full"
-                        ></motion.div>
-                      </div>
+                    <span
+                      className={`text-xs px-3 py-1 rounded-full font-medium ml-2 flex-shrink-0 ${
+                        (teamProgress || 0) === 100
+                          ? "bg-green-100 text-green-800"
+                          : (teamProgress || 0) > 0
+                          ? "bg-blue-100 text-blue-800"
+                          : "bg-gray-100 text-gray-800"
+                      }`}
+                    >
+                      {(teamProgress || 0) === 100
+                        ? "Completed"
+                        : (teamProgress || 0) > 0
+                        ? "In Progress"
+                        : "Not Started"}
+                    </span>
+                  </div>
+
+                  <div className="mb-2">
+                    <div className="flex items-center justify-between text-sm text-gray-600 mb-1">
+                      <span>Overall Progress</span>
+                      <span className="font-semibold">{teamProgress || 0}%</span>
                     </div>
-                    
-                    <div className="flex items-center justify-between text-xs text-gray-500">
-                      <div className="flex items-center gap-3">
-                        <button
-                          onClick={() => navigate("/player/" + course._id)}
-                          className="text-cyan-600 hover:text-cyan-800 flex items-center gap-1 font-medium"
-                        >
-                          <PlayCircle size={14} /> Continue
-                        </button>
-                        <button
-                          onClick={() => navigate(`/course-details/${course._id}`)}
-                          className="text-gray-600 hover:text-gray-800 flex items-center gap-1"
-                        >
-                          <ExternalLink size={14} />
-                        </button>
-                      </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${teamProgress || 0}%` }}
+                        transition={{ duration: 1 }}
+                        className="bg-gradient-to-r from-cyan-500 to-teal-500 h-2 rounded-full"
+                      ></motion.div>
                     </div>
-                  </motion.div>
-                );
-              })}
-              
-              {enrolledCourses.length > 3 && (
-                <div className="pt-4 border-t border-gray-100 text-center">
-                  <button
-                    onClick={() => navigate("/student/projects")}
-                    className="text-cyan-600 hover:text-cyan-800 font-medium text-sm flex items-center gap-1 justify-center"
-                  >
-                    View all {enrolledCourses.length} projects <ChevronRight size={16} />
-                  </button>
-                </div>
-              )}
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs text-gray-500">
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => navigate("/player/" + course._id)}
+                        className="text-cyan-600 hover:text-cyan-800 flex items-center gap-1 font-medium"
+                      >
+                        <PlayCircle size={14} /> Continue
+                      </button>
+                      <button
+                        onClick={() => navigate(`/course-details/${course._id}`)}
+                        className="text-gray-600 hover:text-gray-800 flex items-center gap-1"
+                      >
+                        <ExternalLink size={14} />
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
             </div>
           )}
         </div>
@@ -630,7 +626,7 @@ const DashboardHome = () => {
                 See All
               </button>
             </div>
-            
+
             <div className="space-y-4">
               {recentActivities.length === 0 ? (
                 <div className="text-center py-8">
@@ -645,14 +641,20 @@ const DashboardHome = () => {
                     animate={{ opacity: 1, x: 0 }}
                     className="flex items-start gap-3 pb-4 border-b border-gray-100 last:border-0 group hover:bg-gray-50 p-2 rounded-lg transition-colors"
                   >
-                    <div className={`p-2 rounded-lg ${getActivityColor(activity.type)} group-hover:scale-110 transition-transform`}>
+                    <div
+                      className={`p-2 rounded-lg ${getActivityColor(
+                        activity.type
+                      )} group-hover:scale-110 transition-transform`}
+                    >
                       {getActivityIcon(activity.type)}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-gray-800 truncate group-hover:text-cyan-700">
                         {activity.activity}
                         {activity.courseName && (
-                          <span className="text-gray-600">: {activity.courseName}</span>
+                          <span className="text-gray-600">
+                            : {activity.courseName}
+                          </span>
                         )}
                       </p>
                       <p className="text-sm text-gray-500">{activity.time}</p>
@@ -674,7 +676,7 @@ const DashboardHome = () => {
                 <Calendar size={16} /> Calendar
               </button>
             </div>
-            
+
             <div className="space-y-4">
               {upcomingDeadlines.map((deadline) => (
                 <motion.div
@@ -695,12 +697,16 @@ const DashboardHome = () => {
                       <p className="text-sm text-gray-600">{deadline.date}</p>
                     </div>
                   </div>
-                  <span className={`text-xs px-3 py-1 rounded-full font-medium ${getPriorityColor(deadline.priority)}`}>
+                  <span
+                    className={`text-xs px-3 py-1 rounded-full font-medium ${getPriorityColor(
+                      deadline.priority
+                    )}`}
+                  >
                     {deadline.priority.toUpperCase()}
                   </span>
                 </motion.div>
               ))}
-              
+
               {/* Learning Reminder */}
               <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
@@ -712,8 +718,12 @@ const DashboardHome = () => {
                     <Target size={18} />
                   </div>
                   <div>
-                    <h4 className="font-semibold text-gray-800">Daily Learning Goal</h4>
-                    <p className="text-sm text-gray-600">Stay consistent with your studies</p>
+                    <h4 className="font-semibold text-gray-800">
+                      Daily Learning Goal
+                    </h4>
+                    <p className="text-sm text-gray-600">
+                      Stay consistent with your project
+                    </p>
                   </div>
                 </div>
                 <span className="text-xs px-3 py-1 rounded-full font-medium bg-cyan-100 text-cyan-800">
@@ -727,7 +737,7 @@ const DashboardHome = () => {
 
       {/* Quick Stats Summary */}
       {enrolledCourses.length > 0 && (
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="bg-gradient-to-r from-cyan-600 to-teal-600 rounded-2xl p-6 text-white shadow-xl"
@@ -736,9 +746,11 @@ const DashboardHome = () => {
             <div>
               <h3 className="text-xl font-bold mb-2">Learning Summary</h3>
               <p className="text-cyan-100">
-                {stats.progress >= 80 && " Keep up the excellent work! 💪"}
-                {stats.progress >= 50 && stats.progress < 80 && " Great progress so far! ✨"}
-                {stats.progress < 50 && " Every step counts, keep going! 🚀"}
+                {(teamProgress || 0) >= 80 && " Keep up the excellent work! 💪"}
+                {(teamProgress || 0) >= 50 &&
+                  (teamProgress || 0) < 80 &&
+                  " Great progress so far! ✨"}
+                {(teamProgress || 0) < 50 && " Every step counts, keep going! 🚀"}
               </p>
             </div>
             <div className="mt-4 md:mt-0">
@@ -773,7 +785,7 @@ const StudentDashboard = () => {
   return (
     <div className="flex min-h-screen bg-gray-50">
       <StudentSidebar />
-      
+
       {/* Main Content */}
       <div className="flex-1 min-w-0">
         <main className="p-4 md:p-6 pt-20 lg:pt-6">

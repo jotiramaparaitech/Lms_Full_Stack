@@ -27,6 +27,8 @@ const Tests = () => {
   const [history, setHistory] = useState([]); 
   const [topic, setTopic] = useState({ domain: "", subtopic: "" });
   const [difficulty, setDifficulty] = useState("Medium");
+  const [selectedDifficulty, setSelectedDifficulty] = useState("Medium");
+
   
   // Test Data
   const [questions, setQuestions] = useState([]);
@@ -83,57 +85,60 @@ const Tests = () => {
 
   // --- ACTIONS ---
   const handleGenerate = async (
-    selectedDomain = topic.domain, 
-    selectedTopic = topic.subtopic,
-    selectedDifficulty = difficulty 
-  ) => {
-    if (!selectedDomain) {
-      toast.error("Please select a domain");
-      return;
-    }
+  selectedDomain = topic.domain, 
+  selectedTopic = topic.subtopic,
+  diff = difficulty 
+) => {
+  if (!selectedDomain) {
+    toast.error("Please select a domain");
+    return;
+  }
 
-    if (dailyCount >= maxDailyLimit) {
-      toast.error(`Daily limit of ${maxDailyLimit} tests reached`);
-      return;
-    }
-    
-    setLoading(true);
-    setPhase("loading");
-    
-    try {
-      const finalTopic = selectedTopic || "general assessment";
-      const token = await getToken();
-      const { data } = await axios.post(
-        `${backendUrl}/api/assessment/generate`,
-        { 
-            domain: selectedDomain, 
-            topic: finalTopic,
-            difficulty: selectedDifficulty 
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      
-      setTopic({ domain: selectedDomain, subtopic: finalTopic });
-      setQuestions(data.data);
-      setPhase("testing");
-      
-      if (data.isFallback) {
-        toast('Serving from backup question bank', { 
-          icon: '📂',
-          position: isMobile ? 'top-center' : 'top-right'
-        });
-      }
+  if (dailyCount >= maxDailyLimit) {
+    toast.error(`Daily limit of ${maxDailyLimit} tests reached`);
+    return;
+  }
 
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to generate test.", {
+  setSelectedDifficulty(diff); // ✅ freeze difficulty
+
+  setLoading(true);
+  setPhase("loading");
+  
+  try {
+    const finalTopic = selectedTopic || "general assessment";
+    const token = await getToken();
+    const { data } = await axios.post(
+      `${backendUrl}/api/assessment/generate`,
+      { 
+        domain: selectedDomain, 
+        topic: finalTopic,
+        difficulty: diff 
+      },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    
+    setTopic({ domain: selectedDomain, subtopic: finalTopic });
+    setQuestions(data.data);
+    setPhase("testing");
+    
+    if (data.isFallback) {
+      toast('Serving from backup question bank', { 
+        icon: '📂',
         position: isMobile ? 'top-center' : 'top-right'
       });
-      setPhase("dashboard");
-    } finally {
-      setLoading(false);
     }
-  };
+
+  } catch (error) {
+    console.error(error);
+    toast.error("Failed to generate test.", {
+      position: isMobile ? 'top-center' : 'top-right'
+    });
+    setPhase("dashboard");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const handleSubmit = async () => {
     const submissionData = questions.map((q, idx) => ({
@@ -257,7 +262,7 @@ const Tests = () => {
           {phase === "loading" && (
              <LoadingView 
                 key="loading" 
-                difficulty={difficulty} 
+                difficulty={selectedDifficulty}  
                 domain={topic.domain} 
                 isMobile={isMobile}
              />
@@ -275,13 +280,14 @@ const Tests = () => {
               onCancel={() => setPhase("dashboard")}
               isMobile={isMobile}
             />
-          )}
+          )}  
 
           {phase === "result" && result && (
             <TestResult 
               key="result"
               result={result}
               topic={topic}
+              difficulty={selectedDifficulty}
               onReset={resetTest}
               isMobile={isMobile}
             />
