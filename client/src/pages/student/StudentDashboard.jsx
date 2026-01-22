@@ -206,35 +206,28 @@ const DashboardHome = () => {
       {
         id: 1,
         activity: "Assigned in new project",
-        time: "2 hours ago",
+        time: "",
         type: "enrollment",
         courseName: enrolledCourses[0]?.courseTitle || "New Course",
       },
       {
-        id: 2,
-        activity: "Completed lecture",
-        time: "1 day ago",
-        type: "lecture",
-        lectureName: "Introduction to React",
-      },
-      {
         id: 3,
         activity: "Submitted project",
-        time: "2 days ago",
+        time: "",
         type: "submission",
         projectName: "E-Commerce Website",
       },
       {
         id: 4,
         activity: "Received certificate",
-        time: "3 days ago",
+        time: "",
         type: "certificate",
         certificateName: "Web Development Fundamentals",
       },
       {
         id: 5,
         activity: "Attended live session",
-        time: "1 week ago",
+        time: "",
         type: "session",
         sessionTopic: "API Integration",
       },
@@ -247,21 +240,21 @@ const DashboardHome = () => {
     {
       id: 1,
       task: "Complete Project Submission",
-      date: "Mar 15, 2024",
+      date: "",
       priority: "high",
       courseId: enrolledCourses[0]?._id,
     },
     {
       id: 2,
       task: "Mid-Term Assessment",
-      date: "Mar 20, 2024",
+      date: "",
       priority: "medium",
       courseId: enrolledCourses[0]?._id,
     },
     {
       id: 3,
       task: "Final Project Review",
-      date: "Mar 25, 2024",
+      date: "",
       priority: "low",
       courseId: enrolledCourses[0]?._id,
     },
@@ -729,7 +722,7 @@ const DashboardHome = () => {
                       Daily Learning Goal
                     </h4>
                     <p className="text-sm text-gray-600">
-                      Stay consistent with your studies
+                      Stay consistent with your project
                     </p>
                   </div>
                 </div>
