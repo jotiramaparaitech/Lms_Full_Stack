@@ -1,9 +1,7 @@
 import Ticket from "../models/Ticket.js";
 import { ensureUserExists } from "./userController.js";
 
-// ✅ NEW IMPORTS FOR NOTIFICATIONS
-import DeviceToken from "../models/DeviceToken.js";
-import admin from "../configs/firebase.js";
+import { sendNotification } from "../utils/notificationService.js";
 
 /**
  * @desc    Student creates a support ticket
@@ -102,32 +100,12 @@ export const markTicketSolved = async (req, res) => {
     ticket.status = "solved";
     await ticket.save();
 
-    // ======================================================
-    // 🔔 START: NOTIFICATION LOGIC (UPDATED)
-    // ======================================================
-    try {
-      // 1. Find the student's device token
-      const userDevice = await DeviceToken.findOne({ userId: ticket.userId });
-
-      // 2. Send Notification if token exists
-      if (userDevice && userDevice.token) {
-        await admin.messaging().send({
-          token: userDevice.token,
-          // ✅ CHANGED: We use 'data' so your Service Worker handles the UI
-          data: {
-            title: "Ticket Resolved ✅",
-            body: `Your ticket regarding "${ticket.query.substring(0, 20)}..." has been resolved.`,
-          }
-        });
-        console.log(`✅ Data notification sent to user ${ticket.userId}`);
-      }
-    } catch (notifError) {
-      // We log the error but don't stop the request
-      console.error("⚠️ Failed to send notification:", notifError);
-    }
-    // ======================================================
-    // 🔔 END: NOTIFICATION LOGIC
-    // ======================================================
+    // ✅ ADD THIS SINGLE LINE
+    sendNotification(
+      ticket.userId, 
+      "Ticket Resolved ✅", 
+      `Your ticket regarding "${ticket.query.substring(0, 20)}..." has been resolved.`
+    );
 
     res.status(200).json({
       success: true,

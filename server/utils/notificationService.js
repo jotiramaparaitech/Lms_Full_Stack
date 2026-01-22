@@ -1,26 +1,29 @@
-// utils/notificationService.js
-import admin from "../config/firebase.js"; // ✅ Fixed: Use 'import' and add .js
+// ✅ Switch to "import" to match your Controller's style
+import admin from "../configs/firebase.js"; // Check if folder is 'config' or 'configs'
+import DeviceToken from "../models/DeviceToken.js";
 
 /**
- * Sends a push notification to a specific device token.
- * Uses "data-only" payload so the Service Worker handles the UI.
+ * Finds the user's device token and sends a notification.
+ * @param {string} userId - The Clerk User ID
+ * @param {string} title - The notification title
+ * @param {string} body - The notification body
  */
-const sendNotification = async (token, title, body, extraData = {}) => {
+export const sendNotification = async (userId, title, body) => {
   try {
-    await admin.messaging().send({
-      token: token,
-      // ✅ Fixed: Use 'data' instead of 'notification'
-      // This ensures your Service Worker (onBackgroundMessage) actually runs.
-      data: {
-        title: title,
-        body: body,
-        ...extraData        // Allow passing a URL or Ticket ID
-      }
-    });
-    console.log("✅ Notification Sent!");
+    // 1. Find the token internally (keeps your controller clean)
+    const userDevice = await DeviceToken.findOne({ userId });
+
+    // 2. Send only if token exists
+    if (userDevice && userDevice.token) {
+      await admin.messaging().send({
+        token: userDevice.token,
+        // Using 'data' is usually better for custom handling in frontend background workers
+        data: { title, body }, 
+      });
+      console.log(`✅ Notification sent to ${userId}`);
+    }
   } catch (error) {
-    console.error("❌ Failed to send notification:", error);
+    // Log error but don't crash the app
+    console.error("⚠️ Notification Error:", error.message);
   }
 };
-
-export default sendNotification;

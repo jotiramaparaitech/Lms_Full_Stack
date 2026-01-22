@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 const TestResult = ({ result, topic, onReset, isMobile = false }) => {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }} 
+      initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className={`${isMobile ? 'w-full' : 'max-w-md'} mx-auto px-2 sm:px-0`}
     >
@@ -69,7 +69,13 @@ const TestResult = ({ result, topic, onReset, isMobile = false }) => {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Difficulty</span>
-                <span className="font-semibold text-gray-900 capitalize">{topic.difficulty || "Medium"}</span>
+                {/* UPDATED LINE BELOW: 
+                   Checks result.difficulty first (matches Dashboard history logic), 
+                   then falls back to topic.difficulty, then defaults to "Medium" 
+                */}
+                <span className="font-semibold text-gray-900 capitalize">
+                  {result.difficulty || topic.difficulty || "Medium"}
+                </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Time</span>
