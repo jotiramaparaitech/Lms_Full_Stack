@@ -30,7 +30,7 @@ const StudentSidebar = () => {
   const location = useLocation();
   
   // Get user data from context
-  const { userData, enrolledCourses = [], isTeamLeader, teamProgress } =
+  const { userData, enrolledCourses = [], isTeamLeader, teamProgress, fetchMyTeamProgress } =
   useContext(AppContext) || {};
 
 
