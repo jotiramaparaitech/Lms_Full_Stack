@@ -168,7 +168,7 @@ const MyProjects = () => {
                     </div>
 
                     {/* Progress Bar */}
-                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
+                    {/* <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
                       <div className="flex items-center justify-between text-white mb-2">
                         <span className="text-sm font-medium">Progress</span>
                         <span className="text-sm font-bold">{progress}%</span>
@@ -179,7 +179,7 @@ const MyProjects = () => {
                           style={{ width: `${progress}%` }}
                         ></div>
                       </div>
-                    </div>
+                    </div> */}
                   </div>
 
                   {/* Course Details */}
@@ -208,7 +208,7 @@ const MyProjects = () => {
                     </p>
 
                     {/* Progress Line */}
-                    <div className="mb-4">
+                    {/* <div className="mb-4">
                       <div className="flex items-center justify-between text-sm text-gray-600 mb-1">
                         <span>Overall Progress</span>
                         <span className="font-semibold">{progress}%</span>
@@ -221,8 +221,9 @@ const MyProjects = () => {
                         trailColor="#e5e7eb"
                         className="rounded-full"
                       />
-                    </div>
+                    </div> */}
 
+                    {/* Action Buttons */}
                     {/* Action Buttons */}
                     <div className="flex gap-3">
                       <motion.button
