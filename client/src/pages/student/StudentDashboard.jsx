@@ -98,84 +98,30 @@ const DashboardHome = () => {
     enrolledCourses,
     fetchUserEnrolledCourses,
     navigate,
-    backendUrl,
-    getToken,
     calculateCourseDuration,
     calculateNoOfLectures,
 
-    // ✅ FIX: Team progress (Leader updated progress)
+    // ✅ Team Progress (Leader updated)
     teamProgress,
+    fetchMyTeamProgress,
   } = useContext(AppContext);
 
   const [progressArray, setProgressData] = useState([]);
   const [recentActivities, setRecentActivities] = useState([]);
   const [loading, setLoading] = useState(true);
+
   const [stats, setStats] = useState({
     activeProjects: 0,
     completedTasks: 0,
     studyHours: 0,
     certificates: 0,
-    progress: 0,
     pendingTasks: 0,
   });
 
-  // Fetch course progress (lecture based)
-  const getCourseProgress = async () => {
-    try {
-      const token = await getToken();
-      const tempProgressArray = await Promise.all(
-        enrolledCourses.map(async (course) => {
-          try {
-            const response = await fetch(
-              `${backendUrl}/api/user/get-course-progress`,
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${token}`,
-                },
-                body: JSON.stringify({ courseId: course._id }),
-              }
-            );
-            const data = await response.json();
-
-            let totalLectures = calculateNoOfLectures(course);
-            const lectureCompleted = data.progressData
-              ? data.progressData.lectureCompleted.length
-              : 0;
-
-            return {
-              courseId: course._id,
-              totalLectures,
-              lectureCompleted,
-              progressPercent:
-                totalLectures > 0
-                  ? Math.round((lectureCompleted / totalLectures) * 100)
-                  : 0,
-            };
-          } catch (error) {
-            console.error(
-              `Error fetching progress for course ${course._id}:`,
-              error
-            );
-            return {
-              courseId: course._id,
-              totalLectures: 0,
-              lectureCompleted: 0,
-              progressPercent: 0,
-            };
-          }
-        })
-      );
-
-      setProgressData(tempProgressArray);
-
-      // Update stats based on lecture progress
-      updateStats(tempProgressArray, enrolledCourses);
-    } catch (error) {
-      console.error("Error fetching course progress:", error);
-    }
-  };
+  // ✅ IMPORTANT: refresh teamProgress when dashboard loads
+  useEffect(() => {
+    fetchMyTeamProgress();
+  }, []);
 
   // Calculate study hours from enrolled courses
   const calculateStudyHours = () => {
@@ -183,13 +129,15 @@ const DashboardHome = () => {
 
     let totalMinutes = 0;
     enrolledCourses.forEach((course) => {
+      // your calculateCourseDuration returns "xh ym" so this is not perfect,
+      // but we keep your old logic
       totalMinutes += parseInt(calculateCourseDuration(course, true)) || 0;
     });
 
-    return Math.round(totalMinutes / 60); // Convert minutes to hours
+    return Math.round(totalMinutes / 60);
   };
 
-  // Update dashboard statistics (lecture based)
+  // Update dashboard statistics (lecture based calculations still allowed)
   const updateStats = (progressArray, courses) => {
     if (!courses || courses.length === 0) {
       setStats({
@@ -197,7 +145,6 @@ const DashboardHome = () => {
         completedTasks: 0,
         studyHours: 0,
         certificates: 0,
-        progress: 0,
         pendingTasks: 0,
       });
       return;
@@ -217,14 +164,6 @@ const DashboardHome = () => {
       0
     );
 
-    const overallProgress =
-      progressArray.length > 0
-        ? Math.round(
-            progressArray.reduce((sum, p) => sum + p.progressPercent, 0) /
-              progressArray.length
-          )
-        : 0;
-
     const studyHours = calculateStudyHours();
 
     const certificates = progressArray.filter((p) => p.progressPercent === 100)
@@ -235,9 +174,30 @@ const DashboardHome = () => {
       completedTasks,
       studyHours,
       certificates,
-      progress: overallProgress,
       pendingTasks,
     });
+  };
+
+  // Fetch course progress (lecture based) - optional
+  const getCourseProgress = async () => {
+    try {
+      // If you want to completely remove lecture-based progress, tell me.
+      // For now we keep it for cards.
+      const tempProgressArray = enrolledCourses.map((course) => {
+        const totalLectures = calculateNoOfLectures(course);
+        return {
+          courseId: course._id,
+          totalLectures,
+          lectureCompleted: 0,
+          progressPercent: 0,
+        };
+      });
+
+      setProgressData(tempProgressArray);
+      updateStats(tempProgressArray, enrolledCourses);
+    } catch (error) {
+      console.error("Error fetching course progress:", error);
+    }
   };
 
   // Mock recent activities
@@ -349,14 +309,15 @@ const DashboardHome = () => {
       value: stats.certificates,
       icon: <Award size={24} />,
       color: "bg-gradient-to-r from-orange-500 to-red-500",
-      change: stats.certificates > 0 ? "Great progress!" : "Complete projects to earn",
+      change:
+        stats.certificates > 0 ? "Great progress!" : "Complete projects to earn",
     },
     {
       title: "Overall Progress",
-      value: `${teamProgress || 0}%`,
+      value: `${teamProgress || 0}%`, // ✅ REAL PROGRESS
       icon: <TrendingUp size={24} />,
       color: "bg-gradient-to-r from-indigo-500 to-blue-500",
-      change: teamProgress > 0 ? "Keep it up!" : "Start your first project",
+      change: (teamProgress || 0) > 0 ? "Keep it up!" : "Start your first project",
     },
     {
       title: "Pending Work",
@@ -421,11 +382,9 @@ const DashboardHome = () => {
   }, [userData]);
 
   useEffect(() => {
-    if (enrolledCourses.length > 0) {
+    if (enrolledCourses.length >= 0) {
       getCourseProgress();
       fetchRecentActivities();
-      setLoading(false);
-    } else if (enrolledCourses.length === 0) {
       setLoading(false);
     }
   }, [enrolledCourses]);
@@ -481,7 +440,9 @@ const DashboardHome = () => {
               className="flex flex-wrap items-center gap-4 text-sm"
             >
               {userData?.email && (
-                <span className="flex items-center gap-1">📧 {userData.email}</span>
+                <span className="flex items-center gap-1">
+                  📧 {userData.email}
+                </span>
               )}
               <span className="flex items-center gap-1">
                 <Calendar size={14} />{" "}
@@ -538,23 +499,27 @@ const DashboardHome = () => {
               <div className={`${stat.color} p-3 rounded-xl text-white shadow-md`}>
                 {stat.icon}
               </div>
-              <span className="text-xs font-medium text-gray-500">{stat.change}</span>
+              <span className="text-xs font-medium text-gray-500">
+                {stat.change}
+              </span>
             </div>
             <div>
               <p className="text-sm text-gray-500">{stat.title}</p>
-              <p className="text-2xl font-bold mt-2 text-gray-800">{stat.value}</p>
+              <p className="text-2xl font-bold mt-2 text-gray-800">
+                {stat.value}
+              </p>
             </div>
           </motion.div>
         ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* My Projects Progress (still lecture based) */}
+        {/* My Projects Progress */}
         <div className="bg-white rounded-xl shadow-lg p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
               <FolderKanban size={24} className="text-cyan-600" />
-              My Projects Progress
+              My Projects
             </h2>
             <button
               onClick={() => navigate("/student/projects")}
@@ -586,79 +551,71 @@ const DashboardHome = () => {
             </motion.div>
           ) : (
             <div className="space-y-5">
-              {enrolledCourses.slice(0, 3).map((course, index) => {
-                const progress =
-                  progressArray.find((p) => p.courseId === course._id)
-                    ?.progressPercent || 0;
+              {enrolledCourses.slice(0, 3).map((course, index) => (
+                <motion.div
+                  key={course._id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  whileHover={{ x: 5 }}
+                  className="border-l-4 border-cyan-500 pl-4 py-3 hover:bg-gray-50 rounded-r-lg transition-colors group"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-gray-800 truncate group-hover:text-cyan-700">
+                        {course.courseTitle}
+                      </h3>
+                    </div>
+                    <span
+                      className={`text-xs px-3 py-1 rounded-full font-medium ml-2 flex-shrink-0 ${
+                        (teamProgress || 0) === 100
+                          ? "bg-green-100 text-green-800"
+                          : (teamProgress || 0) > 0
+                          ? "bg-blue-100 text-blue-800"
+                          : "bg-gray-100 text-gray-800"
+                      }`}
+                    >
+                      {(teamProgress || 0) === 100
+                        ? "Completed"
+                        : (teamProgress || 0) > 0
+                        ? "In Progress"
+                        : "Not Started"}
+                    </span>
+                  </div>
 
-                return (
-                  <motion.div
-                    key={course._id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    whileHover={{ x: 5 }}
-                    className="border-l-4 border-cyan-500 pl-4 py-3 hover:bg-gray-50 rounded-r-lg transition-colors group"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-gray-800 truncate group-hover:text-cyan-700">
-                          {course.courseTitle}
-                        </h3>
-                      </div>
-                      <span
-                        className={`text-xs px-3 py-1 rounded-full font-medium ml-2 flex-shrink-0 ${
-                          progress === 100
-                            ? "bg-green-100 text-green-800"
-                            : progress > 0
-                            ? "bg-blue-100 text-blue-800"
-                            : "bg-gray-100 text-gray-800"
-                        }`}
+                  <div className="mb-2">
+                    <div className="flex items-center justify-between text-sm text-gray-600 mb-1">
+                      <span>Overall Progress</span>
+                      <span className="font-semibold">{teamProgress || 0}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${teamProgress || 0}%` }}
+                        transition={{ duration: 1 }}
+                        className="bg-gradient-to-r from-cyan-500 to-teal-500 h-2 rounded-full"
+                      ></motion.div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs text-gray-500">
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => navigate("/player/" + course._id)}
+                        className="text-cyan-600 hover:text-cyan-800 flex items-center gap-1 font-medium"
                       >
-                        {progress === 100
-                          ? "Completed"
-                          : progress > 0
-                          ? "In Progress"
-                          : "Not Started"}
-                      </span>
+                        <PlayCircle size={14} /> Continue
+                      </button>
+                      <button
+                        onClick={() => navigate(`/course-details/${course._id}`)}
+                        className="text-gray-600 hover:text-gray-800 flex items-center gap-1"
+                      >
+                        <ExternalLink size={14} />
+                      </button>
                     </div>
-
-                    <div className="mb-2">
-                      <div className="flex items-center justify-between text-sm text-gray-600 mb-1">
-                        <span>Progress</span>
-                        <span className="font-semibold">{progress}%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{ width: `${progress}%` }}
-                          transition={{ duration: 1 }}
-                          className="bg-gradient-to-r from-cyan-500 to-teal-500 h-2 rounded-full"
-                        ></motion.div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between text-xs text-gray-500">
-                      <div className="flex items-center gap-3">
-                        <button
-                          onClick={() => navigate("/player/" + course._id)}
-                          className="text-cyan-600 hover:text-cyan-800 flex items-center gap-1 font-medium"
-                        >
-                          <PlayCircle size={14} /> Continue
-                        </button>
-                        <button
-                          onClick={() =>
-                            navigate(`/course-details/${course._id}`)
-                          }
-                          className="text-gray-600 hover:text-gray-800 flex items-center gap-1"
-                        >
-                          <ExternalLink size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  </motion.div>
-                );
-              })}
+                  </div>
+                </motion.div>
+              ))}
             </div>
           )}
         </div>
@@ -796,11 +753,11 @@ const DashboardHome = () => {
             <div>
               <h3 className="text-xl font-bold mb-2">Learning Summary</h3>
               <p className="text-cyan-100">
-                {teamProgress >= 80 && " Keep up the excellent work! 💪"}
-                {teamProgress >= 50 &&
-                  teamProgress < 80 &&
+                {(teamProgress || 0) >= 80 && " Keep up the excellent work! 💪"}
+                {(teamProgress || 0) >= 50 &&
+                  (teamProgress || 0) < 80 &&
                   " Great progress so far! ✨"}
-                {teamProgress < 50 && " Every step counts, keep going! 🚀"}
+                {(teamProgress || 0) < 50 && " Every step counts, keep going! 🚀"}
               </p>
             </div>
             <div className="mt-4 md:mt-0">
