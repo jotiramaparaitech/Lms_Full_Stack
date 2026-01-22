@@ -127,8 +127,15 @@ const AppContent = ({ isEducatorRoute, isEducator }) => {
         {/* 🧑‍🏫 Educator Routes (Protected) */}
         <Route
           path="/educator/*"
-          element={isEducator ? <Educator /> : <Navigate to="/" replace />}
+          element={
+            isEducator === undefined
+              ? null /* or <Loading /> */
+              : isEducator
+              ? <Educator />
+              : <Navigate to="/" replace />
+          }
         >
+
           <Route index element={<Dashboard />} />
           <Route path="add-course" element={<AddCourse />} />
           <Route path="my-courses" element={<MyCourses />} />

@@ -1,7 +1,7 @@
 // 📁 src/context/AppContext.jsx
 import axios from "axios";
 import { createContext, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useAuth, useUser } from "@clerk/clerk-react";
 import humanizeDuration from "humanize-duration";
@@ -25,7 +25,9 @@ export const AppContextProvider = (props) => {
   const { user, isLoaded } = useUser();
 
   const [showLogin, setShowLogin] = useState(false);
-  const [isEducator, setIsEducator] = useState(false);
+  const [isEducator, setIsEducator] = useState(undefined);
+  const location = useLocation();
+
   const [allCourses, setAllCourses] = useState([]);
   const [userData, setUserData] = useState(null);
   const [enrolledCourses, setEnrolledCourses] = useState([]);
@@ -353,11 +355,17 @@ export const AppContextProvider = (props) => {
     fetchTeamLeaderStatus();
     fetchMyTeamProgress();
 
-    if (!roleRedirectedRef.current) {
-      if (role === "educator" || role === "admin") navigate("/educator");
-      else navigate("/");
-      roleRedirectedRef.current = true;
-    }
+    // Redirect ONLY if user is on login or root
+if (
+  !roleRedirectedRef.current &&
+  location.pathname === "/login"
+) {
+  if (role === "educator" || role === "admin") {
+    roleRedirectedRef.current = true;
+    navigate("/educator", { replace: true });
+  }
+}
+
   }, [user, isLoaded]);
 
   useEffect(() => {
