@@ -17,9 +17,10 @@ export const createTeam = async (req, res) => {
 
     const user = await User.findById(userId);
     if (!user || !user.isTeamLeader) {
-      return res
-        .status(403)
-        .json({ success: false, message: "Only Team Leaders can create teams" });
+      return res.status(403).json({
+        success: false,
+        message: "Only Team Leaders can create teams",
+      });
     }
 
     const newTeam = await Team.create({
@@ -28,7 +29,7 @@ export const createTeam = async (req, res) => {
       banner,
       leader: userId,
       members: [{ userId, role: "admin" }],
-      // ✅ Project domain could be stored here if we add schema validation, 
+      // ✅ Project domain could be stored here if we add schema validation,
       // but it's implicitly derived from the Leader's assignedProject for now.
     });
 
@@ -50,17 +51,23 @@ export const getTeams = async (req, res) => {
     const auth = req.auth();
     const userId = auth?.userId;
 
-    const teams = await Team.find()
+    const teams = await Team.find({
+      $or: [{ "members.userId": userId }, { leader: userId }],
+    })
       .populate("members.userId", "name imageUrl email")
       .populate("pendingRequests", "name imageUrl email")
       .sort({ updatedAt: -1 });
 
     const formattedTeams = teams.map((team) => {
       const isMember = team.members.some(
-        (m) => m.userId?._id === userId || m.userId === userId
+        (m) =>
+          m.userId?._id?.toString() === userId ||
+          m.userId?.toString() === userId,
       );
       const isLeader = team.leader === userId;
-      const isPending = team.pendingRequests.includes(userId);
+      const isPending = team.pendingRequests.some(
+        (p) => p?._id?.toString() === userId || p?.toString() === userId,
+      );
 
       return {
         ...team.toObject(),
@@ -88,10 +95,14 @@ export const joinTeamRequest = async (req, res) => {
 
     const team = await Team.findById(teamId);
     if (!team)
-      return res.status(404).json({ success: false, message: "Team not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Team not found" });
 
     if (team.members.some((m) => m.userId === userId)) {
-      return res.status(400).json({ success: false, message: "Already a member" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Already a member" });
     }
     if (team.pendingRequests.includes(userId)) {
       return res
@@ -119,14 +130,18 @@ export const manageRequest = async (req, res) => {
 
     const team = await Team.findById(teamId);
     if (!team)
-      return res.status(404).json({ success: false, message: "Team not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Team not found" });
 
     const isAdmin =
       team.leader === userId ||
       team.members.some((m) => m.userId === userId && m.role === "admin");
 
     if (!isAdmin) {
-      return res.status(403).json({ success: false, message: "Permission denied" });
+      return res
+        .status(403)
+        .json({ success: false, message: "Permission denied" });
     }
 
     if (action === "accept") {
@@ -138,7 +153,9 @@ export const manageRequest = async (req, res) => {
       });
     }
 
-    team.pendingRequests = team.pendingRequests.filter((id) => id !== studentId);
+    team.pendingRequests = team.pendingRequests.filter(
+      (id) => id !== studentId,
+    );
     await team.save();
 
     res.json({ success: true, message: `Request ${action}ed` });
@@ -158,7 +175,9 @@ export const sendMessage = async (req, res) => {
 
     const team = await Team.findById(teamId);
     if (!team)
-      return res.status(404).json({ success: false, message: "Team not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Team not found" });
 
     const isMember = team.members.some((m) => m.userId === userId);
     if (!isMember)
@@ -192,7 +211,9 @@ export const getMessages = async (req, res) => {
 
     const team = await Team.findById(teamId);
     if (!team)
-      return res.status(404).json({ success: false, message: "Team not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Team not found" });
 
     const isMember = team.members.some((m) => m.userId === userId);
     if (!isMember)
@@ -221,7 +242,9 @@ export const deleteTeam = async (req, res) => {
 
     const team = await Team.findById(teamId);
     if (!team)
-      return res.status(404).json({ success: false, message: "Team not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Team not found" });
 
     if (team.leader !== userId) {
       return res.status(403).json({
@@ -250,10 +273,14 @@ export const removeMember = async (req, res) => {
 
     const team = await Team.findById(teamId);
     if (!team)
-      return res.status(404).json({ success: false, message: "Team not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Team not found" });
 
     if (team.leader !== userId) {
-      return res.status(403).json({ success: false, message: "Permission denied" });
+      return res
+        .status(403)
+        .json({ success: false, message: "Permission denied" });
     }
 
     if (memberId === team.leader) {
@@ -302,7 +329,7 @@ export const getStudentInfo = async (req, res) => {
     const users = await User.find({ _id: { $in: studentIds } })
       .populate("enrolledCourses", "courseTitle")
       .lean();
-      
+
     // ✅ Leader's Assigned Project
     const leaderUser = await User.findById(leaderId);
     const requiredProjectId = leaderUser?.assignedProject?.toString();
@@ -327,7 +354,10 @@ export const getStudentInfo = async (req, res) => {
 
           // ✅ AUTO PROJECT FETCH FROM ENROLLED COURSES
           projects: (user?.enrolledCourses || [])
-            .filter(c => !requiredProjectId || c._id.toString() === requiredProjectId) // ✅ Filter by domain
+            .filter(
+              (c) =>
+                !requiredProjectId || c._id.toString() === requiredProjectId,
+            ) // ✅ Filter by domain
             .map((c) => c.courseTitle),
         };
       });
@@ -342,7 +372,6 @@ export const getStudentInfo = async (req, res) => {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
-
 
 // -----------------------------
 // Update Student Progress (Leader Only)
@@ -359,7 +388,9 @@ export const updateStudentProgress = async (req, res) => {
     }
 
     if (!studentId) {
-      return res.status(400).json({ success: false, message: "studentId is required" });
+      return res
+        .status(400)
+        .json({ success: false, message: "studentId is required" });
     }
 
     const team = await Team.findOne({ leader: leaderId });
