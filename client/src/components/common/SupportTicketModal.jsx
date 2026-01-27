@@ -84,9 +84,11 @@ const SupportTicketModal = ({ onClose }) => {
       );
 
       if (data.success) {
+        // Generate a random 6-digit number
+        const randomId = Math.floor(100000 + Math.random() * 900000); 
         // Simulate processing delay for better UX
         setTimeout(() => {
-          setTicketId(data.ticketId || "17873954");
+          setTicketId(data.ticketId || randomId.toString());
           setAnimationStage(2);
           setIsSubmitted(true);
         }, 1200);
@@ -313,7 +315,7 @@ const SupportTicketModal = ({ onClose }) => {
                   We are currently reviewing your issue. Please expect a status update within <span className="font-bold text-slate-800">4-8 business hours.</span>
                 </p>
                 <p className="text-slate-600">
-                  You can view the status of your ticket in the <span className="text-blue-600 font-semibold cursor-pointer hover:underline">Support</span> section
+                  You can view the status of your ticket in the Support section
                 </p>
               </div>
 

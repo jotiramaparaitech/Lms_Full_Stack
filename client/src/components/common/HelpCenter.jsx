@@ -315,7 +315,7 @@ const HelpCenter = ({ onClose }) => {
               </div>
             )}
 
-            <div className="space-y-3">
+            <div className="space-y-5">
               <ContactOption
                 icon={<Mail className="w-5 h-5 text-blue-600" />}
                 title="Create Ticket"
@@ -337,7 +337,7 @@ const HelpCenter = ({ onClose }) => {
               <ContactOption
                 icon={<Phone className={`w-5 h-5 ${isWithinWorkingHours ? 'text-violet-600' : 'text-gray-400'}`} />}
                 title="Request Callback"
-                desc={isWithinWorkingHours ? "One of our specialists will reach out to you shortly to help you with this." : "Available 10 AM - 7 PM"}
+                desc={isWithinWorkingHours ? "One of our specialists will reach out to you shortly." : "Available 10 AM - 7 PM"}
                 onClick={handleCallback}
                 disabled={!isWithinWorkingHours}
                 alwaysActive={false}
