@@ -52,12 +52,12 @@ const StudentSidebar = () => {
   },
   {
     icon: <Award size={20} />,
-    label: "Certificates",
+    label: "Documents & Certificates",
     path: "/student/certificates"
   },
   {
     icon: <TrendingUp size={20} />,
-    label: "Progress Tracker",
+    label: "Project Tracker",
     path: "/student/progress"
   },
 
