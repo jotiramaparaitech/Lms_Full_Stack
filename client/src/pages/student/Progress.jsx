@@ -15,7 +15,7 @@ const Progress = () => {
 
   return (
     <StudentLayout>
-      <h1 className="text-2xl font-bold mb-6">Progress</h1>
+      <h1 className="text-2xl font-bold mb-6">Project Progress</h1>
 
       <div className="bg-white p-6 rounded-xl shadow">
         <p className="font-semibold text-gray-800">Overall Project Progress</p>

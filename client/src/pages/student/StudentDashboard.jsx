@@ -123,19 +123,7 @@ const DashboardHome = () => {
     fetchMyTeamProgress();
   }, []);
 
-  // Calculate study hours from enrolled courses
-  const calculateStudyHours = () => {
-    if (!enrolledCourses || enrolledCourses.length === 0) return 0;
 
-    let totalMinutes = 0;
-    enrolledCourses.forEach((course) => {
-      // your calculateCourseDuration returns "xh ym" so this is not perfect,
-      // but we keep your old logic
-      totalMinutes += parseInt(calculateCourseDuration(course, true)) || 0;
-    });
-
-    return Math.round(totalMinutes / 60);
-  };
 
   // Update dashboard statistics (lecture based calculations still allowed)
   const updateStats = (progressArray, courses) => {
@@ -274,7 +262,14 @@ const DashboardHome = () => {
           : "No projects yet",
     },
     {
-      title: "Completed Work",
+      title: "Pending Project Work",
+      value: stats.pendingTasks,
+      icon: <AlertCircle size={24} />,
+      color: "bg-gradient-to-r from-yellow-500 to-amber-500",
+      change: stats.pendingTasks > 0 ? "Continue learning" : "All caught up!",
+    },
+    {
+      title: "Completed Projects",
       value: stats.completedTasks,
       icon: <CheckCircle size={24} />,
       color: "bg-gradient-to-r from-green-500 to-emerald-500",
@@ -287,39 +282,53 @@ const DashboardHome = () => {
             ) || 0}% completion rate`
           : "Start learning!",
     },
+    // {
+    //   title: "Study Hours",
+    //   value: `${stats.studyHours}h`,
+    //   icon: <Clock size={24} />,
+    //   color: "bg-gradient-to-r from-purple-500 to-pink-500",
+    //   change:
+    //     stats.studyHours > 0
+    //       ? `+${Math.floor(stats.studyHours / 10)}h this week`
+    //       : "Track your time",
+    // },
+    // {
+    //   title: "Overall Progress",
+    //   value: `${teamProgress || 0}%`, // ✅ REAL PROGRESS
+    //   icon: <TrendingUp size={24} />,
+    //   color: "bg-gradient-to-r from-indigo-500 to-blue-500",
+    //   change: (teamProgress || 0) > 0 ? "Keep it up!" : "Start your first project",
+    // },
     {
-      title: "Study Hours",
-      value: `${stats.studyHours}h`,
-      icon: <Clock size={24} />,
-      color: "bg-gradient-to-r from-purple-500 to-pink-500",
-      change:
-        stats.studyHours > 0
-          ? `+${Math.floor(stats.studyHours / 10)}h this week`
-          : "Track your time",
-    },
-    {
-      title: "Certificates",
+      title: "Documents & Certificates",
       value: stats.certificates,
       icon: <Award size={24} />,
       color: "bg-gradient-to-r from-orange-500 to-red-500",
       change:
         stats.certificates > 0 ? "Great progress!" : "Complete projects to earn",
     },
-    {
-      title: "Overall Progress",
-      value: `${teamProgress || 0}%`, // ✅ REAL PROGRESS
-      icon: <TrendingUp size={24} />,
-      color: "bg-gradient-to-r from-indigo-500 to-blue-500",
-      change: (teamProgress || 0) > 0 ? "Keep it up!" : "Start your first project",
-    },
-    {
-      title: "Pending Work",
-      value: stats.pendingTasks,
-      icon: <AlertCircle size={24} />,
-      color: "bg-gradient-to-r from-yellow-500 to-amber-500",
-      change: stats.pendingTasks > 0 ? "Continue learning" : "All caught up!",
-    },
+    
   ];
+
+  // Calculate dynamic grid classes based on number of visible cards
+  const getGridClass = () => {
+    const visibleCards = statsCards.length;
+    
+    // For different numbers of cards, use appropriate grid columns
+    if (visibleCards <= 1) {
+      return "grid-cols-1";
+    } else if (visibleCards === 2) {
+      return "grid-cols-1 md:grid-cols-2";
+    } else if (visibleCards === 3) {
+      return "grid-cols-1 md:grid-cols-2 lg:grid-cols-3";
+    } else if (visibleCards === 4) {
+      return "grid-cols-1 md:grid-cols-2 lg:grid-cols-4";
+    } else if (visibleCards === 5) {
+      return "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5";
+    } else {
+      return "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6";
+    }
+  };
 
   const getPriorityColor = (priority) => {
     switch (priority) {
@@ -477,8 +486,8 @@ const DashboardHome = () => {
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      {/* Stats Grid - DYNAMIC LAYOUT */}
+      <div className={`grid ${getGridClass()} gap-4`}>
         {statsCards.map((stat, index) => (
           <motion.div
             key={index}
@@ -486,7 +495,7 @@ const DashboardHome = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05 }}
             whileHover={{ y: -5, scale: 1.02 }}
-            className="bg-white rounded-xl shadow-lg p-5 hover:shadow-xl transition-all duration-300"
+            className="bg-white rounded-xl shadow-lg p-5 hover:shadow-xl transition-all duration-300 flex flex-col h-full"
           >
             <div className="flex items-center justify-between mb-4">
               <div className={`${stat.color} p-3 rounded-xl text-white shadow-md`}>
@@ -496,7 +505,7 @@ const DashboardHome = () => {
                 {stat.change}
               </span>
             </div>
-            <div>
+            <div className="flex-grow">
               <p className="text-sm text-gray-500">{stat.title}</p>
               <p className="text-2xl font-bold mt-2 text-gray-800">
                 {stat.value}
@@ -765,10 +774,10 @@ const DashboardHome = () => {
                   <div className="text-sm text-cyan-200">Certificates</div>
                 </div>
                 <div className="h-12 w-px bg-cyan-400"></div>
-                <div className="text-center">
+                {/* <div className="text-center">
                   <div className="text-3xl font-bold">{stats.studyHours}h</div>
                   <div className="text-sm text-cyan-200">Study Time</div>
-                </div>
+                </div> */}
               </div>
             </div>
           </div>
