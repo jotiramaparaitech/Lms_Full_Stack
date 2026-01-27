@@ -3,6 +3,7 @@ import { Readable } from "stream";
 import Course from "../models/Course.js";
 import { Purchase } from "../models/Purchase.js";
 import User from "../models/User.js";
+import Team from "../models/Team.js"; // ✅ NEW
 import { clerkClient } from "@clerk/express";
 
 // -----------------------------
@@ -63,7 +64,7 @@ export const addCourse = async (req, res) => {
       new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
           { folder, resource_type },
-          (err, result) => (err ? reject(err) : resolve(result))
+          (err, result) => (err ? reject(err) : resolve(result)),
         );
         Readable.from(buffer).pipe(stream);
       });
@@ -85,7 +86,7 @@ export const addCourse = async (req, res) => {
         uploadResult = await uploadFromBuffer(
           file.buffer,
           "course_pdfs",
-          "raw"
+          "raw",
         );
       } else if (file.path) {
         uploadResult = await cloudinary.uploader.upload(file.path, {
@@ -204,7 +205,7 @@ export const updateCourse = async (req, res) => {
           "  Raw courseData preview:",
           typeof req.body.courseData === "string"
             ? req.body.courseData.substring(0, 200)
-            : JSON.stringify(req.body.courseData).substring(0, 200)
+            : JSON.stringify(req.body.courseData).substring(0, 200),
         );
         return res.status(400).json({
           success: false,
@@ -272,7 +273,7 @@ export const updateCourse = async (req, res) => {
       new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
           { folder, resource_type },
-          (err, result) => (err ? reject(err) : resolve(result))
+          (err, result) => (err ? reject(err) : resolve(result)),
         );
         Readable.from(buffer).pipe(stream);
       });
@@ -427,14 +428,14 @@ export const educatorDashboardData = async (req, res) => {
 
     const totalEarnings = purchases.reduce(
       (sum, p) => sum + (p.amount || 0),
-      0
+      0,
     );
 
     const enrolledStudentsData = [];
     for (const course of courses) {
       const students = await User.find(
         { _id: { $in: course.enrolledStudents } },
-        "name imageUrl"
+        "name imageUrl",
       );
       // Filter out null/undefined students (deleted users)
       students
@@ -513,7 +514,7 @@ export const removeStudentAccess = async (req, res) => {
         .json({ success: false, message: "Course not found or unauthorized" });
 
     course.enrolledStudents = course.enrolledStudents.filter(
-      (id) => id.toString() !== studentId
+      (id) => id.toString() !== studentId,
     );
     await course.save();
 
@@ -596,7 +597,7 @@ export const assignCourse = async (req, res) => {
 
     res.json({
       success: true,
-      message: "Course successfully assigned to student",
+      message: "Project successfully assigned to student",
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -608,20 +609,32 @@ export const assignCourse = async (req, res) => {
 // -----------------------------
 export const assignTeamLeader = async (req, res) => {
   try {
-    const { userId, isTeamLeader } = req.body;
+    const { userId, isTeamLeader, courseId } = req.body; // ✅ Added courseId
     const auth = req.auth();
     const educatorId = auth?.userId;
 
     if (!educatorId) {
-      return res.status(401).json({ success: false, message: "Unauthorized educator" });
+      return res
+        .status(401)
+        .json({ success: false, message: "Unauthorized educator" });
     }
 
     const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({ success: false, message: "User not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
     }
 
     user.isTeamLeader = isTeamLeader;
+
+    // ✅ Assign or remove project
+    if (isTeamLeader && courseId) {
+      user.assignedProject = courseId;
+    } else if (!isTeamLeader) {
+      user.assignedProject = null;
+    }
+
     await user.save();
 
     res.json({
@@ -642,12 +655,81 @@ export const getTeamLeaders = async (req, res) => {
     const educatorId = auth?.userId;
 
     if (!educatorId) {
-      return res.status(401).json({ success: false, message: "Unauthorized educator" });
+      return res
+        .status(401)
+        .json({ success: false, message: "Unauthorized educator" });
     }
 
-    const teamLeaders = await User.find({ isTeamLeader: true }, "name email imageUrl");
+    const teamLeaders = await User.find(
+      { isTeamLeader: true },
+      "name email imageUrl assignedProject",
+    ).populate("assignedProject", "courseTitle"); // ✅ Populate project info
+
     res.json({ success: true, teamLeaders });
   } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+// -----------------------------
+// Assign Student to Team
+// -----------------------------
+export const assignToTeam = async (req, res) => {
+  try {
+    const { studentId, teamId } = req.body;
+    const auth = req.auth();
+    const educatorId = auth?.userId;
+
+    if (!educatorId) {
+      return res
+        .status(401)
+        .json({ success: false, message: "Unauthorized educator" });
+    }
+
+    const team = await Team.findById(teamId);
+    if (!team) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Team not found" });
+    }
+
+    const student = await User.findById(studentId);
+    if (!student) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Student not found" });
+    }
+
+    // Check if already a member
+    const isMember = team.members.some(
+      (m) => m.userId.toString() === studentId || m.userId === studentId,
+    );
+    if (isMember) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Student already in team" });
+    }
+
+    // Add to members
+    team.members.push({
+      userId: studentId,
+      role: "member",
+      progress: 0,
+      projectName: "",
+    });
+
+    // Remove from pending if present
+    team.pendingRequests = team.pendingRequests.filter(
+      (id) => id.toString() !== studentId,
+    );
+
+    await team.save();
+
+    res.json({
+      success: true,
+      message: "Student successfully assigned to team",
+    });
+  } catch (error) {
+    console.error("❌ assignToTeam error:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
