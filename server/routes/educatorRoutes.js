@@ -13,6 +13,7 @@ import {
   assignCourse,
   assignTeamLeader,
   getTeamLeaders,
+  assignToTeam, // ✅ NEW
 } from "../controllers/educatorController.js";
 import upload from "../configs/multer.js";
 import { requireAuth } from "@clerk/express"; // ✅ FIXED IMPORT
@@ -97,6 +98,11 @@ educatorRouter.get("/all-students", requireAuth(), getAllStudents);
 // Assign Course to Student
 // -----------------------------
 educatorRouter.post("/assign-course", requireAuth(), assignCourse);
+
+// -----------------------------
+// Assign Student to Team
+// -----------------------------
+educatorRouter.post("/assign-to-team", requireAuth(), assignToTeam);
 
 // -----------------------------
 // Assign Team Leader

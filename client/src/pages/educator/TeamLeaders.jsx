@@ -93,6 +93,7 @@ const TeamLeaders = () => {
               <th className="px-6 py-4 font-semibold text-center w-16">#</th>
               <th className="px-6 py-4 font-semibold">Name</th>
               <th className="px-6 py-4 font-semibold">Email</th>
+              <th className="px-6 py-4 font-semibold">Assigned Project</th> {/* ✅ NEW Column */}
               <th className="px-6 py-4 font-semibold text-center">Action</th>
             </tr>
           </thead>
@@ -113,6 +114,9 @@ const TeamLeaders = () => {
                   <span className="font-semibold text-gray-800">{leader.name}</span>
                 </td>
                 <td className="px-6 py-4 text-gray-600">{leader.email}</td>
+                <td className="px-6 py-4 text-gray-600">
+                    {leader.assignedProject?.courseTitle || <span className="text-gray-400 italic">None</span>}
+                </td>
                 <td className="px-6 py-4 text-center">
                   <button
                     onClick={() => removeTeamLeader(leader._id)}
@@ -123,12 +127,12 @@ const TeamLeaders = () => {
                 </td>
               </motion.tr>
             ))}
-             {teamLeaders.length === 0 && (
-               <tr>
-                <td colSpan="4" className="px-6 py-8 text-center text-gray-500">
+            {teamLeaders.length === 0 && (
+              <tr>
+                <td colSpan="5" className="px-6 py-8 text-center text-gray-500">
                   No Team Leaders found.
                 </td>
-               </tr>
+              </tr>
             )}
           </tbody>
         </table>

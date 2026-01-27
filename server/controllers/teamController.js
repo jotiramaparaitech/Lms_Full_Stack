@@ -28,6 +28,8 @@ export const createTeam = async (req, res) => {
       banner,
       leader: userId,
       members: [{ userId, role: "admin" }],
+      // ✅ Project domain could be stored here if we add schema validation, 
+      // but it's implicitly derived from the Leader's assignedProject for now.
     });
 
     res.json({
@@ -300,6 +302,10 @@ export const getStudentInfo = async (req, res) => {
     const users = await User.find({ _id: { $in: studentIds } })
       .populate("enrolledCourses", "courseTitle")
       .lean();
+      
+    // ✅ Leader's Assigned Project
+    const leaderUser = await User.findById(leaderId);
+    const requiredProjectId = leaderUser?.assignedProject?.toString();
 
     // Convert user list into map for fast lookup
     const userMap = new Map();
@@ -320,7 +326,9 @@ export const getStudentInfo = async (req, res) => {
           progress: m.progress ?? 0,
 
           // ✅ AUTO PROJECT FETCH FROM ENROLLED COURSES
-          projects: (user?.enrolledCourses || []).map((c) => c.courseTitle),
+          projects: (user?.enrolledCourses || [])
+            .filter(c => !requiredProjectId || c._id.toString() === requiredProjectId) // ✅ Filter by domain
+            .map((c) => c.courseTitle),
         };
       });
 
