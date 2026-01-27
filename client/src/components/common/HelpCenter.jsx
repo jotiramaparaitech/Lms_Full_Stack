@@ -1,15 +1,15 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   ChevronRight,
-  ChevronDown,
   Headphones,
   X,
   MessageSquare,
   Phone,
   Mail,
   ArrowLeft,
-  FileText,
-  MonitorPlay,
+  Search,
+  PenSquare,
+  Clock,
 } from "lucide-react";
 import SupportTicketModal from "./SupportTicketModal";
 
@@ -25,7 +25,7 @@ const FAQS = [
       {
         question: "How do I reset my password?",
         answer:
-          "Go to the login page and select ‘Forgot Password.’ Enter your registered email address to receive a secure password reset link.",
+          "Go to the login page and select 'Forgot Password.' Enter your registered email address to receive a secure password reset link.",
       },
     ],
   },
@@ -40,7 +40,7 @@ const FAQS = [
       {
         question: "How often will the guidance sessions happen?",
         answer:
-          "Guidance sessions are held 2–3 times a week by the Project Coordinator to track progress, review work, and clear doubts.",
+          "Guidance sessions are held 2-3 times a week by the Project Coordinator to track progress, review work, and clear doubts.",
       },
       {
         question: "Where can I ask my daily questions or doubts?",
@@ -74,7 +74,7 @@ const FAQS = [
       {
         question: "Do you provide demo projects?",
         answer: `Yes. We provide demo projects to help students understand the project flow before starting.
-Example – Web Development Demo Project:
+Example - Web Development Demo Project:
 Project Name: "Student Management System"
 Description: A web-based application to manage student records, registrations, and data using the latest technology. This demo helps students understand project structure.`,
       },
@@ -90,14 +90,40 @@ Description: A web-based application to manage student records, registrations, a
 const HelpCenter = ({ onClose }) => {
   const [view, setView] = useState("HOME"); // HOME | CONTACT_MENU | TICKET_FORM
   const [openFaqIndex, setOpenFaqIndex] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isWithinWorkingHours, setIsWithinWorkingHours] = useState(true);
 
-  // Toggle unique IDs: "categoryIndex-itemIndex"
+  // Check if current time is within working hours (10 AM to 7 PM)
+  useEffect(() => {
+    const checkWorkingHours = () => {
+      const now = new Date();
+      const currentHour = now.getHours();
+      const currentMinute = now.getMinutes();
+      const currentTime = currentHour * 60 + currentMinute; // Convert to minutes for easier comparison
+      
+      const startTime = 10 * 60; // 10:00 AM in minutes
+      const endTime = 19 * 60; // 7:00 PM in minutes
+      
+      setIsWithinWorkingHours(currentTime >= startTime && currentTime < endTime);
+    };
+
+    // Check immediately on mount
+    checkWorkingHours();
+    
+    // Set up interval to check every minute
+    const intervalId = setInterval(checkWorkingHours, 60000);
+    
+    return () => clearInterval(intervalId);
+  }, []);
+
   const toggleFaq = (id) => {
     setOpenFaqIndex(openFaqIndex === id ? null : id);
   };
 
   const handleChat = () => {
-    const message = "Hello! I’d like to know more about Aparaitech Projects.";
+    if (!isWithinWorkingHours) return;
+    
+    const message = "Hello! I'd like to know more about Aparaitech Projects.";
     window.open(
       `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`,
       "_blank"
@@ -105,8 +131,18 @@ const HelpCenter = ({ onClose }) => {
   };
 
   const handleCallback = () => {
+    if (!isWithinWorkingHours) return;
+    
     window.open(GOOGLE_FORM_CALLBACK, "_blank");
   };
+
+  // Filter FAQs based on search
+  const filteredFAQs = FAQS.map((cat) => ({
+    ...cat,
+    items: cat.items.filter((item) =>
+      item.question.toLowerCase().includes(searchQuery.toLowerCase())
+    ),
+  })).filter((cat) => cat.items.length > 0);
 
   if (view === "TICKET_FORM") {
     return <SupportTicketModal onClose={() => setView("HOME")} />;
@@ -120,121 +156,139 @@ const HelpCenter = ({ onClose }) => {
         onClick={onClose}
       />
 
-      {/* Main Modal Card */}
-      <div className="bg-white w-full max-w-[500px] rounded-3xl shadow-2xl overflow-hidden flex flex-col relative h-[700px] max-h-[90vh] animate-in zoom-in-95 duration-200 font-sans ring-1 ring-black/5">
-        {/* === HEADER === */}
-        <div className="bg-white px-6 pt-6 pb-4 border-b border-gray-100 relative z-10">
-          <div className="flex justify-between items-center mb-2">
-            <h2 className="text-2xl font-bold text-slate-800 tracking-tight">
-              {view === "CONTACT_MENU" ? "Get in Touch" : "Help Center"}
-            </h2>
-            <button
-              onClick={onClose}
-              className="p-2 bg-gray-50 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
+      {/* Main Modal Card - Width adjusted to max-w-[500px] */}
+      <div className="bg-white w-full max-w-[500px] rounded-xl shadow-2xl overflow-hidden flex flex-col relative h-[720px] max-h-[90vh] animate-in zoom-in-95 duration-200 font-sans">
+        
+        {/* === HEADER (Redesigned) === */}
+        <div className="bg-slate-900 px-6 pt-6 pb-6 relative shrink-0">
+          <div className="flex justify-between items-start">
+            
+            {/* Title Area */}
+            <div className="pr-4">
+              <h2 className="text-2xl font-bold text-white tracking-tight">
+                {view === "CONTACT_MENU" ? "Get in Touch" : "Help Center"}
+              </h2>
+              <p className="text-slate-400 text-[14px] mt-1 leading-snug">
+                {view === "CONTACT_MENU"
+                  ? "Choose a support method below."
+                  : "How can we help you today?"}
+              </p>
+            </div>
+
+            {/* Actions Area (Submit Ticket + Close) */}
+            <div className="flex flex-col items-end gap-3">
+               <button
+                  onClick={onClose}
+                  className="text-white/50 hover:text-white transition-colors p-1"
+               >
+                  <X className="w-6 h-6" />
+               </button>
+
+               {/* Only show Ticket button on Home view */}
+               {view === "HOME" && (
+  <button
+    onClick={() => setView("TICKET_FORM")}
+    className="group relative flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-blue-500 via-blue-600 to-purple-600 hover:from-blue-600 hover:via-blue-700 hover:to-purple-700 border-0 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold text-white transition-all duration-300 shadow-lg hover:shadow-xl sm:hover:shadow-2xl active:scale-95 overflow-hidden whitespace-nowrap"
+  >
+    {/* Shine effect */}
+    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+    
+    <PenSquare className="w-3.5 h-3.5 sm:w-4 sm:h-4 relative z-10 group-hover:scale-110 transition-transform" />
+    <span className="relative z-10">Submit Ticket</span>
+  </button>
+)}
+            </div>
           </div>
-
-          <p className="text-slate-500 text-[15px]">
-            {view === "CONTACT_MENU"
-              ? "We are here to help. Choose a method below."
-              : "Find answers instantly or contact our team."}
-          </p>
-
-          {/* Back Button for overlay view */}
-          {view === "CONTACT_MENU" && (
-            <button
-              onClick={() => setView("HOME")}
-              className="absolute top-6 left-[-10px] hidden" // Hidden visually, using logic below
-            >
-              {/* Logic handled by state, customized back arrow not needed in this header style */}
-            </button>
-          )}
         </div>
 
         {/* === BODY CONTENT === */}
-        <div className="flex-1 overflow-hidden relative bg-gray-50/50">
+        <div className="flex-1 overflow-hidden relative bg-[#F4F6F9]">
+          
           {/* --- VIEW 1: FAQ LIST --- */}
           <div
-            className={`absolute inset-0 overflow-y-auto p-6 transition-transform duration-300 ease-in-out ${
+            className={`absolute inset-0 overflow-y-auto transition-transform duration-300 ease-in-out ${
               view === "HOME" ? "translate-x-0" : "-translate-x-full"
             }`}
           >
-            <div className="space-y-6">
-              {FAQS.map((category, catIndex) => (
-                <div key={catIndex}>
-                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-                    {catIndex === 0 ? (
-                      <FileText className="w-3 h-3" />
-                    ) : (
-                      <MonitorPlay className="w-3 h-3" />
-                    )}
-                    {category.category}
-                  </h3>
-                  <div className="space-y-2">
-                    {category.items.map((faq, itemIndex) => {
-                      const id = `${catIndex}-${itemIndex}`;
-                      const isOpen = openFaqIndex === id;
+            <div className="p-5 space-y-6">
+              
+              {/* Search Bar */}
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search for answers..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-lg text-[15px] focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm placeholder:text-gray-400"
+                />
+              </div>
 
-                      return (
-                        <div
-                          key={itemIndex}
-                          className={`bg-white border rounded-xl transition-all duration-200 ${
-                            isOpen
-                              ? "border-blue-200 shadow-md ring-1 ring-blue-50"
-                              : "border-gray-200 shadow-sm hover:border-blue-300"
-                          }`}
-                        >
-                          <button
-                            onClick={() => toggleFaq(id)}
-                            className="w-full flex items-start justify-between p-4 text-left"
+              {/* FAQ List */}
+              <div>
+                <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-3 pl-1">
+                  Popular FAQs
+                </h3>
+
+                <div className="space-y-3">
+                  {filteredFAQs.map((category, catIndex) => (
+                    <div key={catIndex} className="space-y-3">
+                      {category.items.map((faq, itemIndex) => {
+                        const id = `${catIndex}-${itemIndex}`;
+                        const isOpen = openFaqIndex === id;
+
+                        return (
+                          <div
+                            key={itemIndex}
+                            className="bg-white rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 overflow-hidden hover:border-blue-200 transition-colors"
                           >
-                            <span
-                              className={`text-[15px] font-medium leading-tight ${
-                                isOpen ? "text-blue-700" : "text-slate-700"
-                              }`}
+                            <button
+                              onClick={() => toggleFaq(id)}
+                              className="w-full flex items-center justify-between p-4 text-left"
                             >
-                              {faq.question}
-                            </span>
-                            <span
-                              className={`ml-3 mt-0.5 transition-transform duration-200 ${
-                                isOpen ? "rotate-180" : ""
-                              }`}
-                            >
-                              <ChevronDown
-                                className={`w-5 h-5 ${
-                                  isOpen ? "text-blue-500" : "text-gray-300"
+                              <span className={`text-[15px] font-medium leading-snug pr-4 transition-colors ${isOpen ? 'text-blue-600' : 'text-slate-700'}`}>
+                                {faq.question}
+                              </span>
+                              <ChevronRight
+                                className={`w-5 h-5 text-gray-400 shrink-0 transition-transform duration-200 ${
+                                  isOpen ? "rotate-90 text-blue-600" : ""
                                 }`}
                               />
-                            </span>
-                          </button>
+                            </button>
 
-                          <div
-                            className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                              isOpen
-                                ? "max-h-40 opacity-100"
-                                : "max-h-0 opacity-0"
-                            }`}
-                          >
-                            <div className="px-4 pb-4 pt-0 text-[14px] text-slate-500 leading-relaxed">
-                              {faq.answer}
+                            <div
+                              className={`transition-all duration-300 ease-in-out ${
+                                isOpen
+                                  ? "max-h-96 opacity-100 border-t border-gray-50"
+                                  : "max-h-0 opacity-0"
+                              }`}
+                            >
+                              <div className="p-4 text-[14px] text-slate-600 leading-relaxed bg-gray-50/30">
+                                {faq.answer}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+                    </div>
+                  ))}
+
+                  {filteredFAQs.length === 0 && (
+                    <div className="text-center py-10">
+                       <p className="text-slate-800 font-medium">No results found</p>
+                       <p className="text-slate-500 text-sm mt-1">Try a different keyword or contact support.</p>
+                    </div>
+                  )}
                 </div>
-              ))}
+              </div>
             </div>
             {/* Spacer for bottom bar */}
-            <div className="h-24"></div>
+            <div className="h-28"></div>
           </div>
 
           {/* --- VIEW 2: CONTACT OVERLAY --- */}
           <div
-            className={`absolute inset-0 bg-white z-20 overflow-y-auto p-6 transition-transform duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${
+            className={`absolute inset-0 bg-gray-50 z-20 overflow-y-auto p-5 transition-transform duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${
               view === "CONTACT_MENU" ? "translate-y-0" : "translate-y-full"
             }`}
           >
@@ -245,83 +299,114 @@ const HelpCenter = ({ onClose }) => {
               <ArrowLeft className="w-4 h-4 mr-1" /> Back to FAQs
             </button>
 
-            <div className="space-y-3">
-              <ContactOption
-                icon={<Mail className="w-6 h-6 text-white" />}
-                color="bg-blue-500"
-                title="Create Ticket"
-                desc="Resolution in 24-48 hours"
-                onClick={() => setView("TICKET_FORM")}
-              />
-              <ContactOption
-                icon={<MessageSquare className="w-6 h-6 text-white" />}
-                color="bg-emerald-500"
-                title="WhatsApp Chat"
-                desc="Instant support (24/7)"
-                onClick={handleChat}
-              />
-              <ContactOption
-                icon={<Phone className="w-6 h-6 text-white" />}
-                color="bg-violet-500"
-                title="Request Callback"
-                desc="We will call you within 2 hours"
-                onClick={handleCallback}
-              />
-            </div>
+            {/* Working Hours Notice */}
+            {!isWithinWorkingHours && (
+              <div className="mb-6 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
+                <Clock className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <div className="text-left">
+                  <p className="text-sm font-medium text-amber-800">
+                    Outside Working Hours
+                  </p>
+                  <p className="text-xs text-amber-700 mt-1">
+                    Live chat & callback support is available from 10 AM to 7 PM.
+                    You can still submit a ticket - we'll respond within 24 hours.
+                  </p>
+                </div>
+              </div>
+            )}
 
-            <div className="mt-8 p-4 bg-slate-50 rounded-xl border border-slate-100 text-center">
-              <p className="text-xs text-slate-400">
-                Experiencing urgent technical issues with a live project
-                submission?
-                <br /> Email us directly at{" "}
-                <span className="text-slate-600 font-medium">
-                  support@aparaitech.org
-                </span>
-              </p>
+            <div className="space-y-5">
+              <ContactOption
+                icon={<Mail className="w-5 h-5 text-blue-600" />}
+                title="Create Ticket"
+                desc="Expect a response within 1-2 business days"
+                onClick={() => setView("TICKET_FORM")}
+                disabled={false}
+                alwaysActive={true}
+              />
+              
+              <ContactOption
+                icon={<MessageSquare className={`w-5 h-5 ${isWithinWorkingHours ? 'text-emerald-600' : 'text-gray-400'}`} />}
+                title="WhatsApp Chat"
+                desc={isWithinWorkingHours ? "Instant support (10 AM - 7 PM)" : "Available 10 AM - 7 PM"}
+                onClick={handleChat}
+                disabled={!isWithinWorkingHours}
+                alwaysActive={false}
+              />
+              
+              <ContactOption
+                icon={<Phone className={`w-5 h-5 ${isWithinWorkingHours ? 'text-violet-600' : 'text-gray-400'}`} />}
+                title="Request Callback"
+                desc={isWithinWorkingHours ? "One of our specialists will reach out to you shortly." : "Available 10 AM - 7 PM"}
+                onClick={handleCallback}
+                disabled={!isWithinWorkingHours}
+                alwaysActive={false}
+              />
             </div>
           </div>
         </div>
 
         {/* === FOOTER (Sticky) === */}
         <div
-          className={`p-4 bg-white border-t border-gray-100 absolute bottom-0 w-full transition-transform duration-300 ${
+          className={`px-6 pb-6 pt-4 bg-white border-t border-gray-100 absolute bottom-0 w-full transition-transform duration-300 z-30 ${
             view === "CONTACT_MENU" ? "translate-y-full" : "translate-y-0"
           }`}
         >
-          <button
-            onClick={() => setView("CONTACT_MENU")}
-            className="group w-full bg-slate-900 hover:bg-slate-800 text-white font-medium py-4 rounded-xl flex items-center justify-between px-6 transition-all shadow-lg shadow-slate-200 active:scale-[0.99]"
-          >
-            <span className="flex items-center gap-3">
-              <Headphones className="w-5 h-5 text-slate-300 group-hover:text-white transition-colors" />
-              Contact Support
-            </span>
-            <ChevronRight className="w-5 h-5 text-slate-500 group-hover:text-white transition-colors" />
-          </button>
+          <div className="flex flex-col items-center">
+            <p className="text-slate-400 text-xs font-medium uppercase tracking-wide mb-3">
+              Still need help?
+            </p>
+            <button
+              onClick={() => setView("CONTACT_MENU")}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-200 active:scale-[0.98]"
+            >
+              <Headphones className="w-5 h-5" />
+              Contact Us
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
 };
 
-// Helper Component for Contact Options
-const ContactOption = ({ icon, color, title, desc, onClick }) => (
+// Updated Helper Component for Contact Options
+const ContactOption = ({ icon, title, desc, onClick, disabled, alwaysActive }) => (
   <button
-    onClick={onClick}
-    className="w-full bg-white p-4 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200 transition-all flex items-center group text-left"
+    onClick={disabled ? undefined : onClick}
+    disabled={disabled && !alwaysActive}
+    className={`w-full p-4 rounded-xl border transition-all flex items-center group text-left ${
+      disabled && !alwaysActive
+        ? 'bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed'
+        : 'bg-white border-gray-200 shadow-sm hover:shadow-md hover:border-blue-300'
+    }`}
   >
-    <div
-      className={`w-12 h-12 ${color} rounded-xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform`}
-    >
+    <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
+      disabled && !alwaysActive ? 'bg-gray-100' : 'bg-gray-50 group-hover:bg-blue-50'
+    }`}>
       {icon}
     </div>
     <div className="ml-4 flex-1">
-      <h4 className="font-bold text-slate-800 text-[16px]">{title}</h4>
-      <p className="text-sm text-slate-500 mt-0.5">{desc}</p>
+      <h4 className={`font-bold text-[15px] ${
+        disabled && !alwaysActive ? 'text-gray-400' : 'text-slate-800'
+      }`}>
+        {title}
+        {disabled && !alwaysActive && (
+          <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-200 text-gray-600">
+            <Clock className="w-3 h-3 mr-1" />
+            10 AM - 7 PM
+          </span>
+        )}
+      </h4>
+      <p className={`text-xs mt-0.5 ${
+        disabled && !alwaysActive ? 'text-gray-400' : 'text-slate-500'
+      }`}>
+        {desc}
+      </p>
     </div>
-    <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center group-hover:bg-gray-100 transition-colors">
-      <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600" />
-    </div>
+    <ChevronRight className={`w-4 h-4 ${
+      disabled && !alwaysActive ? 'text-gray-300' : 'text-gray-300 group-hover:text-blue-500'
+    }`} />
   </button>
 );
 
