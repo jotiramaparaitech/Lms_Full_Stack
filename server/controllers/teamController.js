@@ -178,16 +178,17 @@ export const sendMessage = async (req, res) => {
     const userId = auth?.userId;
 
     const team = await Team.findById(teamId);
-    if (!team)
-      return res
-        .status(404)
-        .json({ success: false, message: "Team not found" });
+    if (!team) {
+      return res.status(404).json({ success: false, message: "Team not found" });
+    }
 
     const isMember = team.members.some((m) => m.userId === userId);
-    if (!isMember)
+    if (!isMember) {
       return res.status(403).json({ success: false, message: "Not a member" });
+    }
 
-    const message = await TeamMessage.create({
+    // 1️⃣ Create message
+    let message = await TeamMessage.create({
       teamId,
       sender: userId,
       content,
@@ -196,15 +197,19 @@ export const sendMessage = async (req, res) => {
       linkData,
     });
 
-    req.app.get("io")?.to(teamId).emit("receive-message", message);
+    // 2️⃣ POPULATE sender BEFORE emitting
+    message = await message.populate("sender", "name imageUrl");
 
-    await message.populate("sender", "name imageUrl");
+    // 3️⃣ Emit populated message
+    req.app.get("io").to(teamId).emit("receive-message", message);
 
+    // 4️⃣ Send response
     res.json({ success: true, message });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
 
 // -----------------------------
 // Get Messages

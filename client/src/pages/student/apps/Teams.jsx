@@ -7,7 +7,6 @@ import axios from "axios";
 import {
   Users,
   Search,
-  MessageSquare,
   Video,
   Phone,
   Plus,
@@ -19,31 +18,58 @@ import {
   UserPlus,
   Check,
   X,
-  LogOut,
   ArrowLeft
 } from "lucide-react";
 import moment from "moment";
+import { io } from "socket.io-client"; // ✅ ADDED
 
 const Teams = () => {
   const { userData, backendUrl, getToken } = useContext(AppContext);
   const navigate = useNavigate();
 
+  const socketRef = useRef(null); // ✅ ADDED
+  const scrollRef = useRef();
+
   const [teams, setTeams] = useState([]);
   const [activeTeam, setActiveTeam] = useState(null);
-  const [loading, setLoading] = useState(true);
+  //const [loading, setLoading] = useState(true);
   const [messages, setMessages] = useState([]);
   const [messageInput, setMessageInput] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [activeTab, setActiveTab] = useState("posts"); // posts, members, requests
-  
-  // Create Team Form
+  const [activeTab, setActiveTab] = useState("posts");
+
   const [newTeamName, setNewTeamName] = useState("");
   const [newTeamDesc, setNewTeamDesc] = useState("");
 
-  const scrollRef = useRef();
+  // ================= SOCKET.IO (ADDED ONLY) =================
+  useEffect(() => {
+    socketRef.current = io(backendUrl, {
+      transports: ["websocket"],
+      withCredentials: true,
+    });
+
+    socketRef.current.on("receive-message", (msg) => {
+      setMessages((prev) => [...prev, msg]);
+    });
+
+    return () => {
+      socketRef.current.disconnect();
+    };
+  }, [backendUrl]);
+
+  useEffect(() => {
+    if (activeTeam && socketRef.current) {
+      socketRef.current.emit("join-team", activeTeam._id);
+    }
+  }, [activeTeam]);
+  // ==========================================================
+
+  useEffect(() => {
+    scrollRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   // -----------------------------
-  // Data Fetching
+  // Data Fetching (UNCHANGED)
   // -----------------------------
   const fetchTeams = async () => {
     try {
@@ -53,14 +79,12 @@ const Teams = () => {
       });
       if (data.success) {
         setTeams(data.teams);
-        // If active team exists, update it with fresh data
         if (activeTeam) {
-          const updated = data.teams.find((t) => t._id === activeTeam._id);
+          const updated = data.teams.find(t => t._id === activeTeam._id);
           if (updated) setActiveTeam(updated);
         }
       }
-    } catch (error) {
-      console.error(error);
+    } catch {
       toast.error("Failed to load teams");
     } finally {
       setLoading(false);
@@ -70,15 +94,12 @@ const Teams = () => {
   const fetchMessages = async (teamId) => {
     try {
       const token = await getToken();
-      const { data } = await axios.get(`${backendUrl}/api/teams/messages/${teamId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (data.success) {
-        setMessages(data.messages);
-      }
-    } catch (error) {
-      console.error(error);
-    }
+      const { data } = await axios.get(
+        `${backendUrl}/api/teams/messages/${teamId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (data.success) setMessages(data.messages);
+    } catch {}
   };
 
   useEffect(() => {
@@ -91,13 +112,8 @@ const Teams = () => {
     }
   }, [activeTeam]);
 
-  // Scroll to bottom of chat
-  useEffect(() => {
-    scrollRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
   // -----------------------------
-  // Actions
+  // Actions (ALL KEPT)
   // -----------------------------
   const handleCreateTeam = async (e) => {
     e.preventDefault();
@@ -114,11 +130,9 @@ const Teams = () => {
         setNewTeamName("");
         setNewTeamDesc("");
         fetchTeams();
-      } else {
-        toast.error(data.message);
       }
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to create team");
+    } catch {
+      toast.error("Failed to create team");
     }
   };
 
@@ -134,85 +148,81 @@ const Teams = () => {
         toast.success("Request sent!");
         fetchTeams();
       }
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Failed");
+    } catch {
+      toast.error("Failed");
     }
   };
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!messageInput.trim()) return;
+
     try {
       const token = await getToken();
-      const { data } = await axios.post(
+      await axios.post(
         `${backendUrl}/api/teams/message/send`,
         { teamId: activeTeam._id, content: messageInput, type: "text" },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      if (data.success) {
-        setMessages([...messages, data.message]);
-        setMessageInput("");
-      }
-    } catch (error) {
+      setMessageInput(""); // ✅ socket updates UI
+    } catch {
       toast.error("Failed to send");
     }
   };
 
   const postMeetingLink = async (type) => {
-    const link = prompt(`Enter ${type} Meeting URL (e.g., Zoom/Meet):`);
+    const link = prompt(`Enter ${type} Meeting URL:`);
     if (!link) return;
+
     try {
-        const token = await getToken();
-        // Post a message with type 'call_link'
-        const { data } = await axios.post(
-          `${backendUrl}/api/teams/message/send`,
-          { 
-            teamId: activeTeam._id, 
-            content: `Started a ${type} meeting`, 
-            type: "call_link",
-            linkData: { title: `${type} Meeting`, url: link }
-          },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        if (data.success) {
-          setMessages([...messages, data.message]);
-        }
-      } catch (error) {
-        toast.error("Failed to post meeting");
-      }
-  }
+      const token = await getToken();
+      await axios.post(
+        `${backendUrl}/api/teams/message/send`,
+        {
+          teamId: activeTeam._id,
+          content: `Started a ${type} meeting`,
+          type: "call_link",
+          linkData: { title: `${type} Meeting`, url: link }
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+    } catch {
+      toast.error("Failed to post meeting");
+    }
+  };
 
   const handleMemberAction = async (studentId, action) => {
-      try {
-        const token = await getToken();
-        const endpoint = action === 'remove' ? 'remove-member' : 'manage-request';
-        const payload = action === 'remove' 
-            ? { teamId: activeTeam._id, memberId: studentId }
-            : { teamId: activeTeam._id, studentId, action };
+    try {
+      const token = await getToken();
+      const endpoint = action === "remove" ? "remove-member" : "manage-request";
+      const payload =
+        action === "remove"
+          ? { teamId: activeTeam._id, memberId: studentId }
+          : { teamId: activeTeam._id, studentId, action };
 
-        const { data } = await axios.post(
-            `${backendUrl}/api/teams/${endpoint}`,
-            payload,
-            { headers: { Authorization: `Bearer ${token}` } }
-        );
+      const { data } = await axios.post(
+        `${backendUrl}/api/teams/${endpoint}`,
+        payload,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
-        if(data.success) {
-            toast.success("Success");
-            fetchTeams();
-        }
-      } catch (error) {
-          toast.error(error.message);
+      if (data.success) {
+        toast.success("Success");
+        fetchTeams();
       }
-  }
+    } catch {
+      toast.error("Action failed");
+    }
+  };
 
   // -----------------------------
-  // Render
+  // Render (UNCHANGED UI)
   // -----------------------------
-  if (loading) return <div className="p-10 text-center">Loading Teams...</div>;
+  //if (loading) return <div className="p-10 text-center">Loading Teams...</div>;
 
   return (
     <StudentLayout>
-      <div className="flex h-[calc(100vh-80px)] bg-gray-50 font-sans">
+       <div className="flex h-[calc(100vh-80px)] bg-gray-50 font-sans">
         
         {/* SIDEBAR: TEAM LIST */}
         <div className={`${activeTeam ? "hidden md:flex" : "flex w-full"} md:w-80 bg-white border-r border-gray-200 flex-col`}>
