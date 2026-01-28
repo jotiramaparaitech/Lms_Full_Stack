@@ -2,31 +2,28 @@ import mongoose from "mongoose";
 
 const teamMessageSchema = new mongoose.Schema(
   {
-    teamId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Team",
-      required: true
-    },
-    sender: {
-      type: String, // Clerk User ID
-      ref: "User",
-      required: true
-    },
-    content: { type: String, default: "" },
+    teamId: { type: mongoose.Schema.Types.ObjectId, ref: "Team", required: true },
+    channel: { type: String, default: "General" }, // 🔥 NEW
+    sender: { type: String, ref: "User", required: true },
+
+    content: { type: String }, // HTML content (Quill)
+    rawText: { type: String }, // optional plain text
+
     type: {
       type: String,
-      enum: ["text", "image", "video", "file", "audio", "call_link"],
+      enum: ["text", "post", "image", "file", "call_link"],
       default: "text"
     },
-    attachmentUrl: { type: String, default: "" }, // URL for media/files
-    linkData: {
-      // Optional metadata for call links
-      title: String,
-      url: String
-    }
+
+    edited: { type: Boolean, default: false }, // 🔥
+    deleted: { type: Boolean, default: false }, // 🔥
+
+    attachmentUrl: String,
+    linkData: Object
   },
   { timestamps: true }
 );
+
 
 const TeamMessage = mongoose.model("TeamMessage", teamMessageSchema);
 export default TeamMessage;

@@ -23,8 +23,13 @@ import calendarRouter from "./routes/calendarEventRoutes.js";
 
 import notificationRoutes from './routes/notificationRoutes.js'; // ✅ Correct
 
+import http from "http";
+import { Server } from "socket.io";
+
 // Initialize Express
 const app = express();
+
+const server = http.createServer(app);
 
 // Connect to database & cloudinary
 await connectDB();
@@ -114,6 +119,32 @@ app.use("/api/calendar-event", express.json(), calendarRouter);
 // We add requireAuth() so only logged-in users can save tokens
 app.use('/api/notifications', express.json(), notificationRoutes);
 
+
+const io = new Server(server, {
+  cors: {
+    origin: allowedOrigins,
+    credentials: true,
+  }
+});
+
+io.on("connection", (socket) => {
+  console.log("🔥 User connected:", socket.id);
+
+  socket.on("join-team", (teamId) => {
+    socket.join(teamId);
+  });
+
+  socket.on("send-message", (data) => {
+    io.to(data.teamId).emit("receive-message", data);
+  });
+
+  socket.on("disconnect", () => {
+    console.log("❌ User disconnected");
+  });
+});
+
 // Start server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
+server.listen(PORT, () =>
+  console.log(`🚀 Server running with Socket.IO on port ${PORT}`)
+);
