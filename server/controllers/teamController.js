@@ -29,6 +29,10 @@ export const createTeam = async (req, res) => {
       banner,
       leader: userId,
       members: [{ userId, role: "admin" }],
+      channels: [
+         { name: "General", createdBy: userId }
+       ],
+
       // ✅ Project domain could be stored here if we add schema validation,
       // but it's implicitly derived from the Leader's assignedProject for now.
     });
@@ -191,6 +195,8 @@ export const sendMessage = async (req, res) => {
       attachmentUrl,
       linkData,
     });
+
+    req.app.get("io")?.to(teamId).emit("receive-message", message);
 
     await message.populate("sender", "name imageUrl");
 

@@ -22,6 +22,13 @@ const teamSchema = new mongoose.Schema(
         joinedAt: { type: Date, default: Date.now },
       },
     ],
+    channels: [
+    {
+      name: { type: String, required: true },
+      createdBy: { type: String, ref: "User" },
+      createdAt: { type: Date, default: Date.now }
+    }
+  ],
     pendingRequests: [{ type: String, ref: "User" }],
     isPublic: { type: Boolean, default: true },
   },
