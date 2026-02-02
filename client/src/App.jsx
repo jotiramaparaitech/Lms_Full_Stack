@@ -54,6 +54,7 @@ import StudentInfo from "./pages/student/StudentInfo";
 
 // 🔥 IMPORT THE CUSTOM HOOK
 import usePushNotification from "./hooks/usePushNotification";
+import StudentAttendance from "./pages/student/StudentAttendance";
 
 
 const App = () => {
@@ -122,6 +123,7 @@ const AppContent = ({ isEducatorRoute, isEducator }) => {
          <Route path="/student/apps/teams" element={<Teams />} />
 
          <Route path="/student/student-info" element={<StudentInfo />} />
+        <Route path="/student/attendance" element={<StudentAttendance />} />
 
 
         {/* 🧑‍🏫 Educator Routes (Protected) */}

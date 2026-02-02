@@ -13,6 +13,7 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  CalendarCheck,
   BookOpen,
   CheckCircle,
   CalendarDays,
@@ -60,6 +61,12 @@ const StudentSidebar = () => {
     label: "Project Tracker",
     path: "/student/progress"
   },
+  {
+  icon: <CalendarCheck size={20} />,
+  label: "Attendance",
+  path: "/student/attendance"
+  },
+
 
   // ✅ NEW (ONLY leader)
   ...(isTeamLeader
