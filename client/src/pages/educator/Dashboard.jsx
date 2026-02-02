@@ -5,6 +5,7 @@ import axios from "axios";
 import { toast } from "react-toastify";
 import Loading from "../../components/student/Loading";
 import { motion } from "framer-motion";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
 const Dashboard = () => {
   const { backendUrl, isEducator, currency, getToken } = useContext(AppContext);
@@ -31,110 +32,154 @@ const Dashboard = () => {
     if (isEducator) fetchDashboardData();
   }, [isEducator]);
 
+  // Data for the Pie Chart (User Activity)
+  const activityData = [
+    { name: 'Completed', value: 400, color: '#22c55e' },
+    { name: 'In Progress', value: 300, color: '#3b82f6' },
+    { name: 'Not Started', value: 100, color: '#94a3b8' },
+  ];
+
   const cards = [
-    {
-      icon: assets.patients_icon,
-      value: dashboardData?.enrolledStudentsData.length,
-      label: "Total Enrolments",
-      gradient: "from-pink-500 to-red-500",
-      shadow: "rgba(239,68,68,0.5)",
-    },
-    {
-      icon: assets.appointments_icon,
-      value: dashboardData?.totalCourses,
-      label: "Total Projects",
-      gradient: "from-green-400 to-teal-500",
-      shadow: "rgba(34,197,94,0.5)",
-    },
-    {
-      icon: assets.earning_icon,
-      value: `${currency}${Math.floor(dashboardData?.totalEarnings)}`,
-      label: "Total Earnings",
-      gradient: "from-blue-400 to-indigo-500",
-      shadow: "rgba(59,130,246,0.5)",
-    },
+    { label: "Total Students", value: dashboardData?.enrolledStudentsData.length || 0, icon: assets.patients_icon, color: "text-blue-600", bg: "bg-blue-50" },
+    { label: "Total Projects", value: dashboardData?.totalCourses || 0, icon: assets.appointments_icon, color: "text-purple-600", bg: "bg-purple-50" },
+    { label: "Enrollments Today", value: "120", icon: assets.earning_icon, color: "text-emerald-600", bg: "bg-emerald-50" },
+    { label: "Total Earnings", value: `${currency}${Math.floor(dashboardData?.totalEarnings || 0)}`, icon: assets.earning_icon, color: "text-orange-600", bg: "bg-orange-50" },
   ];
 
   return dashboardData ? (
-    <div className="min-h-screen flex flex-col gap-10 md:p-12 p-6 bg-gradient-to-br from-blue-50 via-white to-cyan-50 relative overflow-hidden">
-      {/* Background 3D Glows */}
-      <div className="absolute top-[-100px] left-[10%] w-72 h-72 bg-blue-400/20 blur-3xl rounded-full animate-pulse -z-10"></div>
-      <div className="absolute bottom-[-100px] right-[5%] w-96 h-96 bg-purple-400/20 blur-3xl rounded-full animate-pulse -z-10"></div>
-
-      {/* Top Statistic Cards */}
-      <div className="flex flex-wrap gap-8 items-center justify-start">
+    <div className="min-h-screen p-6 bg-[#F8FAFC]">
+      
+      {/* 1. Statistics Row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {cards.map((card, index) => (
-          <motion.div
-            key={index}
-            whileHover={{ scale: 1.08, rotateY: 5 }}
-            transition={{ type: "spring", stiffness: 200 }}
-            className={`flex items-center gap-5 bg-gradient-to-tr ${card.gradient} text-white p-6 w-64 rounded-3xl shadow-[0_10px_35px_${card.shadow}] hover:shadow-[0_20px_50px_${card.shadow}] backdrop-blur-md transform transition-all cursor-pointer`}
-          >
-            <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-lg shadow-inner">
-              <img src={card.icon} alt="icon" className="w-10 h-10" />
+          <div key={index} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
+            <div className={`p-3 rounded-lg ${card.bg} ${card.color}`}>
+              <img src={card.icon} alt="" className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-3xl font-bold drop-shadow-md">{card.value}</p>
-              <p className="text-base opacity-90 font-medium">{card.label}</p>
+              <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider">{card.label}</p>
+              <h3 className="text-2xl font-bold text-gray-800">{card.value}</h3>
             </div>
-          </motion.div>
+          </div>
         ))}
       </div>
 
-      {/* Latest Enrolments Table */}
-      <motion.div
-        initial={{ opacity: 0, y: 40 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8 }}
-        className="w-full max-w-5xl"
-      >
-        <h2 className="pb-4 text-2xl font-semibold text-gray-800">
-          Latest Enrolments
-        </h2>
-        <div className="overflow-hidden rounded-3xl bg-white/80 backdrop-blur-xl border border-gray-200 shadow-xl hover:shadow-2xl transition-all">
-          <table className="table-auto w-full">
-            <thead className="bg-gradient-to-r from-sky-100 to-cyan-100 text-gray-800 text-sm">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        {/* 2. Top Courses Performance (Left - 8 Columns) */}
+        <div className="lg:col-span-8 bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex justify-between items-center mb-8">
+            <h3 className="text-lg font-bold">Top Performing Projects</h3>
+            <button className="text-blue-600 text-sm font-medium hover:underline">View All</button>
+          </div>
+          <div className="space-y-8">
+            {[
+              { name: 'JavaScript Mastery', students: 1250, color: 'bg-blue-500', percent: 85 },
+              { name: 'Machine Learning A-Z', students: 980, color: 'bg-emerald-500', percent: 70 },
+              { name: 'Graphic Design Essentials', students: 875, color: 'bg-orange-500', percent: 60 }
+            ].map((course, i) => (
+              <div key={i} className="group">
+                <div className="flex justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                     <div className={`w-2 h-2 rounded-full ${course.color}`}></div>
+                     <span className="text-sm font-semibold text-gray-700">{course.name}</span>
+                  </div>
+                  <span className="text-sm text-gray-500 font-medium">{course.students} Enrolled</span>
+                </div>
+                <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
+                  <motion.div 
+                    initial={{ width: 0 }} 
+                    animate={{ width: `${course.percent}%` }}
+                    transition={{ duration: 1 }}
+                    className={`h-full rounded-full ${course.color}`}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* 3. User Activity & Approvals (Right - 4 Columns) */}
+        <div className="lg:col-span-4 space-y-8">
+          
+          {/* Pie Chart Card */}
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <h3 className="text-lg font-bold mb-4 text-center">User Activity</h3>
+            <div className="h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={activityData} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                    {activityData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex justify-center gap-4 mt-2">
+               {activityData.map((item, i) => (
+                 <div key={i} className="flex items-center gap-1">
+                   <div className="w-2 h-2 rounded-full" style={{backgroundColor: item.color}}></div>
+                   <span className="text-[10px] text-gray-500 font-medium">{item.name}</span>
+                 </div>
+               ))}
+            </div>
+          </div>
+
+          {/* Pending Approvals Card */}
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <h3 className="text-lg font-bold mb-4">Pending Approvals</h3>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center p-4 bg-gray-50 rounded-xl border border-gray-100 group hover:bg-blue-50 transition-colors cursor-pointer">
+                <span className="text-sm font-medium text-gray-600">Course Review Requests</span>
+                <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold">5</span>
+              </div>
+              <div className="flex justify-between items-center p-4 bg-gray-50 rounded-xl border border-gray-100 group hover:bg-purple-50 transition-colors cursor-pointer">
+                <span className="text-sm font-medium text-gray-600">Instructor Applications</span>
+                <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-bold">2</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        {/* 4. Latest Enrolments (Full Width Bottom) */}
+        <div className="lg:col-span-12 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="p-6 border-b border-gray-50 flex justify-between items-center">
+            <h3 className="text-lg font-bold">Latest Enrolments</h3>
+            <div className="flex gap-2">
+              <input type="text" placeholder="Search students..." className="text-xs border border-gray-200 rounded-lg px-3 py-2 outline-none focus:ring-1 ring-blue-400" />
+            </div>
+          </div>
+          <table className="w-full text-left">
+            <thead className="bg-gray-50 text-gray-400 text-[11px] uppercase tracking-widest font-bold">
               <tr>
-                <th className="px-6 py-3 font-semibold text-center hidden sm:table-cell">
-                  #
-                </th>
-                <th className="px-6 py-3 font-semibold">Student Name</th>
-                <th className="px-6 py-3 font-semibold">Project Title</th>
+                <th className="px-8 py-4">Student</th>
+                <th className="px-8 py-4">Project Title</th>
+                <th className="px-8 py-4">Date</th>
+                <th className="px-8 py-4 text-center">Action</th>
               </tr>
             </thead>
-            <tbody className="text-gray-700">
-              {dashboardData.enrolledStudentsData
-                .filter(
-                  (item) =>
-                    item &&
-                    item.student &&
-                    item.student._id &&
-                    item.student.name
-                )
-                .map((item, index) => (
-                  <motion.tr
-                    key={index}
-                    whileHover={{ scale: 1.02, backgroundColor: "#E0F2FE" }}
-                    className="border-b border-gray-200 transition-all"
-                  >
-                    <td className="px-6 py-3 text-center hidden sm:table-cell">
-                      {index + 1}
-                    </td>
-                    <td className="px-6 py-3 flex items-center gap-3">
-                      <img
-                        src={item.student.imageUrl || "/default-avatar.png"}
-                        alt="Profile"
-                        className="w-10 h-10 rounded-full shadow-md ring-2 ring-sky-300"
-                      />
-                      <span className="font-medium">{item.student.name}</span>
-                    </td>
-                    <td className="px-6 py-3 truncate">{item.courseTitle}</td>
-                  </motion.tr>
-                ))}
+            <tbody className="divide-y divide-gray-50">
+              {dashboardData.enrolledStudentsData.slice(0, 5).map((item, index) => (
+                <tr key={index} className="hover:bg-gray-50/50 transition-colors">
+                  <td className="px-8 py-4 flex items-center gap-3">
+                    <img src={item.student.imageUrl || "/default-avatar.png"} className="w-8 h-8 rounded-full ring-2 ring-gray-100" />
+                    <span className="text-sm font-semibold text-gray-700">{item.student.name}</span>
+                  </td>
+                  <td className="px-8 py-4 text-sm text-gray-600">{item.courseTitle}</td>
+                  <td className="px-8 py-4 text-sm text-gray-400">April 20, 2024</td>
+                  <td className="px-8 py-4 text-center">
+                    <button className="text-gray-400 hover:text-blue-600">•••</button>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
-      </motion.div>
+
+      </div>
     </div>
   ) : (
     <Loading />
