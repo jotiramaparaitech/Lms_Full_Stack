@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, MessageSquare, Send } from "lucide-react";
 import { toast } from "react-toastify";
-import emailjs from "@emailjs/browser";
 
 const InquiryModal = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -48,26 +47,37 @@ const InquiryModal = () => {
 
     setIsSubmitting(true);
 
-    const templateParams = {
-      from_name: formData.name,
-      from_email: formData.email,
-      phone: formData.phone || "Not provided",
-      subject: "Inquiry from Website Popup",
-      message: formData.message,
-      to_email: "info@aparaitechsoftware.org",
-    };
-
     try {
-      console.log("Sending email with params:", templateParams);
+      const res = await fetch(
+        `${import.meta.env.VITE_BACKEND_URL || "http://localhost:5000"}/api/support`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: formData.name,
+            email: formData.email,
+            message: `
+Subject: Inquiry from Website Popup
+Phone: ${formData.phone || "Not provided"}
 
-      const response = await emailjs.send(
-        "service_wdj15jn",
-        "template_xtmll8h",
-        templateParams,
-        "gpm7Cf-quPRpX09xI",
+Message:
+${formData.message}
+            `,
+          }),
+        }
       );
 
-      console.log("EmailJS success:", response);
+      if (!res.ok) {
+        let errorMessage = "Failed to send message. Please try again.";
+        try {
+          const data = await res.json();
+          if (data?.message) errorMessage = data.message;
+        } catch {
+          // ignore json parse errors
+        }
+        throw new Error(errorMessage);
+      }
+
       toast.success("Thank you! We'll get back to you soon.");
       setFormData({
         name: "",
@@ -77,18 +87,8 @@ const InquiryModal = () => {
       });
       setIsOpen(false);
     } catch (error) {
-      console.error("EmailJS error details:", error);
-      console.error("Full error object:", JSON.stringify(error, null, 2));
-
-      // More specific error messages
-      let errorMessage = "Failed to send message. Please try again.";
-      if (error?.text) {
-        errorMessage = `Error: ${error.text}`;
-      } else if (error?.message) {
-        errorMessage = `Error: ${error.message}`;
-      }
-
-      toast.error(errorMessage);
+      console.error("Inquiry submit error:", error);
+      toast.error(error?.message || "Failed to send message. Please try again.");
     } finally {
       setIsSubmitting(false);
     }

@@ -21,6 +21,9 @@ import notificationRoutes from "./routes/notificationRoutes.js";
 import attendanceRoutes from "./routes/attendanceRoutes.js";
 
 
+import subscribeRoutes from "./routes/subscribeRoutes.js";
+import supportRoutes from "./routes/supportRoutes.js";
+
 import http from "http";
 import { Server } from "socket.io";
 
@@ -94,8 +97,9 @@ app.use(
   attendanceRoutes
 );
 
+app.use("/api", subscribeRoutes);
+app.use("/api", supportRoutes);
 
-// ------------------ SOCKET.IO ------------------
 const io = new Server(server, {
   cors: {
     origin: allowedOrigins,
@@ -103,7 +107,6 @@ const io = new Server(server, {
   },
 });
 
-// 🔥 THIS WAS MISSING (CRITICAL)
 app.set("io", io);
 
 io.on("connection", (socket) => {
@@ -118,7 +121,6 @@ io.on("connection", (socket) => {
   });
 });
 
-// Start server
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () =>
   console.log(`🚀 Server running with Socket.IO on port ${PORT}`)
