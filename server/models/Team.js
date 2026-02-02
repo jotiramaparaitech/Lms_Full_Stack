@@ -4,6 +4,10 @@ const teamSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
     description: { type: String },
+    logo: {
+      type: String,
+      default: "", // Cloudinary URL
+    },
     banner: { type: String, default: "" },
     leader: {
       type: String,
