@@ -67,7 +67,6 @@ export const AppContextProvider = (props) => {
 };
 
 
-
   const fetchTeamLeaderStatus = async () => {
   try {
     if (!user) {
