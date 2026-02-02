@@ -13,11 +13,11 @@ import {
   FaMapMarkerAlt,
 } from "react-icons/fa";
 import { FaXTwitter } from "react-icons/fa6";
-import emailjs from "@emailjs/browser";
 
 const Footer = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
+  const [status, setStatus] = useState("idle"); // idle | loading | success | error
   const [message, setMessage] = useState("");
 
   const handleScroll = (targetId) => {
@@ -43,39 +43,52 @@ const Footer = () => {
     }
   };
 
-  const handleSubscribe = (e) => {
+  const handleSubscribe = async (e) => {
     e.preventDefault();
 
     if (!email) {
+      setStatus("error");
       setMessage("Please enter a valid email.");
       return;
     }
 
+    setStatus("loading");
     setMessage("Processing...");
 
-    const templateParams = {
-      to_email: email,
-      from_name: "Aparaitech",
-      message: "Thank you for subscribing to our newsletter!",
-    };
-
-    emailjs
-      .send(
-        "service_wdj15jn",
-        "template_xtmll8h",
-        templateParams,
-        "gpm7Cf-quPRpX09xI",
-      )
-      .then(
-        (response) => {
-          setMessage("✓ Subscription successful! Check your inbox.");
-          setEmail("");
-        },
-        (error) => {
-          setMessage("Failed to subscribe. Please try again.");
-        },
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_BACKEND_URL || "http://localhost:5000"}/api/subscribe`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ email }),
+        }
       );
+
+      if (!response.ok) {
+        let errorMessage = "Request failed";
+        try {
+          const data = await response.json();
+          if (data?.message) errorMessage = data.message;
+        } catch {
+          // ignore json parse errors
+        }
+        throw new Error(errorMessage);
+      }
+
+      setStatus("success");
+      setMessage("Subscription successful! Check your inbox.");
+      setEmail("");
+    } catch (error) {
+      console.error(error);
+      setStatus("error");
+      setMessage(error?.message || "Failed to subscribe. Please try again.");
+    }
   };
+
+
 
   return (
     <footer
@@ -255,10 +268,10 @@ const Footer = () => {
                             hover:scale-[1.02] active:scale-[0.98]
                             disabled:opacity-50 disabled:cursor-not-allowed
                             whitespace-nowrap group"
-                  disabled={message.includes("Processing")}
+                  disabled={status === "loading"}
                 >
                   <span className="relative z-10 flex items-center justify-center gap-2">
-                    {message.includes("Processing") ? (
+                    {status === "loading" ? (
                       <>
                         <svg
                           className="animate-spin h-4 w-4 text-white"
@@ -308,13 +321,15 @@ const Footer = () => {
               {message && (
                 <div
                   className={`px-4 py-3 rounded-xl border backdrop-blur-sm transition-all duration-300 ${
-                    message.includes("✓")
+                    status === "success"
                       ? "bg-green-900/20 text-green-300 border-green-800/30"
-                      : "bg-red-900/20 text-red-300 border-red-800/30"
+                      : status === "error"
+                        ? "bg-red-900/20 text-red-300 border-red-800/30"
+                        : "bg-blue-900/20 text-blue-200 border-blue-800/30"
                   }`}
                 >
                   <div className="flex items-center gap-2 text-sm">
-                    {message.includes("✓") ? (
+                    {status === "success" ? (
                       <svg
                         className="w-4 h-4"
                         fill="currentColor"
@@ -325,6 +340,27 @@ const Footer = () => {
                           d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
                           clipRule="evenodd"
                         />
+                      </svg>
+                    ) : status === "loading" ? (
+                      <svg
+                        className="w-4 h-4 animate-spin"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
                       </svg>
                     ) : (
                       <svg
@@ -399,9 +435,8 @@ const Footer = () => {
                             ${bg} ${glow} hover:shadow-lg border border-white/10 
                             hover:border-white/20`}
                   style={{
-                    animation: `gentlePulse 4s ease-in-out ${
-                      idx * 0.1
-                    }s infinite`,
+                    animation: `gentlePulse 4s ease-in-out ${idx * 0.1
+                      }s infinite`,
                   }}
                 >
                   <Icon
