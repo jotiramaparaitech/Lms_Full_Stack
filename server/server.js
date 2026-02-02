@@ -18,6 +18,8 @@ import teamRouter from "./routes/teamRoutes.js";
 import todoRouter from "./routes/todoRoutes.js";
 import calendarRouter from "./routes/calendarEventRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
+import attendanceRoutes from "./routes/attendanceRoutes.js";
+
 
 import http from "http";
 import { Server } from "socket.io";
@@ -85,6 +87,13 @@ app.use("/api/todo", express.json(), requireAuth(), todoRouter);
 app.use("/api/user", express.json(), requireAuth(), userRouter);
 app.use("/api/calendar-event", express.json(), calendarRouter);
 app.use("/api/notifications", express.json(), notificationRoutes);
+app.use(
+  "/api/attendance",
+  express.json(),
+  requireAuth(),
+  attendanceRoutes
+);
+
 
 // ------------------ SOCKET.IO ------------------
 const io = new Server(server, {
