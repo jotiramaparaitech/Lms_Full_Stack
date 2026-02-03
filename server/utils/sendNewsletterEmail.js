@@ -19,7 +19,6 @@ const transporter = nodemailer.createTransport({
 
 const sendNewsletterEmail = async (email) => {
   await Promise.all([
-    // 1️⃣ Email to USER
     transporter.sendMail({
       from: `"${process.env.FROM_NAME}" <${process.env.FROM_EMAIL}>`,
       to: email,
@@ -32,7 +31,7 @@ const sendNewsletterEmail = async (email) => {
       `,
     }),
 
-    // 2️⃣ Email to COMPANY
+
     transporter.sendMail({
       from: `"Website" <${process.env.FROM_EMAIL}>`,
       to: process.env.FROM_EMAIL,
