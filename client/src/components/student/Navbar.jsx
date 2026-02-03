@@ -30,26 +30,38 @@ const Navbar = () => {
 
   const userRole = user?.publicMetadata?.role || "student";
 
+  // Check if a nav item is active
+  const isActive = (path) => {
+    if (path === "/") {
+      return location.pathname === path;
+    }
+    return location.pathname.startsWith(path);
+  };
+
+  // Active style for desktop nav items (box style) - EXCLUDES "All Project"
+  const getNavItemStyle = (path) => {
+    const active = isActive(path);
+    return `px-4 py-2 rounded-lg transition-all duration-200 ${active
+      ? "bg-cyan-600 text-white shadow-md font-semibold"
+      : "text-gray-700 hover:text-cyan-700 hover:bg-cyan-50"
+      }`;
+  };
+
+  // Active style for mobile nav items - EXCLUDES "All Project"
+  const getMobileNavItemStyle = (path) => {
+    const active = isActive(path);
+    return `px-4 py-3 rounded-lg transition-all duration-200 ${active
+      ? "bg-cyan-600 text-white font-semibold"
+      : "text-gray-700 hover:bg-cyan-50"
+      }`;
+  };
+
   // Educator Access Handler
   const handleEducatorAccess = () => {
     if (userRole === "educator" || userRole === "admin") {
       navigate("/educator");
     } else {
       toast.info("You need educator access to open this dashboard.");
-    }
-  };
-
-  // Scroll to Footer Handler
-  const handleScrollToFooter = () => {
-    const footer = document.getElementById("contact-section");
-    if (footer) {
-      footer.scrollIntoView({ behavior: "smooth" });
-    } else {
-      navigate("/");
-      setTimeout(() => {
-        const section = document.getElementById("contact-section");
-        section?.scrollIntoView({ behavior: "smooth" });
-      }, 400);
     }
   };
 
@@ -95,33 +107,34 @@ const Navbar = () => {
         </button>
 
         {/* Desktop Menu */}
-        <div className="hidden md:flex items-center gap-8 text-gray-700 font-medium">
-          <div className="flex items-center flex-wrap gap-6">
+        <div className="hidden md:flex items-center gap-4 text-gray-700 font-medium">
+          <div className="flex items-center flex-wrap gap-2">
             <Link
               to="/"
-              className="hover:text-cyan-700 transition-colors duration-200"
+              className={getNavItemStyle("/")}
             >
               Home
             </Link>
             <Link
               to="/about"
-              className="hover:text-cyan-700 transition-colors duration-200"
+              className={getNavItemStyle("/about")}
             >
               About Us
             </Link>
             <Link
               to="/course-list"
-              className="hover:text-cyan-700 transition-colors duration-200"
+              className={getNavItemStyle("/course-list")}
             >
               Projects
             </Link>
 
-            {/* All Project Button - Available on all pages */}
+            {/* All Project Button - PLAIN TEXT without box styling */}
             <motion.button
               onClick={() => setIsAllProjectsOpen(true)}
               whileHover={{ scale: 1.05 }}
-              className="px-0 py-0 font-medium transition-colors duration-200
-             text-gray-700 hover:text-cyan-700"
+              className={`px-4 py-2 font-medium transition-colors duration-200
+    text-gray-700 hover:text-cyan-700 ${isAllProjectsOpen ? "text-cyan-700 font-semibold" : ""
+                }`}
             >
               All Project
             </motion.button>
@@ -130,19 +143,23 @@ const Navbar = () => {
             {/* Contact Us Link */}
             <Link
               to="/contact"
-              className="hover:text-cyan-700 transition-colors duration-200"
+              className={getNavItemStyle("/contact")}
             >
               Contact Us
             </Link>
           </div>
 
           {user && (
-            <div className="flex items-center flex-wrap gap-5 ml-6">
+            <div className="flex items-center flex-wrap gap-2 ml-4">
               {(userRole === "educator" || userRole === "admin") && (
                 <motion.button
-                  whileHover={{ scale: 1.1 }}
-                  className="hover:text-cyan-700 transition-colors duration-200"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={handleEducatorAccess}
+                  className={`px-4 py-2 rounded-lg transition-all duration-200 ${location.pathname === "/educator" || location.pathname.startsWith("/educator")
+                    ? "bg-cyan-600 text-white shadow-md font-semibold"
+                    : "text-gray-700 hover:text-cyan-700 hover:bg-cyan-50"
+                    }`}
                 >
                   Admin Dashboard
                 </motion.button>
@@ -151,24 +168,28 @@ const Navbar = () => {
               {(userRole === "student" || userRole === "admin") && (
                 <Link
                   to="/student/dashboard"
-                  className="hover:text-cyan-700 transition-colors duration-200"
+                  className={`px-4 py-2 rounded-lg transition-all duration-200 ${location.pathname.startsWith("/student/dashboard")
+                    ? "bg-cyan-600 text-white shadow-md font-semibold"
+                    : "text-gray-700 hover:text-cyan-700 hover:bg-cyan-50"
+                    }`}
                 >
                   Student Dashboard
                 </Link>
               )}
-
             </div>
           )}
 
           {/* User Button / Sign In */}
           {user ? (
-            <UserButton afterSignOutUrl="/" />
+            <div className="ml-4">
+              <UserButton afterSignOutUrl="/" />
+            </div>
           ) : (
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => openSignIn()}
-              className="bg-cyan-600 text-white px-5 py-2 rounded-full shadow-md hover:shadow-xl hover:bg-cyan-700 transition-all duration-300"
+              className="ml-4 bg-cyan-600 text-white px-5 py-2 rounded-lg shadow-md hover:shadow-xl hover:bg-cyan-700 transition-all duration-300"
             >
               Sign In
             </motion.button>
@@ -176,13 +197,11 @@ const Navbar = () => {
         </div>
 
         {/* Mobile Dropdown Menu */}
-        {/* Mobile Dropdown Menu */}
         {menuOpen && (
-          <div className="md:hidden w-full mt-3 bg-white/90 backdrop-blur-sm rounded-xl shadow-lg p-4 flex flex-col gap-4 text-gray-700 font-medium">
-
+          <div className="md:hidden w-full mt-3 bg-white/90 backdrop-blur-sm rounded-xl shadow-lg p-4 flex flex-col gap-2 text-gray-700 font-medium">
             {/* ✅ MOBILE USER INFO (ADDED) */}
             {user && (
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-100">
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-100 mb-2">
                 <img
                   src={user.imageUrl}
                   alt="Profile"
@@ -197,7 +216,7 @@ const Navbar = () => {
             <Link
               to="/"
               onClick={() => setMenuOpen(false)}
-              className="hover:text-cyan-700 transition-colors"
+              className={getMobileNavItemStyle("/")}
             >
               Home
             </Link>
@@ -205,7 +224,7 @@ const Navbar = () => {
             <Link
               to="/about"
               onClick={() => setMenuOpen(false)}
-              className="hover:text-cyan-700 transition-colors"
+              className={getMobileNavItemStyle("/about")}
             >
               About Us
             </Link>
@@ -213,18 +232,18 @@ const Navbar = () => {
             <Link
               to="/course-list"
               onClick={() => setMenuOpen(false)}
-              className="hover:text-cyan-700 transition-colors"
+              className={getMobileNavItemStyle("/course-list")}
             >
               Projects
             </Link>
 
-            {/* All Project Button - Mobile */}
+            {/* All Project Button - Mobile (PLAIN TEXT without box styling) */}
             <button
               onClick={() => {
                 setIsAllProjectsOpen(true);
                 setMenuOpen(false);
               }}
-              className="text-left py-1 transition-colors
+              className="px-4 py-3 text-left transition-colors
              text-gray-700 hover:text-cyan-700"
             >
               All Project
@@ -234,7 +253,7 @@ const Navbar = () => {
             <Link
               to="/contact"
               onClick={() => setMenuOpen(false)}
-              className="hover:text-cyan-700 transition-colors"
+              className={getMobileNavItemStyle("/contact")}
             >
               Contact Us
             </Link>
@@ -247,7 +266,10 @@ const Navbar = () => {
                       handleEducatorAccess();
                       setMenuOpen(false);
                     }}
-                    className="hover:text-cyan-700 text-left"
+                    className={`px-4 py-3 rounded-lg text-left transition-all duration-200 ${location.pathname === "/educator" || location.pathname.startsWith("/educator")
+                      ? "bg-cyan-600 text-white font-semibold"
+                      : "text-gray-700 hover:bg-cyan-50"
+                      }`}
                   >
                     Admin Dashboard
                   </button>
@@ -257,16 +279,31 @@ const Navbar = () => {
                   <Link
                     to="/student/dashboard"
                     onClick={() => setMenuOpen(false)}
-                    className="hover:text-cyan-700 transition-colors"
+                    className={`px-4 py-3 rounded-lg transition-all duration-200 ${location.pathname.startsWith("/student/dashboard")
+                      ? "bg-cyan-600 text-white font-semibold"
+                      : "text-gray-700 hover:bg-cyan-50"
+                      }`}
                   >
                     Student Dashboard
                   </Link>
                 )}
               </>
             )}
+
+            {/* Sign In button for mobile when user is not logged in */}
+            {!user && (
+              <motion.button
+                onClick={() => {
+                  openSignIn();
+                  setMenuOpen(false);
+                }}
+                className="mt-2 bg-cyan-600 text-white px-4 py-3 rounded-lg shadow-md hover:bg-cyan-700 transition-all duration-300 text-center"
+              >
+                Sign In
+              </motion.button>
+            )}
           </div>
         )}
-
       </div>
     </motion.nav>
   );
