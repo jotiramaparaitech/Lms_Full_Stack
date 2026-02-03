@@ -3,7 +3,7 @@ import axios from "axios";
 import { AppContext } from "../../context/AppContext";
 import StudentLayout from "../../components/student/StudentLayout";
 import { toast } from "react-toastify";
-import { User, Mail, Target, TrendingUp, Edit2 } from "lucide-react";
+import { User, Mail, Target, TrendingUp, Edit2, Lock, Unlock } from "lucide-react";
 
 const StudentInfo = () => {
   const { backendUrl, getToken, isTeamLeader } = useContext(AppContext);
@@ -13,9 +13,9 @@ const StudentInfo = () => {
   const [editingStudent, setEditingStudent] = useState(null);
   const [editProgress, setEditProgress] = useState("");
 
-  const fetchStudentInfo = async () => {
+  const fetchStudentInfo = async (isBackground = false) => {
     try {
-      setLoading(true);
+      if (!isBackground) setLoading(true);
       const token = await getToken();
 
       const res = await axios.get(`${backendUrl}/api/teams/student-info`, {
@@ -30,11 +30,23 @@ const StudentInfo = () => {
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to load student info");
     } finally {
-      setLoading(false);
+      if (!isBackground) setLoading(false);
     }
   };
 
   const updateProgress = async (studentId, newProgress) => {
+    // Optimistic Update
+    const previousStudents = [...students];
+    setStudents((prev) =>
+      prev.map((s) => {
+        if (s.userId === studentId) {
+          if (typeof newProgress === "number") return { ...s, progress: newProgress };
+          if (typeof newProgress === "object") return { ...s, ...newProgress };
+        }
+        return s;
+      })
+    );
+
     try {
       const token = await getToken();
 
@@ -42,7 +54,8 @@ const StudentInfo = () => {
         `${backendUrl}/api/teams/update-progress`,
         {
           studentId,
-          progress: newProgress,
+          ...(typeof newProgress === "number" && { progress: newProgress }),
+          ...(typeof newProgress === "object" ? newProgress : {}),
         },
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -50,13 +63,18 @@ const StudentInfo = () => {
       );
 
       if (res.data.success) {
-        toast.success("Progress updated");
-        fetchStudentInfo();
+        toast.success(res.data.message || "Updated successfully");
+        // Background refresh to ensure consistency
+        fetchStudentInfo(true);
         setEditingStudent(null);
       } else {
+        // Revert on failure
+        setStudents(previousStudents);
         toast.error(res.data.message || "Update failed");
       }
     } catch (error) {
+      // Revert on error
+      setStudents(previousStudents);
       toast.error(error.response?.data?.message || "Update failed");
     }
   };
@@ -175,8 +193,30 @@ const StudentInfo = () => {
                   )}
                 </div>
 
-                {/* Progress */}
+                {/* Progress & LOR */}
                 <div>
+                  {/* LOR Toggle - New Addition */}
+                  <div className="flex items-center justify-between mb-4 bg-gray-50 p-3 rounded-lg border border-gray-100">
+                    <div className="flex items-center gap-2">
+                      {s.lorUnlocked ? (
+                        <Unlock size={16} className="text-green-600" />
+                      ) : (
+                        <Lock size={16} className="text-amber-500" />
+                      )}
+                      <span className="text-sm font-medium text-gray-700">LOR Access</span>
+                    </div>
+                    <button
+                      onClick={() => updateProgress(s.userId, { lorUnlocked: !s.lorUnlocked })}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${s.lorUnlocked ? 'bg-green-500' : 'bg-gray-300'
+                        }`}
+                    >
+                      <span
+                        className={`${s.lorUnlocked ? 'translate-x-6' : 'translate-x-1'
+                          } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+                      />
+                    </button>
+                  </div>
+
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <TrendingUp size={14} className="text-gray-500" />

@@ -30,7 +30,7 @@ import headerLine from "../../assets/Progress_header_line.jpg";
 import footerLine from "../../assets/Progress_footer_line.jpg";
 
 const Certificates = () => {
-  const { teamProgress, fetchMyTeamProgress, userData } =
+  const { teamProgress, fetchMyTeamProgress, userData, lorUnlocked } =
     useContext(AppContext);
 
   useEffect(() => {
@@ -712,7 +712,7 @@ const Certificates = () => {
     // },
     {
       title: "Project Progress Certificate",
-      description: "Certificate for reaching 50% project completion",
+      description: "Certificate for reaching 75% project completion",
       icon: <BadgeCheck />,
       unlocked: progress >= 75,
       gradient: "from-emerald-500 to-green-500",
@@ -722,17 +722,18 @@ const Certificates = () => {
       title: "Project Completion Certificate",
       description: "Official certificate of project completion",
       icon: <Trophy />,
-      unlocked: progress >= 100,
+      unlocked: progress >= 95,
       gradient: "from-rose-500 to-pink-500",
-      progressRequired: 100,
+      progressRequired: 95,
     },
     {
       title: "Letter of Recommendation (LOR)",
       description: "Personalized recommendation from mentors",
       icon: <Award />,
-      unlocked: progress >= 100,
+      unlocked: progress >= 100 && lorUnlocked,
       gradient: "from-amber-500 to-orange-500",
       progressRequired: 100,
+      isLor: true, // Special flag for LOR logic handling
     },
     // {
     //   title: "Experience Letter",
@@ -831,7 +832,7 @@ const Certificates = () => {
 
           <div className="relative h-24 mb-6">
             <div className="flex items-center justify-between h-full absolute w-full z-10 p-0 pointer-events-none">
-              {[0, 50, 75, 100].map((milestone) => (
+              {[0, 50, 75, 95, 100].map((milestone) => (
                 <div
                   key={milestone}
                   className="absolute transform -translate-x-1/2 flex flex-col items-center"
@@ -845,8 +846,9 @@ const Certificates = () => {
                   >
                     {milestone === 0 && <FileText size={20} />}
                     {milestone === 50 && <BadgeCheck size={20} />}
-                    {milestone === 75 && <Award size={20} />}
-                    {milestone === 100 && <Trophy size={20} />}
+                    {milestone === 75 && <CheckCircle size={20} />}
+                    {milestone === 95 && <Trophy size={20} />}
+                    {milestone === 100 && <Award size={20} />}
                   </div>
                   <div
                     className={`text-sm font-medium transition-colors duration-500 ${progress >= milestone ? "text-green-600" : "text-gray-500"
@@ -865,7 +867,7 @@ const Certificates = () => {
             ></div>
 
             <div className="absolute top-6 left-0 right-0 h-1 z-0">
-              {[0, 50, 75, 100].map((milestone) => (
+              {[0, 50, 75, 95, 100].map((milestone) => (
                 <div
                   key={milestone}
                   className={`absolute w-4 h-4 rounded-full border-2 border-white transform -translate-y-1.5 -translate-x-1/2 transition-all duration-500 ${progress >= milestone
@@ -896,9 +898,25 @@ const Certificates = () => {
             >
               {/* Corner Ribbon for Locked */}
               {!doc.unlocked && (
-                <div className="absolute top-0 right-0 w-24 h-24 overflow-hidden">
-                  <div className="absolute top-2 -right-8 w-32 bg-gradient-to-r from-gray-400 to-gray-500 text-white text-xs font-bold py-1 text-center transform rotate-45">
+                <div className="absolute top-0 right-0 w-24 h-24 overflow-hidden z-20">
+                  <div className="absolute top-2 -right-8 w-32 bg-gradient-to-r from-gray-400 to-gray-500 text-white text-xs font-bold py-1 text-center transform rotate-45 shadow-sm">
                     <Lock size={10} className="inline mr-1" /> LOCKED
+                  </div>
+                </div>
+              )}
+
+              {/* Special Locked LOR Overlay */}
+              {!doc.unlocked && doc.isLor && progress >= 100 && (
+                <div className="absolute inset-0 bg-amber-50/95 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center z-30 transition-all">
+                  <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-4 shadow-inner animate-pulse">
+                    <Lock className="text-amber-600" size={28} />
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-800 mb-2">Verification Required</h3>
+                  <p className="text-amber-800 text-sm font-medium mb-4 leading-relaxed">
+                    Visit the company office to unlock the certification and stamp.
+                  </p>
+                  <div className="text-xs font-semibold text-amber-700 bg-amber-100 px-4 py-1.5 rounded-full border border-amber-200">
+                    Pending Admin Approval
                   </div>
                 </div>
               )}

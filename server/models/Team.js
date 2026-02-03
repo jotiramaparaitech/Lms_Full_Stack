@@ -22,17 +22,18 @@ const teamSchema = new mongoose.Schema(
         // ✅ NEW FIELDS
         progress: { type: Number, default: 0 },
         projectName: { type: String, default: "" },
+        lorUnlocked: { type: Boolean, default: false },
 
         joinedAt: { type: Date, default: Date.now },
       },
     ],
     channels: [
-    {
-      name: { type: String, required: true },
-      createdBy: { type: String, ref: "User" },
-      createdAt: { type: Date, default: Date.now }
-    }
-  ],
+      {
+        name: { type: String, required: true },
+        createdBy: { type: String, ref: "User" },
+        createdAt: { type: Date, default: Date.now }
+      }
+    ],
     pendingRequests: [{ type: String, ref: "User" }],
     isPublic: { type: Boolean, default: true },
   },
