@@ -1679,7 +1679,7 @@ const Teams = () => {
                               <div className="flex items-center justify-center gap-2 text-gray-500 p-3 bg-white rounded-xl border border-gray-200">
                                 <Lock size={14} />
                                 <p className="text-xs font-medium">
-                                  Only team leaders and admins can send messages in this team
+                                  Only team leaders can send messages in this team
                                 </p>
                               </div>
                             </div>
