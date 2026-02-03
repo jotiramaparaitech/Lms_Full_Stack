@@ -23,10 +23,11 @@ import { AppContext } from "../../context/AppContext";
 const StudentAttendance = () => {
   // ---------- CONTEXT & STATE ----------
   const { 
-    userData, 
-    enrolledCourses, 
-    backendUrl 
-  } = useContext(AppContext);
+  userData, 
+  enrolledCourses, 
+  backendUrl,
+  getToken // <--- Use the function provided by Clerk
+} = useContext(AppContext);
   
   const [attendance, setAttendance] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -45,23 +46,31 @@ const StudentAttendance = () => {
   const istNow = new Date(currentTime.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
   const minutesNow = istNow.getHours() * 60 + istNow.getMinutes();
 
-  const LOGIN_START = 570;   // 09:30
-  const LOGIN_END = 1080;     // 10:30
-  const LOGOUT_START = 1080; // 18:00
-  const LOGOUT_END = 1140;   // 19:00
+  const LOGIN_START = 570;   
+  const LOGIN_END = 1120;     
+  const LOGOUT_START = 1120; 
+  const LOGOUT_END = 1140;   
 
   const LOGIN_ALLOWED = minutesNow >= LOGIN_START && minutesNow <= LOGIN_END; 
   const LOGOUT_ALLOWED = minutesNow >= LOGOUT_START && minutesNow <= LOGOUT_END;
   const today = istNow.toISOString().split("T")[0];
 
   // ---------- API CALLS ----------
-  const fetchAttendance = async () => {
+const fetchAttendance = async () => {
     if (!courseId) {
         setIsLoading(false);
         return;
     }
     try {
-      const { data } = await axios.get(`${backendUrl}/api/attendance/history/${courseId}`);
+      // Get token here too
+      const token = await getToken();
+
+      const { data } = await axios.get(
+        `${backendUrl}/api/attendance/history/${courseId}`, 
+        {
+           headers: { Authorization: `Bearer ${token}` }
+        }
+      );
       
       if (data.success) {
         const recordList = data.attendance || data.history || [];
@@ -69,9 +78,7 @@ const StudentAttendance = () => {
       }
     } catch (error) {
       console.error("Fetch Error:", error);
-      if (error.response?.status !== 404) {
-        toast.error("Could not load attendance history.");
-      }
+      // specific error handling...
     } finally {
       setIsLoading(false);
     }
@@ -85,21 +92,37 @@ const StudentAttendance = () => {
     }
   }, [courseId, enrolledCourses]);
 
-  const markAttendance = async (session) => {
+const markAttendance = async (session) => {
     if (!courseId) return toast.error("No enrolled course found.");
 
     try {
       setMarking(true);
-      const { data } = await axios.post(`${backendUrl}/api/attendance/mark`, {
-        courseId,
-        session,
-      });
+
+      // 1. GET THE TOKEN FROM CLERK
+      const token = await getToken(); 
+      
+      if (!token) {
+        toast.error("Authentication failed. Please reload.");
+        return;
+      }
+
+      // 2. USE THE TOKEN IN THE HEADER
+      const { data } = await axios.post(
+        `${backendUrl}/api/attendance/mark`,
+        { courseId, session },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`, // Now this works!
+          },
+        }
+      );
 
       if (data.success) {
         toast.success(data.message || `🎉 ${session} marked successfully!`);
         fetchAttendance(); 
       }
     } catch (error) {
+      console.error("Mark Error:", error);
       const message = error.response?.data?.message || "Failed to mark attendance.";
       toast.error(message);
     } finally {
