@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext } from "react";
+import React, { useEffect, useState, useContext, useRef } from "react";
 import axios from "axios";
 import { motion } from "framer-motion";
 import { toast } from "react-toastify";
@@ -7,20 +7,39 @@ import { useAuth } from "@clerk/clerk-react";
 
 const AssignCourse = () => {
   const { backendUrl } = useContext(AppContext);
-  const { getToken } = useAuth(); // ✅ Clerk Auth
+  const { getToken } = useAuth();
   const [students, setStudents] = useState([]);
   const [courses, setCourses] = useState([]);
-  const [teams, setTeams] = useState([]); // ✅ NEW: Teams state
+  const [teams, setTeams] = useState([]);
   const [selectedStudent, setSelectedStudent] = useState("");
   const [selectedCourse, setSelectedCourse] = useState("");
-  const [selectedTeam, setSelectedTeam] = useState(""); // ✅ NEW: Selected Team
+  const [selectedTeam, setSelectedTeam] = useState("");
   const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef(null);
 
-  // ✅ Fetch all students and educator's courses (Clerk-secured)
+  // ✅ Filter students whose names START WITH search term (case-insensitive)
+  const filteredStudents = students.filter((student) =>
+    student.name.toLowerCase().startsWith(searchTerm.toLowerCase())
+  );
+
+  // ✅ Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // ✅ Fetch all students and educator's courses
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const token = await getToken(); // 🔐 Get Clerk token
+        const token = await getToken();
 
         const [studentsRes, coursesRes, teamsRes] = await Promise.all([
           axios.get(`${backendUrl}/api/educator/all-students`, {
@@ -36,7 +55,7 @@ const AssignCourse = () => {
 
         setStudents(studentsRes.data.students || []);
         setCourses(coursesRes.data.courses || []);
-        setTeams(teamsRes.data.teams || []); // ✅ Set Teams
+        setTeams(teamsRes.data.teams || []);
       } catch (error) {
         console.error(error);
         toast.error("Failed to load data");
@@ -44,6 +63,37 @@ const AssignCourse = () => {
     };
     fetchData();
   }, [backendUrl, getToken]);
+
+  // ✅ Handle search input change
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    
+    // Only clear selected student if search term doesn't match
+    if (!selectedStudent || !value.startsWith(searchTerm)) {
+      setSelectedStudent("");
+    }
+    
+    if (value.trim() === "") {
+      setShowDropdown(false);
+    } else {
+      setShowDropdown(true);
+    }
+  };
+
+  // ✅ Handle student selection
+  const handleSelectStudent = (studentId, studentName) => {
+    setSelectedStudent(studentId);
+    setSearchTerm(studentName); // Show the selected name in search box
+    setShowDropdown(false);
+  };
+
+  // ✅ Clear search
+  const handleClearSearch = () => {
+    setSearchTerm("");
+    setSelectedStudent("");
+    setShowDropdown(false);
+  };
 
   // ✅ Assign course/team to student
   const handleAssign = async (e) => {
@@ -59,11 +109,10 @@ const AssignCourse = () => {
 
     try {
       setLoading(true);
-      const token = await getToken(); // 🔐 Clerk token again
+      const token = await getToken();
 
       const requests = [];
 
-      // 1. Assign Course (Project)
       if (selectedCourse) {
         requests.push(
           axios.post(
@@ -74,7 +123,6 @@ const AssignCourse = () => {
         );
       }
 
-      // 2. Assign Team
       if (selectedTeam) {
         requests.push(
           axios.post(
@@ -108,6 +156,7 @@ const AssignCourse = () => {
         setSelectedStudent("");
         setSelectedCourse("");
         setSelectedTeam("");
+        setSearchTerm("");
       }
 
     } catch (error) {
@@ -117,7 +166,6 @@ const AssignCourse = () => {
       setLoading(false);
     }
   };
-
 
   return (
     <motion.div
@@ -137,71 +185,131 @@ const AssignCourse = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
       >
-        {/* Student Dropdown */}
-        <div>
+        {/* Student Search with Dropdown */}
+        <div ref={dropdownRef} className="relative">
           <label className="block text-gray-700 font-semibold mb-2">
             Select Student
           </label>
-          <select
-            className="w-full border border-gray-300 rounded-lg p-3 text-gray-700 focus:ring-2 focus:ring-blue-400 focus:outline-none"
-            value={selectedStudent}
-            onChange={(e) => setSelectedStudent(e.target.value)}
-          >
-            <option value="">-- Choose Student --</option>
-            {students.map((student) => (
-              <option key={student._id} value={student._id}>
-                {student.name}
-              </option>
-            ))}
-          </select>
+          
+          {/* 🔍 Search Input with Clear Button */}
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Type student name (starts with)..."
+              className="w-full border border-gray-300 rounded-lg p-3 pl-10 pr-10 text-gray-700 focus:ring-2 focus:ring-blue-400 focus:outline-none"
+              value={searchTerm}
+              onChange={handleSearchChange}
+              onFocus={() => {
+                if (searchTerm.trim() && filteredStudents.length > 0) {
+                  setShowDropdown(true);
+                }
+              }}
+            />
+            {/* Search Icon */}
+            <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+              🔍
+            </div>
+            
+            {/* Clear Button (X) */}
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={handleClearSearch}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          {/* Dropdown Results */}
+          {showDropdown && filteredStudents.length > 0 && (
+            <motion.div 
+              className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <div className="p-2 text-xs text-gray-500 bg-gray-50 border-b">
+                Showing students starting with "{searchTerm}"
+              </div>
+              {filteredStudents.map((student) => (
+                <div
+                  key={student._id}
+                  className={`p-3 cursor-pointer hover:bg-blue-50 transition-colors ${
+                    selectedStudent === student._id ? "bg-blue-100" : ""
+                  }`}
+                  onClick={() => handleSelectStudent(student._id, student.name)}
+                >
+                  <div className="font-medium text-gray-800">{student.name}</div>
+                  {student.email && (
+                    <div className="text-sm text-gray-500 truncate">{student.email}</div>
+                  )}
+                </div>
+              ))}
+            </motion.div>
+          )}
+
+          {/* No Results Message */}
+          {showDropdown && searchTerm.trim() && filteredStudents.length === 0 && (
+            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-4 text-center text-gray-500">
+              No students found starting with "{searchTerm}"
+            </div>
+          )}
+
+          {/* Selected Student Info */}
+          {selectedStudent && (
+            <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
+              <div className="text-sm text-green-700">
+                Selected: <span className="font-semibold">{searchTerm}</span>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Course Dropdown */}
+        {/* Project and Team Selection */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-             {/* Course Dropdown */}
-            <div>
+          <div>
             <label className="block text-gray-700 font-semibold mb-2">
-                Select Project (Optional)
+              Select Project (Optional)
             </label>
             <select
-                className="w-full border border-gray-300 rounded-lg p-3 text-gray-700 focus:ring-2 focus:ring-blue-400 focus:outline-none"
-                value={selectedCourse}
-                onChange={(e) => setSelectedCourse(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg p-3 text-gray-700 focus:ring-2 focus:ring-blue-400 focus:outline-none"
+              value={selectedCourse}
+              onChange={(e) => setSelectedCourse(e.target.value)}
             >
-                <option value="">-- Choose Project --</option>
-                {courses.map((course) => (
+              <option value="">-- Choose Project --</option>
+              {courses.map((course) => (
                 <option key={course._id} value={course._id}>
-                    {course.courseTitle}
+                  {course.courseTitle}
                 </option>
-                ))}
+              ))}
             </select>
-            </div>
+          </div>
 
-            {/* Team Dropdown */}
-            <div>
+          <div>
             <label className="block text-gray-700 font-semibold mb-2">
-                Select Team (Optional)
+              Select Team (Optional)
             </label>
             <select
-                className="w-full border border-gray-300 rounded-lg p-3 text-gray-700 focus:ring-2 focus:ring-blue-400 focus:outline-none"
-                value={selectedTeam}
-                onChange={(e) => setSelectedTeam(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg p-3 text-gray-700 focus:ring-2 focus:ring-blue-400 focus:outline-none"
+              value={selectedTeam}
+              onChange={(e) => setSelectedTeam(e.target.value)}
             >
-                <option value="">-- Choose Team --</option>
-                {teams.map((team) => (
+              <option value="">-- Choose Team --</option>
+              {teams.map((team) => (
                 <option key={team._id} value={team._id}>
-                    {team.name}
+                  {team.name}
                 </option>
-                ))}
+              ))}
             </select>
-            </div>
+          </div>
         </div>
 
-        {/* Assign Button */}
         <button
           type="submit"
-          disabled={loading}
-          className="w-full bg-gradient-to-r from-cyan-400 to-blue-500 text-white font-semibold py-3 rounded-lg shadow-md hover:from-cyan-500 hover:to-blue-600 transition-all disabled:opacity-50"
+          disabled={loading || !selectedStudent}
+          className="w-full bg-gradient-to-r from-cyan-400 to-blue-500 text-white font-semibold py-3 rounded-lg shadow-md hover:from-cyan-500 hover:to-blue-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? "Assigning..." : "Assign Selected"}
         </button>
