@@ -46,7 +46,7 @@ const StudentAttendance = () => {
   const minutesNow = istNow.getHours() * 60 + istNow.getMinutes();
 
   const LOGIN_START = 570;   // 09:30
-  const LOGIN_END = 630;     // 10:30
+  const LOGIN_END = 1080;     // 10:30
   const LOGOUT_START = 1080; // 18:00
   const LOGOUT_END = 1140;   // 19:00
 
