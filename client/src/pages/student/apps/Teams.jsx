@@ -31,7 +31,10 @@ import {
   Camera,
   Upload,
   Edit2,
-  MoreHorizontal
+  MoreHorizontal,
+  AlertCircle,
+  Clock,
+  RefreshCw
 } from "lucide-react";
 import moment from "moment";
 import { io } from "socket.io-client";
@@ -48,6 +51,8 @@ const Teams = () => {
   const logoInputRef = useRef(null);
   const editLogoInputRef = useRef(null);
   const editFileInputRef = useRef(null);
+  const filesTabFileInputRef = useRef(null);
+  const filesTabImageInputRef = useRef(null);
 
   const [teams, setTeams] = useState([]);
   const [activeTeam, setActiveTeam] = useState(null);
@@ -73,19 +78,47 @@ const Teams = () => {
   const [editedContent, setEditedContent] = useState("");
   const [openMessageMenu, setOpenMessageMenu] = useState(null);
   const [editingFile, setEditingFile] = useState(false);
+  const [uploadingFilesTab, setUploadingFilesTab] = useState(false);
+  
+  // Track which messages are currently being edited
+  const [updatingMessages, setUpdatingMessages] = useState({});
 
-  // Check if user can send messages (team leader or admin)
-  const canSendMessages = activeTeam?.isMember && (activeTeam?.isLeader || userData?.role === "admin");
-
-  // Change team name 
-  const canEditTeam = activeTeam?.isLeader ||
-    activeTeam?.members?.some(
-      (m) => m.userId?._id === userData?._id && m.role === "admin"
+  // FIXED: Check if user can send messages (team leader OR admin)
+  const canSendMessages = () => {
+    if (!activeTeam || !userData) return false;
+    
+    // Team leader can always send messages
+    if (activeTeam.isLeader) return true;
+    
+    // Check if user has admin role in this team
+    const userMembership = activeTeam.members?.find(
+      (m) => m.userId?._id === userData._id
     );
+    
+    return userMembership?.role === "admin";
+  };
 
-  // Check if user can edit/delete a specific message
+  // FIXED: Check if user can edit team
+  const canEditTeam = () => {
+    if (!activeTeam || !userData) return false;
+    
+    // Team leader can always edit
+    if (activeTeam.isLeader) return true;
+    
+    // Check if user has admin role in this team
+    const userMembership = activeTeam.members?.find(
+      (m) => m.userId?._id === userData._id
+    );
+    
+    return userMembership?.role === "admin";
+  };
+
+  // FIXED: Check if user can edit/delete a specific message
   const canEditDeleteMessage = (message) => {
-    if (!activeTeam || !userData || !message || message.deleted) return false;
+    if (!activeTeam || !userData || !message) return false;
+    
+    // If message is already deleted, cannot edit/delete
+    if (message.deleted) return false;
     
     // Message sender can edit/delete
     if (message.sender?._id === userData._id) return true;
@@ -93,12 +126,12 @@ const Teams = () => {
     // Team leader can edit/delete any message
     if (activeTeam.isLeader) return true;
     
-    // Admin can edit/delete any message
-    const isAdmin = activeTeam.members?.some(
-      (m) => m.userId?._id === userData._id && m.role === "admin"
+    // Check if user has admin role in this team
+    const userMembership = activeTeam.members?.find(
+      (m) => m.userId?._id === userData._id
     );
     
-    return isAdmin;
+    return userMembership?.role === "admin";
   };
 
   // Handle scroll to detect if user scrolled up
@@ -144,9 +177,11 @@ const Teams = () => {
 
     // New socket events for edit/delete
     socketRef.current.on("message-updated", (updatedMessage) => {
+      console.log("Message updated via socket:", updatedMessage);
+      setUpdatingMessages(prev => ({ ...prev, [updatedMessage._id]: false }));
       setMessages((prev) =>
         prev.map((msg) =>
-          msg._id === updatedMessage._id ? updatedMessage : msg
+          msg._id === updatedMessage._id ? { ...updatedMessage, edited: true } : msg
         )
       );
     });
@@ -181,7 +216,7 @@ const Teams = () => {
   }, [messages]);
 
   // ================= FILE UPLOAD =================
-  const handleFileSelect = async (e, fileType = "file") => {
+  const handleFileSelect = async (e, fileType = "file", isFilesTab = false) => {
     const file = e.target.files[0];
     if (!file) return;
 
@@ -212,17 +247,33 @@ const Teams = () => {
       return;
     }
 
-    await uploadFile(file, fileType);
+    await uploadFile(file, fileType, isFilesTab);
     
     // Reset input
-    if (fileInputRef.current) fileInputRef.current.value = "";
-    if (imageInputRef.current) imageInputRef.current.value = "";
+    if (isFilesTab) {
+      if (fileType === "image" && filesTabImageInputRef.current) filesTabImageInputRef.current.value = "";
+      if (fileType === "file" && filesTabFileInputRef.current) filesTabFileInputRef.current.value = "";
+    } else {
+      if (fileType === "image" && imageInputRef.current) imageInputRef.current.value = "";
+      if (fileType === "file" && fileInputRef.current) fileInputRef.current.value = "";
+    }
   };
 
-  const uploadFile = async (file, fileType = "file") => {
+  const uploadFile = async (file, fileType = "file", isFilesTab = false) => {
     if (!activeTeam) return;
     
-    setUploadingFile(true);
+    // FIXED: Check if user can send messages
+    if (!canSendMessages()) {
+      toast.error("Only team leaders or admins can upload files");
+      return;
+    }
+    
+    if (isFilesTab) {
+      setUploadingFilesTab(true);
+    } else {
+      setUploadingFile(true);
+    }
+    
     try {
       const token = await getToken();
       const formData = new FormData();
@@ -243,12 +294,19 @@ const Teams = () => {
       if (data.success) {
         toast.success("File uploaded successfully!");
         fetchMessages(activeTeam._id);
+        if (activeTab === "files") {
+          fetchTeamFiles(activeTeam._id);
+        }
       }
     } catch (error) {
       console.error("Upload error:", error);
       toast.error(error.response?.data?.message || "Failed to upload file");
     } finally {
-      setUploadingFile(false);
+      if (isFilesTab) {
+        setUploadingFilesTab(false);
+      } else {
+        setUploadingFile(false);
+      }
     }
   };
 
@@ -256,7 +314,18 @@ const Teams = () => {
   const editFileMessage = async (file, messageId) => {
     if (!activeTeam || !messageId) return;
     
+    // FIXED: Check if user can edit messages
+    const targetMessage = messages.find(m => m._id === messageId);
+    if (!targetMessage) return;
+    
+    if (!canEditDeleteMessage(targetMessage)) {
+      toast.error("You don't have permission to edit this message");
+      return;
+    }
+    
     setEditingFile(true);
+    setUpdatingMessages(prev => ({ ...prev, [messageId]: true }));
+    
     try {
       const token = await getToken();
       const formData = new FormData();
@@ -278,6 +347,20 @@ const Teams = () => {
       if (data.success) {
         toast.success("File updated successfully!");
         fetchMessages(activeTeam._id);
+        if (activeTab === "files") {
+          fetchTeamFiles(activeTeam._id);
+        }
+        
+        // Emit socket event for real-time update
+        if (socketRef.current) {
+          socketRef.current.emit("message-updated", {
+            ...targetMessage,
+            attachmentUrl: data.updatedMessage?.attachmentUrl || targetMessage.attachmentUrl,
+            content: data.updatedMessage?.content || targetMessage.content,
+            updatedAt: new Date().toISOString(),
+            edited: true
+          });
+        }
       }
     } catch (error) {
       console.error("Edit file error:", error);
@@ -285,6 +368,7 @@ const Teams = () => {
     } finally {
       setEditingFile(false);
       setEditingMessageId(null);
+      setUpdatingMessages(prev => ({ ...prev, [messageId]: false }));
       if (editFileInputRef.current) editFileInputRef.current.value = "";
     }
   };
@@ -306,7 +390,7 @@ const Teams = () => {
   };
 
   const getFileUrl = (message) => {
-    if (!message) return null;
+    if (!message || message.deleted) return null;
     
     if (message.attachmentUrl && message.attachmentUrl.startsWith('http')) {
       return message.attachmentUrl;
@@ -320,6 +404,10 @@ const Teams = () => {
   };
 
   const getFileName = (message) => {
+    if (!message) return "File";
+    
+    if (message.deleted) return "[Deleted file]";
+    
     if (message.content && message.type !== 'text') {
       return message.content;
     }
@@ -333,26 +421,158 @@ const Teams = () => {
   };
 
   const downloadFile = async (url, fileName) => {
+    if (!url) {
+      toast.error("File not available for download");
+      return;
+    }
+    
     try {
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', fileName || 'file');
-      link.setAttribute('target', '_blank');
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      // Show loading toast
+      const downloadToast = toast.loading("Preparing download...");
+      
+      // Extract file name from URL if not provided
+      let finalFileName = fileName || 'download';
+      
+      // Get file extension from URL
+      const urlParts = url.split('/');
+      const lastPart = urlParts[urlParts.length - 1];
+      const queryIndex = lastPart.indexOf('?');
+      const cleanFileName = queryIndex > -1 ? lastPart.substring(0, queryIndex) : lastPart;
+      
+      // If fileName is generic or not provided, use the one from URL
+      if (!fileName || fileName === 'file' || fileName === 'download') {
+        finalFileName = cleanFileName;
+      }
+      
+      // Ensure file has proper extension
+      if (!finalFileName.includes('.')) {
+        const extension = cleanFileName.includes('.') 
+          ? cleanFileName.split('.').pop().split('?')[0]
+          : getExtensionFromUrl(url);
+        
+        if (extension && extension.length <= 5) {
+          finalFileName = `${finalFileName}.${extension}`;
+        } else {
+          // Try to detect file type from URL
+          if (url.includes('image') || /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(url)) {
+            finalFileName = `${finalFileName}.jpg`;
+          } else if (url.includes('pdf') || /\.pdf(\?|$)/i.test(url)) {
+            finalFileName = `${finalFileName}.pdf`;
+          } else if (url.includes('doc') || /\.(doc|docx)(\?|$)/i.test(url)) {
+            finalFileName = `${finalFileName}.docx`;
+          } else if (url.includes('xls') || /\.(xls|xlsx)(\?|$)/i.test(url)) {
+            finalFileName = `${finalFileName}.xlsx`;
+          } else {
+            finalFileName = `${finalFileName}.file`;
+          }
+        }
+      }
+      
+      // Method 1: Try direct download with fetch (works for most servers)
+      try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Fetch failed');
+        
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = finalFileName;
+        link.style.display = 'none';
+        
+        document.body.appendChild(link);
+        link.click();
+        
+        // Cleanup
+        setTimeout(() => {
+          window.URL.revokeObjectURL(blobUrl);
+          document.body.removeChild(link);
+        }, 100);
+        
+        toast.update(downloadToast, {
+          render: "Download started!",
+          type: "success",
+          isLoading: false,
+          autoClose: 2000
+        });
+        return;
+        
+      } catch (fetchError) {
+        console.log("Fetch method failed, trying alternative...");
+        
+        // Method 2: Force download by adding download attribute
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = finalFileName;
+        
+        // Add these attributes to force download
+        link.setAttribute('type', 'hidden');
+        link.setAttribute('download', finalFileName);
+        
+        document.body.appendChild(link);
+        
+        // Try multiple click methods
+        link.click();
+        
+        // Also try simulating a click with mouse events
+        const event = new MouseEvent('click', {
+          view: window,
+          bubbles: true,
+          cancelable: true
+        });
+        link.dispatchEvent(event);
+        
+        // Cleanup
+        setTimeout(() => {
+          document.body.removeChild(link);
+        }, 100);
+        
+        toast.update(downloadToast, {
+          render: "Download started!",
+          type: "success",
+          isLoading: false,
+          autoClose: 2000
+        });
+      }
+      
     } catch (error) {
       console.error("Download error:", error);
-      toast.error("Failed to download file");
+      
+      // Fallback: Open in new tab with a message
+      toast.warning("Opening file in new tab... Right-click and 'Save As' to download.");
+      window.open(url, '_blank', 'noopener,noreferrer');
     }
   };
 
-  const viewFile = (url) => {
-    if (url) {
-      window.open(url, '_blank');
-    } else {
-      toast.error("Cannot open file: URL not available");
+  // Helper function to get file extension from URL
+  const getExtensionFromUrl = (url) => {
+    try {
+      // Remove query parameters
+      const cleanUrl = url.split('?')[0];
+      const parts = cleanUrl.split('.');
+      if (parts.length > 1) {
+        const ext = parts.pop().toLowerCase();
+        // Common file extensions
+        const validExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 
+                                'pdf', 'doc', 'docx', 'xls', 'xlsx', 'txt', 'zip', 'rar'];
+        if (validExtensions.includes(ext)) {
+          return ext;
+        }
+      }
+    } catch (e) {
+      console.error("Error extracting extension:", e);
     }
+    return null;
+  };
+
+  const viewFile = (url) => {
+    if (!url) {
+      toast.error("File not available");
+      return;
+    }
+    
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   // ================= DATA FETCHING =================
@@ -421,6 +641,8 @@ const Teams = () => {
       return;
     }
 
+    setUpdatingMessages(prev => ({ ...prev, [editingMessageId]: true }));
+
     try {
       const token = await getToken();
       const { data } = await axios.put(
@@ -437,11 +659,31 @@ const Teams = () => {
         toast.success("Message updated");
         setEditingMessageId(null);
         setEditedContent("");
-        // Socket will handle the update
+        
+        // Update local state immediately
+        setMessages(prev => 
+          prev.map(msg => 
+            msg._id === editingMessageId 
+              ? { ...msg, content: editedContent, edited: true, updatedAt: new Date().toISOString() }
+              : msg
+          )
+        );
+        
+        // Emit socket event for real-time update
+        if (socketRef.current) {
+          socketRef.current.emit("message-updated", {
+            _id: editingMessageId,
+            content: editedContent,
+            edited: true,
+            updatedAt: new Date().toISOString()
+          });
+        }
       }
     } catch (error) {
       console.error("Edit message error:", error);
       toast.error(error.response?.data?.message || "Failed to edit message");
+    } finally {
+      setUpdatingMessages(prev => ({ ...prev, [editingMessageId]: false }));
     }
   };
 
@@ -452,10 +694,10 @@ const Teams = () => {
 
     try {
       const token = await getToken();
+      
       const { data } = await axios.delete(
-        `${backendUrl}/api/teams/message/delete`,
+        `${backendUrl}/api/teams/message/delete/${messageId}`,
         {
-          data: { messageId, teamId: activeTeam._id },
           headers: { Authorization: `Bearer ${token}` }
         }
       );
@@ -463,11 +705,32 @@ const Teams = () => {
       if (data.success) {
         toast.success("Message deleted");
         setOpenMessageMenu(null);
-        // Socket will handle the update
+        
+        // Also update local state immediately for better UX
+        setMessages(prev => 
+          prev.map(msg => 
+            msg._id === messageId 
+              ? { ...msg, deleted: true, content: "[This message was deleted]" }
+              : msg
+          )
+        );
+        
+        // Emit socket event for real-time update
+        if (socketRef.current) {
+          socketRef.current.emit("message-deleted", { _id: messageId });
+        }
       }
     } catch (error) {
       console.error("Delete message error:", error);
-      toast.error(error.response?.data?.message || "Failed to delete message");
+      
+      // More detailed error message
+      if (error.response?.status === 403) {
+        toast.error("You can only delete your own messages");
+      } else if (error.response?.status === 404) {
+        toast.error("Message not found");
+      } else {
+        toast.error(error.response?.data?.message || "Failed to delete message");
+      }
     }
   };
 
@@ -634,7 +897,7 @@ const Teams = () => {
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!messageInput.trim() || !canSendMessages) return;
+    if (!messageInput.trim() || !canSendMessages()) return;
 
     try {
       const token = await getToken();
@@ -650,8 +913,8 @@ const Teams = () => {
   };
 
   const postMeetingLink = async (type) => {
-    if (!canSendMessages) {
-      toast.error("Only team leaders can post meeting links");
+    if (!canSendMessages()) {
+      toast.error("Only team leaders or admins can post meeting links");
       return;
     }
     
@@ -737,12 +1000,59 @@ const Teams = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  // Format date like WhatsApp
+  const formatWhatsAppDate = (date) => {
+    const now = moment();
+    const messageDate = moment(date);
+    const diffDays = now.diff(messageDate, 'days');
+    
+    if (diffDays === 0) {
+      return "Today";
+    } else if (diffDays === 1) {
+      return "Yesterday";
+    } else if (diffDays < 7) {
+      return messageDate.format('dddd'); // Monday, Tuesday, etc.
+    } else {
+      return messageDate.format('DD/MM/YYYY'); // 15/02/2024
+    }
+  };
+
+  // Group messages by date
+  const groupMessagesByDate = () => {
+    const grouped = {};
+    
+    messages.forEach((message) => {
+      const dateKey = moment(message.createdAt).format('YYYY-MM-DD');
+      if (!grouped[dateKey]) {
+        grouped[dateKey] = [];
+      }
+      grouped[dateKey].push(message);
+    });
+    
+    return grouped;
+  };
+
+  // FIXED: Get user role in team
+  const getUserRoleInTeam = () => {
+    if (!activeTeam || !userData) return null;
+    
+    if (activeTeam.isLeader) return "leader";
+    
+    const userMembership = activeTeam.members?.find(
+      (m) => m.userId?._id === userData._id
+    );
+    
+    return userMembership?.role || null;
+  };
+
   // ================= RENDER MESSAGE ITEM =================
   const renderMessageItem = (msg) => {
     const fileUrl = getFileUrl(msg);
     const fileName = getFileName(msg);
     const canEditDelete = canEditDeleteMessage(msg);
     const isEditing = editingMessageId === msg._id;
+    const isUpdating = updatingMessages[msg._id];
+    const displayTime = msg.updatedAt && msg.edited ? msg.updatedAt : msg.createdAt;
 
     return (
       <div key={msg._id} className="flex gap-3 group">
@@ -752,23 +1062,29 @@ const Teams = () => {
             alt={msg.sender?.name}
             className="w-9 h-9 rounded-full object-cover shadow-sm bg-white border border-gray-200" 
           />
-          {msg.sender?._id === activeTeam.leaderId && (
-            <div className="text-[10px] text-center mt-1 text-blue-600 font-medium bg-blue-50 px-1.5 py-0.5 rounded-full">
-              Leader
-            </div>
-          )}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline justify-between gap-2">
             <div className="flex items-center gap-2">
               <span className="font-semibold text-gray-900 text-sm">{msg.sender?.name}</span>
-              <span className="text-xs text-gray-400">{moment(msg.createdAt).format("h:mm A")}</span>
-              {msg.edited && !msg.deleted && (
-                <span className="text-xs text-gray-400 italic">(edited)</span>
-              )}
-              {msg.deleted && (
-                <span className="text-xs text-gray-400 italic">(deleted)</span>
-              )}
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-gray-400">
+                  {isUpdating ? (
+                    <div className="flex items-center gap-1 text-gray-400">
+                      <div className="animate-spin rounded-full h-3 w-3 border-t-2 border-b-2 border-blue-500"></div>
+                      <span className="text-xs">Updating...</span>
+                    </div>
+                  ) : (
+                    moment(displayTime).format("h:mm A")
+                  )}
+                </span>
+                {msg.edited && !msg.deleted && (
+                  <span className="text-xs text-gray-400 italic">(edited)</span>
+                )}
+                {msg.deleted && (
+                  <span className="text-xs text-gray-400 italic">(deleted)</span>
+                )}
+              </div>
             </div>
             
             {/* Message Actions Menu (Three Dots) */}
@@ -777,11 +1093,16 @@ const Teams = () => {
                 <button
                   onClick={() => setOpenMessageMenu(openMessageMenu === msg._id ? null : msg._id)}
                   className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors opacity-0 group-hover:opacity-100"
+                  disabled={isUpdating}
                 >
-                  <MoreVertical size={16} />
+                  {isUpdating ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500"></div>
+                  ) : (
+                    <MoreVertical size={16} />
+                  )}
                 </button>
                 
-                {openMessageMenu === msg._id && (
+                {openMessageMenu === msg._id && !isUpdating && (
                   <div className="absolute right-0 mt-1 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
                     <button
                       onClick={() => {
@@ -808,6 +1129,7 @@ const Teams = () => {
                     <button
                       onClick={() => handleDeleteMessage(msg._id)}
                       className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                      disabled={isUpdating}
                     >
                       <Trash2 size={14} />
                       Delete
@@ -835,19 +1157,27 @@ const Teams = () => {
                     setEditedContent("");
                   }}
                   className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  disabled={isUpdating}
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleEditMessage}
-                  disabled={!editedContent.trim()}
-                  className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
-                    editedContent.trim()
+                  disabled={!editedContent.trim() || isUpdating}
+                  className={`px-3 py-1.5 text-sm rounded-lg transition-colors flex items-center gap-2 ${
+                    editedContent.trim() && !isUpdating
                       ? "bg-blue-600 text-white hover:bg-blue-700"
                       : "bg-gray-200 text-gray-400 cursor-not-allowed"
                   }`}
                 >
-                  Save
+                  {isUpdating ? (
+                    <>
+                      <div className="animate-spin rounded-full h-3 w-3 border-t-2 border-b-2 border-white"></div>
+                      Updating...
+                    </>
+                  ) : (
+                    "Save"
+                  )}
                 </button>
               </div>
             </div>
@@ -861,66 +1191,98 @@ const Teams = () => {
               )}
 
               {/* File/Image Messages */}
-              {(msg.type === 'image' || msg.type === 'file') && fileUrl && !msg.deleted && (
+              {(msg.type === 'image' || msg.type === 'file') && (
                 <div className="mt-2 max-w-md">
-                  <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
+                  <div className={`border rounded-lg p-3 shadow-sm relative ${
+                    msg.deleted 
+                      ? "bg-gray-50 border-gray-200" 
+                      : "bg-white border-gray-200"
+                  }`}>
+                    {isUpdating && (
+                      <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10 rounded-lg">
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+                          <span className="text-sm font-medium text-gray-700">Updating file...</span>
+                        </div>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         {msg.type === 'image' ? (
-                          <ImageIcon size={14} className="text-green-500" />
+                          <ImageIcon size={14} className={msg.deleted ? "text-gray-400" : "text-green-500"} />
                         ) : (
-                          <FileText size={14} className="text-blue-500" />
+                          <FileText size={14} className={msg.deleted ? "text-gray-400" : "text-blue-500"} />
                         )}
-                        <span className="text-xs font-medium text-gray-700">
-                          {msg.type === 'image' ? 'Image' : 'File'}
+                        <span className={`text-xs font-medium ${
+                          msg.deleted ? "text-gray-500" : "text-gray-700"
+                        }`}>
+                          {msg.deleted ? 'Deleted File' : (msg.type === 'image' ? 'Image' : 'File')}
                         </span>
+                        {msg.edited && !msg.deleted && (
+                          <span className="text-xs text-gray-400 italic">(edited)</span>
+                        )}
                       </div>
-                      <div className="flex gap-3">
-                        <button
-                          onClick={() => viewFile(fileUrl)}
-                          className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                          title={msg.type === 'image' ? "View Image" : "View File"}
-                        >
-                          <Eye size={10} />
-                          View
-                        </button>
-                        <button
-                          onClick={() => downloadFile(fileUrl, fileName)}
-                          className="text-xs text-gray-600 hover:text-gray-800 flex items-center gap-1"
-                          title="Download"
-                        >
-                          <Download size={10} />
-                          Download
-                        </button>
-                      </div>
+                      
+                      {/* Show download/view buttons only if file is not deleted */}
+                      {!msg.deleted && fileUrl && !isUpdating && (
+                        <div className="flex gap-3">
+                          <button
+                            onClick={() => viewFile(fileUrl)}
+                            className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                            title={msg.type === 'image' ? "View Image" : "View File"}
+                          >
+                            <Eye size={10} />
+                            View
+                          </button>
+                          <button
+                            onClick={() => downloadFile(fileUrl, fileName)}
+                            className="text-xs text-gray-600 hover:text-gray-800 flex items-center gap-1"
+                            title="Download"
+                          >
+                            <Download size={10} />
+                            Download
+                          </button>
+                        </div>
+                      )}
                     </div>
                     
-                    {msg.type === 'image' ? (
-                      <div className="relative">
-                        <img 
-                          src={fileUrl} 
-                          alt={fileName || "Shared image"}
-                          className="w-full rounded-lg max-h-48 object-contain bg-gray-50"
-                          onError={(e) => {
-                            e.target.onerror = null;
-                            e.target.src = "https://placehold.co/400x300/e2e8f0/64748b?text=Image+Not+Found";
-                          }}
-                        />
+                    {msg.deleted ? (
+                      <div className="flex items-center justify-center p-4 bg-gray-50 rounded-lg">
+                        <div className="text-center">
+                          <AlertCircle size={24} className="text-gray-400 mx-auto mb-2" />
+                          <p className="text-sm text-gray-500">This file has been deleted</p>
+                        </div>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                        <div className="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center">
-                          <FileText size={18} className="text-blue-500" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-gray-800 text-sm truncate">
-                            {fileName}
+                      <>
+                        {msg.type === 'image' && fileUrl ? (
+                          <div className="relative">
+                            <img 
+                              src={fileUrl} 
+                              alt={fileName || "Shared image"}
+                              className="w-full rounded-lg max-h-48 object-contain bg-gray-50"
+                              onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.src = "https://placehold.co/400x300/e2e8f0/64748b?text=Image+Not+Found";
+                              }}
+                            />
                           </div>
-                          <div className="text-xs text-gray-500">
-                            Click to download
+                        ) : !msg.type === 'image' && fileUrl ? (
+                          <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                            <div className="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center">
+                              <FileText size={18} className="text-blue-500" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-gray-800 text-sm truncate">
+                                {fileName}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                Click to download
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </div>
+                        ) : null}
+                      </>
                     )}
                   </div>
                 </div>
@@ -935,7 +1297,7 @@ const Teams = () => {
                     </div>
                     <div className="flex-1 min-w-0">
                       <h4 className="font-bold text-gray-900 text-sm truncate">{msg.linkData?.title || "Meeting"}</h4>
-                      <p className="text-xs text-gray-500 truncate">Call started by team leader</p>
+                      <p className="text-xs text-gray-500 truncate">Call started by team leader/admin</p>
                     </div>
                   </div>
                   <a 
@@ -1073,7 +1435,9 @@ const Teams = () => {
                           {activeTeam.name}
                         </h2>
                         <p className="text-xs text-gray-500 truncate max-w-[200px]">
-                          {activeTeam.isLeader && " • You are the leader"}
+                          {/* FIXED: Show user role correctly */}
+                          {getUserRoleInTeam() === "leader" && " • Team Leader"}
+                          {getUserRoleInTeam() === "admin" && " • Admin"}
                         </p>
                     </div>
                  </div>
@@ -1082,17 +1446,17 @@ const Teams = () => {
                     <div className="flex items-center gap-2">
                         <button 
                           onClick={() => postMeetingLink('Video')} 
-                          className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-600" 
-                          title="Start Video Call"
-                          disabled={!canSendMessages}
+                          className={`p-2 rounded-full transition-colors ${canSendMessages() ? 'text-gray-600 hover:bg-gray-100 hover:text-blue-600' : 'text-gray-300 cursor-not-allowed'}`} 
+                          title={canSendMessages() ? "Start Video Call" : "Only team leaders/admins can start calls"}
+                          disabled={!canSendMessages()}
                         >
                             <Video size={20} />
                         </button>
                         <button 
                           onClick={() => postMeetingLink('Voice')} 
-                          className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-600" 
-                          title="Start Voice Call"
-                          disabled={!canSendMessages}
+                          className={`p-2 rounded-full transition-colors ${canSendMessages() ? 'text-gray-600 hover:bg-gray-100 hover:text-blue-600' : 'text-gray-300 cursor-not-allowed'}`} 
+                          title={canSendMessages() ? "Start Voice Call" : "Only team leaders/admins can start calls"}
+                          disabled={!canSendMessages()}
                         >
                             <Phone size={20} />
                         </button>
@@ -1104,7 +1468,7 @@ const Teams = () => {
                              <MoreVertical size={20} />
                            </button>
                            
-                           {showTeamMenu && canEditTeam && (
+                           {showTeamMenu && canEditTeam() && (
                               <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
                                 <button
                                   onClick={() => {
@@ -1186,38 +1550,54 @@ const Teams = () => {
                       <div className="flex flex-col h-full">
                           <div 
                             ref={messagesContainerRef}
-                            className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6"
+                            className="flex-1 overflow-y-auto p-4 md:p-6"
                           >
                               {messages.length === 0 ? (
                                 <div className="text-center py-12 text-gray-400">
                                   <MessageCircle size={48} className="mx-auto mb-4 text-gray-300" />
                                   <p className="text-lg font-medium">No messages yet</p>
                                   <p className="text-sm mt-2">
-                                    {canSendMessages 
+                                    {canSendMessages() 
                                       ? "Be the first to send a message!" 
-                                      : "Only team leaders can send messages"}
+                                      : "Only team leaders and admins can send messages"}
                                   </p>
                                 </div>
                               ) : (
-                                messages.map(renderMessageItem)
+                                <>
+                                  {Object.entries(groupMessagesByDate()).map(([dateKey, dateMessages]) => (
+                                    <div key={dateKey} className="mb-6">
+                                      {/* Date Separator */}
+                                      <div className="flex items-center justify-center my-4">
+                                        <div className="bg-gray-200 text-gray-600 text-xs font-medium px-3 py-1 rounded-full">
+                                          {formatWhatsAppDate(dateMessages[0].createdAt)}
+                                        </div>
+                                      </div>
+                                      
+                                      {/* Messages for this date */}
+                                      <div className="space-y-6">
+                                        {dateMessages.map(renderMessageItem)}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </>
                               )}
                               <div ref={scrollRef}></div>
                           </div>
 
-                          {/* Hidden file inputs */}
+                          {/* Hidden file inputs for Posts tab */}
                           <input
                             type="file"
                             ref={imageInputRef}
                             className="hidden"
                             accept="image/*"
-                            onChange={(e) => handleFileSelect(e, "image")}
+                            onChange={(e) => handleFileSelect(e, "image", false)}
                           />
                           <input
                             type="file"
                             ref={fileInputRef}
                             className="hidden"
                             accept=".pdf,.doc,.docx,.txt,.xls,.xlsx,image/*"
-                            onChange={(e) => handleFileSelect(e, "file")}
+                            onChange={(e) => handleFileSelect(e, "file", false)}
                           />
                           {/* Hidden edit file input */}
                           <input
@@ -1229,7 +1609,7 @@ const Teams = () => {
                           />
 
                           {/* IMPROVED MESSAGE INPUT */}
-                          {canSendMessages ? (
+                          {canSendMessages() ? (
                             <div className="p-4 bg-white border-t border-gray-200">
                                 <form onSubmit={handleSendMessage} className="flex gap-3 bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
                                     <div className="flex gap-2">
@@ -1240,7 +1620,11 @@ const Teams = () => {
                                           disabled={uploadingFile}
                                           title="Upload Image"
                                         >
-                                          <ImageIcon size={18} />
+                                          {uploadingFile ? (
+                                            <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-green-500"></div>
+                                          ) : (
+                                            <ImageIcon size={18} />
+                                          )}
                                         </button>
                                         <button
                                           type="button"
@@ -1274,14 +1658,18 @@ const Teams = () => {
                                         <button 
                                           type="submit" 
                                           disabled={!messageInput.trim() || uploadingFile}
-                                          className={`absolute right-2 bottom-2 p-2 rounded-lg transition-all ${
+                                          className={`absolute right-2 bottom-2 p-2 rounded-lg transition-all flex items-center gap-1 ${
                                               messageInput.trim() && !uploadingFile
                                               ? "bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md" 
                                               : "bg-gray-200 text-gray-400 cursor-not-allowed"
                                           }`}
                                           title="Send Message"
                                         >
+                                          {uploadingFile ? (
+                                            <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
+                                          ) : (
                                             <Send size={18} />
+                                          )}
                                         </button>
                                     </div>
                                 </form>
@@ -1291,7 +1679,7 @@ const Teams = () => {
                               <div className="flex items-center justify-center gap-2 text-gray-500 p-3 bg-white rounded-xl border border-gray-200">
                                 <Lock size={14} />
                                 <p className="text-xs font-medium">
-                                  Only team leaders can send messages in this team
+                                  Only team leaders and admins can send messages in this team
                                 </p>
                               </div>
                             </div>
@@ -1299,159 +1687,266 @@ const Teams = () => {
                       </div>
                   )}
 
-                  {/* FILES TAB */}
+                  {/* FILES TAB - FIXED VERSION */}
                   {activeTeam.isMember && activeTab === 'files' && (
-                    <div className="p-4 md:p-6 h-full overflow-y-auto">
-                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
-                        <h3 className="text-lg font-bold text-gray-800">Team Files</h3>
-                        {canSendMessages && (
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => imageInputRef.current.click()}
-                              className="px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors flex items-center gap-2"
-                              disabled={uploadingFile}
-                            >
-                              <ImageIcon size={14} />
-                              <span className="hidden sm:inline">Upload Image</span>
-                              <span className="sm:hidden">Image</span>
-                            </button>
-                            <button
-                              onClick={() => fileInputRef.current.click()}
-                              className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
-                              disabled={uploadingFile}
-                            >
-                              {uploadingFile ? (
-                                <>
-                                  <div className="animate-spin rounded-full h-3 w-3 border-t-2 border-b-2 border-white"></div>
-                                  <span className="hidden sm:inline">Uploading...</span>
-                                  <span className="sm:hidden">...</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Plus size={14} />
-                                  <span className="hidden sm:inline">Upload File</span>
-                                  <span className="sm:hidden">File</span>
-                                </>
-                              )}
-                            </button>
-                          </div>
-                        )}
-                      </div>
+                    <div className="h-full flex flex-col">
+                      {/* Hidden file inputs for Files tab */}
+                      <input
+                        type="file"
+                        ref={filesTabImageInputRef}
+                        className="hidden"
+                        accept="image/*"
+                        onChange={(e) => handleFileSelect(e, "image", true)}
+                      />
+                      <input
+                        type="file"
+                        ref={filesTabFileInputRef}
+                        className="hidden"
+                        accept=".pdf,.doc,.docx,.txt,.xls,.xlsx,image/*"
+                        onChange={(e) => handleFileSelect(e, "file", true)}
+                      />
                       
-                      {messages.filter(m => m.type === 'image' || m.type === 'file').length === 0 ? (
-                        <div className="text-center py-12 text-gray-400">
-                          <FileText size={48} className="mx-auto mb-4 text-gray-300" />
-                          <p className="text-lg font-medium">No files shared yet</p>
-                          <p className="text-sm mt-2">
-                            {canSendMessages 
-                              ? "Upload your first file using the upload buttons above" 
-                              : "Only team leaders can upload files"}
-                          </p>
+                      {/* Hidden edit file input */}
+                      <input
+                        ref={editFileInputRef}
+                        type="file"
+                        className="hidden"
+                        accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+                        onChange={handleEditFileSelect}
+                      />
+                      
+                      {/* UPLOAD SECTION (Same as Posts tab) */}
+                      {canSendMessages() && (
+                        <div className="p-4 bg-white border-b border-gray-200">
+                          <div className="flex gap-3 bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
+                            <div className="flex gap-2">
+                              <button 
+                                type="button" 
+                                onClick={() => filesTabImageInputRef.current.click()}
+                                className="p-2 text-gray-400 hover:text-green-500 rounded-lg hover:bg-green-50 transition-colors border border-gray-200"
+                                disabled={uploadingFilesTab}
+                                title="Upload Image"
+                              >
+                                {uploadingFilesTab ? (
+                                  <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-green-500"></div>
+                                ) : (
+                                  <ImageIcon size={18} />
+                                )}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => filesTabFileInputRef.current.click()}
+                                className="p-2 text-gray-400 hover:text-blue-500 rounded-lg hover:bg-blue-50 transition-colors border border-gray-200"
+                                disabled={uploadingFilesTab}
+                                title="Upload File"
+                              >
+                                {uploadingFilesTab ? (
+                                  <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500"></div>
+                                ) : (
+                                  <Paperclip size={18} />
+                                )}
+                              </button>
+                            </div>
+                            
+                            <div className="flex-1 relative">
+                              <div className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 min-h-[60px] flex items-center">
+                                <p className="text-sm text-gray-400">
+                                  {uploadingFilesTab ? "Uploading file..." : "Click buttons to upload images or files"}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                      ) : (
-                        <div className="grid gap-3">
-                          {messages
-                            .filter(m => m.type === 'image' || m.type === 'file')
-                            .map((file) => {
-                              const fileUrl = getFileUrl(file);
-                              const fileName = getFileName(file);
-                              const fileExtension = fileName?.split('.').pop()?.toUpperCase() || 'FILE';
-                              const canEditDelete = canEditDeleteMessage(file);
-                              
-                              return (
-                                <div 
-                                  key={file._id} 
-                                  className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow group"
-                                >
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                                        file.type === 'image' ? 'bg-green-50' : 'bg-blue-50'
-                                      }`}>
-                                        {file.type === 'image' ? (
-                                          <ImageIcon size={20} className="text-green-500" />
-                                        ) : (
-                                          <div className="text-center">
-                                            <FileText size={18} className="text-blue-500" />
-                                            <span className="text-[8px] text-blue-600 font-bold block -mt-1">{fileExtension}</span>
-                                          </div>
-                                        )}
-                                      </div>
-                                      <div className="flex-1 min-w-0">
-                                        <div className="font-medium text-gray-800 text-sm truncate" title={fileName}>
-                                          {fileName}
+                      )}
+
+                      {/* FILES LIST - FIXED EDITS */}
+                      <div className="flex-1 overflow-y-auto p-4 md:p-6">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
+                          <h3 className="text-lg font-bold text-gray-800">Team Files</h3>
+                          <div className="text-sm text-gray-500">
+                            {messages.filter(m => (m.type === 'image' || m.type === 'file') && !m.deleted).length} files
+                          </div>
+                        </div>
+                        
+                        {messages.filter(m => m.type === 'image' || m.type === 'file').length === 0 ? (
+                          <div className="text-center py-12 text-gray-400">
+                            <FileText size={48} className="mx-auto mb-4 text-gray-300" />
+                            <p className="text-lg font-medium">No files shared yet</p>
+                            <p className="text-sm mt-2">
+                              {canSendMessages() 
+                                ? "Upload your first file using the upload buttons above" 
+                                : "Only team leaders and admins can upload files"}
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="grid gap-3">
+                            {messages
+                              .filter(m => m.type === 'image' || m.type === 'file')
+                              .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) // Sort by date, newest first
+                              .map((file) => {
+                                const fileUrl = getFileUrl(file);
+                                const fileName = getFileName(file);
+                                const fileExtension = fileName?.split('.').pop()?.toUpperCase() || 'FILE';
+                                const canEditDelete = canEditDeleteMessage(file);
+                                const isDeleted = file.deleted;
+                                const isUpdating = updatingMessages[file._id];
+                                const displayTime = file.updatedAt && file.edited ? file.updatedAt : file.createdAt;
+                                
+                                return (
+                                  <div 
+                                    key={file._id} 
+                                    className={`border rounded-lg p-4 hover:shadow-md transition-shadow relative ${
+                                      isDeleted 
+                                        ? "bg-gray-50 border-gray-200" 
+                                        : "bg-white border-gray-200"
+                                    }`}
+                                  >
+                                    {isUpdating && (
+                                      <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10 rounded-lg">
+                                        <div className="flex flex-col items-center gap-2">
+                                          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+                                          <span className="text-sm font-medium text-gray-700">Updating file...</span>
                                         </div>
-                                        <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 mt-1">
-                                          <span className="flex items-center gap-1">
-                                            {file.type === 'image' ? 'Image' : 
-                                             fileName?.endsWith('.pdf') ? 'PDF' :
-                                             fileName?.endsWith('.doc') || fileName?.endsWith('.docx') ? 'Word' :
-                                             fileName?.endsWith('.xls') || fileName?.endsWith('.xlsx') ? 'Excel' : 'File'}
-                                          </span>
-                                          <span className="hidden sm:inline">•</span>
-                                          <span className="truncate">Uploaded by {file.sender?.name}</span>
-                                          <span className="hidden sm:inline">•</span>
-                                          <span>{moment(file.createdAt).fromNow()}</span>
-                                        </div>
                                       </div>
-                                    </div>
-                                    <div className="flex items-center gap-2 ml-3">
-                                      {canEditDelete && (
-                                        <div className="relative">
-                                          <button
-                                            onClick={() => setOpenMessageMenu(openMessageMenu === file._id ? null : file._id)}
-                                            className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors rounded hover:bg-gray-100"
-                                            title="More actions"
-                                          >
-                                            <MoreVertical size={16} />
-                                          </button>
-                                          
-                                          {openMessageMenu === file._id && (
-                                            <div className="absolute right-0 mt-1 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
-                                              <button
-                                                onClick={() => {
-                                                  editFileInputRef.current.click();
-                                                  setEditingMessageId(file._id);
-                                                  setOpenMessageMenu(null);
-                                                }}
-                                                className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 text-gray-700 flex items-center gap-2"
-                                                disabled={editingFile}
-                                              >
-                                                <Edit2 size={14} />
-                                                Edit File
-                                              </button>
-                                              <button
-                                                onClick={() => handleDeleteMessage(file._id)}
-                                                className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                                              >
-                                                <Trash2 size={14} />
-                                                Delete
-                                              </button>
+                                    )}
+                                    
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                                          isDeleted 
+                                            ? "bg-gray-100" 
+                                            : file.type === 'image' 
+                                              ? "bg-green-50" 
+                                              : "bg-blue-50"
+                                        }`}>
+                                          {file.type === 'image' ? (
+                                            <ImageIcon size={20} className={isDeleted ? "text-gray-400" : "text-green-500"} />
+                                          ) : (
+                                            <div className="text-center">
+                                              <FileText size={18} className={isDeleted ? "text-gray-400" : "text-blue-500"} />
+                                              {!isDeleted && (
+                                                <span className="text-[8px] text-blue-600 font-bold block -mt-1">{fileExtension}</span>
+                                              )}
                                             </div>
                                           )}
                                         </div>
-                                      )}
-                                      <button
-                                        onClick={() => viewFile(fileUrl)}
-                                        className="p-1.5 text-gray-400 hover:text-blue-500 transition-colors rounded hover:bg-gray-100"
-                                        title="View"
-                                      >
-                                        <Eye size={16} />
-                                      </button>
-                                      <button
-                                        onClick={() => downloadFile(fileUrl, fileName)}
-                                        className="p-1.5 text-gray-400 hover:text-blue-500 transition-colors rounded hover:bg-gray-100"
-                                        title="Download"
-                                      >
-                                        <Download size={16} />
-                                      </button>
+                                        <div className="flex-1 min-w-0">
+                                          <div className={`font-medium truncate text-sm ${
+                                            isDeleted ? "text-gray-500 italic" : "text-gray-800"
+                                          }`} title={fileName}>
+                                            {fileName}
+                                          </div>
+                                          <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 mt-1">
+                                            {isDeleted ? (
+                                              <span className="text-red-500">Deleted</span>
+                                            ) : (
+                                              <>
+                                                <span className="flex items-center gap-1">
+                                                  {file.type === 'image' ? 'Image' : 
+                                                  fileName?.endsWith('.pdf') ? 'PDF' :
+                                                  fileName?.endsWith('.doc') || fileName?.endsWith('.docx') ? 'Word' :
+                                                  fileName?.endsWith('.xls') || fileName?.endsWith('.xlsx') ? 'Excel' : 'File'}
+                                                </span>
+                                                <span className="hidden sm:inline">•</span>
+                                                <span className="truncate">Uploaded by {file.sender?.name}</span>
+                                                <span className="hidden sm:inline">•</span>
+                                                <div className="flex items-center gap-1">
+                                                  <span>{formatWhatsAppDate(displayTime)} at {moment(displayTime).format('h:mm A')}</span>
+                                                  {file.edited && (
+                                                    <span className="text-gray-400 italic">(edited)</span>
+                                                  )}
+                                                </div>
+                                              </>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                      
+                                      {/* ACTIONS COLUMN - FIXED */}
+                                      <div className="flex items-center gap-2 ml-3">
+                                        {/* Edit/Delete Menu (only if not deleted) */}
+                                        {canEditDelete && !isDeleted && !isUpdating && (
+                                          <div className="relative">
+                                            <button
+                                              onClick={() => setOpenMessageMenu(openMessageMenu === file._id ? null : file._id)}
+                                              className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors rounded hover:bg-gray-100"
+                                              title="More actions"
+                                              disabled={isUpdating}
+                                            >
+                                              <MoreVertical size={16} />
+                                            </button>
+                                            
+                                            {openMessageMenu === file._id && (
+                                              <div className="absolute right-0 mt-1 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
+                                                <button
+                                                  onClick={() => {
+                                                    editFileInputRef.current.click();
+                                                    setEditingMessageId(file._id);
+                                                    setOpenMessageMenu(null);
+                                                  }}
+                                                  className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 text-gray-700 flex items-center gap-2"
+                                                  disabled={editingFile}
+                                                >
+                                                  <Edit2 size={14} />
+                                                  Edit File
+                                                </button>
+                                                <button
+                                                  onClick={() => handleDeleteMessage(file._id)}
+                                                  className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                                                >
+                                                  <Trash2 size={14} />
+                                                  Delete
+                                                </button>
+                                              </div>
+                                            )}
+                                          </div>
+                                        )}
+                                        
+                                        {/* View Button (only if not deleted and has URL) */}
+                                        {!isDeleted && fileUrl && !isUpdating && (
+                                          <button
+                                            onClick={() => viewFile(fileUrl)}
+                                            className="p-1.5 text-gray-400 hover:text-blue-500 transition-colors rounded hover:bg-gray-100"
+                                            title="View"
+                                            disabled={isDeleted || isUpdating}
+                                          >
+                                            <Eye size={16} />
+                                          </button>
+                                        )}
+                                        
+                                        {/* Download Button (only if not deleted and has URL) */}
+                                        {!isDeleted && fileUrl && !isUpdating && (
+                                          <button
+                                            onClick={(e) => {
+                                              e.preventDefault();
+                                              e.stopPropagation();
+                                              downloadFile(fileUrl, fileName);
+                                            }}
+                                            className="p-1.5 text-gray-400 hover:text-blue-500 transition-colors rounded hover:bg-gray-100"
+                                            title="Download"
+                                            disabled={isDeleted || isUpdating}
+                                          >
+                                            <Download size={16} />
+                                          </button>
+                                        )}
+                                      </div>
                                     </div>
+                                    
+                                    {/* Deleted File Message */}
+                                    {isDeleted && (
+                                      <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                        <div className="flex items-center justify-center gap-2 text-gray-500">
+                                          <AlertCircle size={14} />
+                                          <p className="text-xs">This file has been deleted</p>
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
-                                </div>
-                              );
-                            })}
-                        </div>
-                      )}
+                                );
+                              })}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
 
@@ -1518,8 +2013,17 @@ const Teams = () => {
                                                       Leader
                                                     </span>
                                                   )}
+                                                  {member.role === 'admin' && member.userId._id !== activeTeam.leaderId && (
+                                                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex-shrink-0">
+                                                      Admin
+                                                    </span>
+                                                  )}
                                                 </p>
-                                                <p className="text-xs text-gray-500 capitalize truncate">{member.role}</p>
+                                                <p className="text-xs text-gray-500 capitalize truncate">
+                                                  {member.role === 'admin' && member.userId._id !== activeTeam.leaderId 
+                                                    ? 'Team Admin' 
+                                                    : member.role}
+                                                </p>
                                             </div>
                                        </div>
                                        {activeTeam.isLeader && member.userId._id !== userData._id && (
