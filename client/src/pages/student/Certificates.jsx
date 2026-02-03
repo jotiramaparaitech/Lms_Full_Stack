@@ -138,9 +138,15 @@ const Certificates = () => {
       // 🌊 Footer Line (Bottom)
       if (footerBase64) {
         try {
+          // Opacity for footer line
+          doc.setGState(new doc.GState({ opacity: 0.5 }));
+
           const fWidth = width;
           const fHeight = 35;
           doc.addImage(footerBase64, "JPEG", 0, height - fHeight, fWidth, fHeight);
+
+          // Reset Opacity
+          doc.setGState(new doc.GState({ opacity: 1.0 }));
         } catch (e) {
           console.error("Error adding footer line:", e);
         }
@@ -150,10 +156,10 @@ const Certificates = () => {
       if (bgBase64) {
         try {
           // Set opacity for background
-          doc.setGState(new doc.GState({ opacity: 0.20 }));
+          doc.setGState(new doc.GState({ opacity: 0.18 }));
 
-          const bgWidth = 260; // Wider to match reference
-          const bgHeight = 130;
+          const bgWidth = 180; // Reduced width from 260
+          const bgHeight = 100; // Adjusted height to maintain aspect ratio roughly
           const bgX = (width - bgWidth) / 2;
           const bgY = (height - bgHeight) / 2 + 10;
           doc.addImage(bgBase64, "PNG", bgX, bgY, bgWidth, bgHeight);
@@ -166,12 +172,12 @@ const Certificates = () => {
         }
       }
 
-      // Border lines (Restored)
+      // Border lines (Single Border, tighter padding)
       doc.setDrawColor(88, 188, 206);
       doc.setLineWidth(0.5);
-      doc.rect(5, 5, width - 10, height - 10);
-      doc.setLineWidth(0.2);
-      doc.rect(8, 8, width - 16, height - 16);
+      doc.rect(3, 3, width - 6, height - 6);
+      // doc.setLineWidth(0.2);
+      // doc.rect(8, 8, width - 16, height - 16);
 
       // 🏢 Company Logo (New Logo)
       if (logoBase64) {
@@ -211,7 +217,7 @@ const Certificates = () => {
       doc.setFontSize(9);
       doc.setCharSpace(1);
       doc.setTextColor(80, 80, 80);
-      doc.text("PRESENTED TO :", width / 2.1, 100, { align: "center" });
+      doc.text("PRESENTED TO :", width / 2, 100, { align: "center" });
 
       // 🧑 User Name
       doc.setFont("times", "normal");
@@ -851,7 +857,7 @@ const Certificates = () => {
                 {actionItem.unlocked ? (
                   <button
                     onClick={() =>
-                      window.open("https://docs.google.com/forms/d/e/1FAIpQLSfk1OdxBCZHkhcIYWKZsdm2MRQuH08KQefDbBRNXZxKFlxgpw/viewform?usp=publish-editor", "_blank")
+                      window.open("https://forms.gle/HALjpNjeTixLa1q89", "_blank")
                     }
                     className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-cyan-600 to-teal-600 text-white font-medium hover:from-cyan-700 hover:to-teal-700 transition-all shadow-md hover:shadow-lg"
                   >
