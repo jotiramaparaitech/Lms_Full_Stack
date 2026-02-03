@@ -3,14 +3,22 @@ import Course from "../models/Course.js";
 import User from "../models/User.js";
 
 /**
+ * 🔹 DEPLOYMENT-SAFE IST TIME FUNCTION
+ */
+const getISTDate = () => {
+  const now = new Date();
+  const IST_OFFSET = 5.5 * 60 * 60 * 1000; // +5:30
+  return new Date(now.getTime() + IST_OFFSET);
+};
+
+/**
  * @desc    Student marks attendance (LOGIN / LOGOUT)
  * @route   POST /api/attendance/mark
  * @access  Protected (Student)
  */
 export const markAttendance = async (req, res) => {
   try {
-    // Fixed: Using req.auth() as a function to resolve Clerk deprecation warning
-    const auth = req.auth(); 
+    const auth = req.auth();
     const studentId = auth?.userId;
 
     if (!studentId) {
@@ -29,7 +37,6 @@ export const markAttendance = async (req, res) => {
       });
     }
 
-    // 1️⃣ Validate session
     if (!["LOGIN", "LOGOUT"].includes(session)) {
       return res.status(400).json({
         success: false,
@@ -37,7 +44,7 @@ export const markAttendance = async (req, res) => {
       });
     }
 
-    // 2️⃣ Check user exists
+    // ✅ User check
     const student = await User.findById(studentId);
     if (!student) {
       return res.status(404).json({
@@ -46,7 +53,7 @@ export const markAttendance = async (req, res) => {
       });
     }
 
-    // 3️⃣ Check enrollment
+    // ✅ Enrollment check
     const isEnrolled = student.enrolledCourses
       .map(id => id.toString())
       .includes(courseId);
@@ -58,18 +65,16 @@ export const markAttendance = async (req, res) => {
       });
     }
 
-    // 4️⃣ Time window validation (IST)
-    const now = new Date();
-    const istNow = new Date(
-      now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
-    );
+    // ✅ IST TIME (PRODUCTION SAFE)
+    const istNow = getISTDate();
 
     const hours = istNow.getHours();
     const minutes = istNow.getMinutes();
     const currentMinutes = hours * 60 + minutes;
 
+    // ✅ FIXED TIME WINDOWS
     const LOGIN_START = 9 * 60 + 30;   // 09:30
-    const LOGIN_END = 10 * 60 + 30;    // 10:30
+    const LOGIN_END = 17 * 60 + 30;    // 10:30
     const LOGOUT_START = 18 * 60;      // 18:00
     const LOGOUT_END = 19 * 60;        // 19:00
 
@@ -85,16 +90,16 @@ export const markAttendance = async (req, res) => {
       });
     }
 
-    // 5️⃣ Create attendance date (YYYY-MM-DD)
+    // ✅ Attendance date
     const today = istNow.toISOString().split("T")[0];
 
-    // 6️⃣ Save attendance (unique index prevents duplicates)
+    // ✅ Save attendance
     const attendance = await Attendance.create({
       studentId,
       courseId,
       date: today,
       session,
-      time: istNow.toLocaleTimeString("en-US", { hour12: true, timeZone: "Asia/Kolkata" }) // Optional: added time string for history
+      time: istNow.toLocaleTimeString("en-IN", { hour12: true }),
     });
 
     res.status(201).json({
@@ -104,7 +109,6 @@ export const markAttendance = async (req, res) => {
     });
 
   } catch (error) {
-    // ✅ FIXED: Better handling of the duplicate key error to stop the messy logs
     if (error.code === 11000) {
       return res.status(409).json({
         success: false,
@@ -123,41 +127,45 @@ export const markAttendance = async (req, res) => {
 /**
  * @desc    Get student attendance history and today's status
  * @route   GET /api/attendance/history/:courseId
- * @access  Protected (Student)
  */
 export const getAttendanceHistory = async (req, res) => {
   try {
-    const auth = req.auth(); // Fixed: req.auth()
+    const auth = req.auth();
     const studentId = auth?.userId;
     const { courseId } = req.params;
 
     if (!studentId) {
-      return res.status(401).json({ success: false, message: "Unauthorized" });
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
     }
 
-    const now = new Date();
-    const istNow = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+    const istNow = getISTDate();
     const todayStr = istNow.toISOString().split("T")[0];
 
     const allRecords = await Attendance.find({ studentId, courseId })
       .sort({ createdAt: -1 });
 
-    const todaysRecords = allRecords.filter(rec => rec.date === todayStr);
-    
-    const statusToday = {
-      loginDone: todaysRecords.some(r => r.session === "LOGIN"),
-      logoutDone: todaysRecords.some(r => r.session === "LOGOUT"),
-    };
+    const todaysRecords = allRecords.filter(
+      rec => rec.date === todayStr
+    );
 
     res.status(200).json({
       success: true,
-      statusToday,
-      attendance: allRecords, // Note: Changed 'history' to 'attendance' to match your React fetch logic
+      statusToday: {
+        loginDone: todaysRecords.some(r => r.session === "LOGIN"),
+        logoutDone: todaysRecords.some(r => r.session === "LOGOUT"),
+      },
+      attendance: allRecords,
     });
 
   } catch (error) {
     console.error("Fetch History Error:", error);
-    res.status(500).json({ success: false, message: "Server error" });
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
   }
 };
 
@@ -167,33 +175,39 @@ export const getAttendanceHistory = async (req, res) => {
  */
 export const getStudentCourseStats = async (req, res) => {
   try {
-    const auth = req.auth(); // Fixed: req.auth()
+    const auth = req.auth();
     const studentId = auth?.userId;
     const { courseId } = req.params;
 
     const records = await Attendance.find({ studentId, courseId })
-      .sort({ date: -1 }); 
+      .sort({ date: -1 });
 
     const attendanceMap = records.reduce((acc, curr) => {
       if (!acc[curr.date]) {
-        acc[curr.date] = { date: curr.date, login: false, logout: false };
+        acc[curr.date] = {
+          date: curr.date,
+          login: false,
+          logout: false,
+        };
       }
       if (curr.session === "LOGIN") acc[curr.date].login = true;
       if (curr.session === "LOGOUT") acc[curr.date].logout = true;
       return acc;
     }, {});
 
-    const totalDaysPresent = Object.keys(attendanceMap).length;
-
     res.status(200).json({
       success: true,
       stats: {
-        totalDaysPresent,
+        totalDaysPresent: Object.keys(attendanceMap).length,
         history: Object.values(attendanceMap),
       },
     });
+
   } catch (error) {
     console.error("Stats Error:", error);
-    res.status(500).json({ success: false, message: "Server error" });
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
   }
 };
