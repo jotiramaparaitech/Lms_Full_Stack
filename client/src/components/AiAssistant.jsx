@@ -34,8 +34,6 @@ const COMMANDS = [
   { keywords: ["footer", "bottom"], type: "scroll", id: "contact-section", label: "bottom section" },
 ];
 
-/* ---------------- COMPONENT ---------------- */
-
 const AiAssistant = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -47,23 +45,148 @@ const AiAssistant = () => {
 
   const recognitionRef = useRef(null);
   const keepListeningRef = useRef(false);
-  const clickAudioRef = useRef(null);
 
-  /* ---------------- PRELOAD CLICK SOUND ---------------- */
+  const clickAudioRef = useRef(null);
+  const audioUnlockedRef = useRef(false);
+  const voiceRef = useRef(null);
+
+  /* ---------------- PRELOAD SOUND ---------------- */
 
   useEffect(() => {
     clickAudioRef.current = new Audio(clickSound);
+    clickAudioRef.current.preload = "auto";
     clickAudioRef.current.volume = 0.5;
-    clickAudioRef.current.load(); // ✅ preload
+    clickAudioRef.current.load();
   }, []);
 
-  const playActivationSound = () => {
-    try {
-      if (clickAudioRef.current) {
-        clickAudioRef.current.currentTime = 0;
-        clickAudioRef.current.play();
+  useEffect(() => {
+    const pickVoice = () => {
+      const voices = window.speechSynthesis?.getVoices?.() || [];
+      if (!voices.length) return;
+
+      const preferredNames = [
+        "Google UK English Male",
+        "Google US English",
+        "Microsoft David",
+        "Microsoft Mark",
+        "Daniel",
+        "Alex",
+        "Tom",
+      ];
+
+      const maleKeywords = ["male", "man", "david", "daniel", "alex", "tom", "mark"];
+      const femaleKeywords = ["female", "woman", "zira", "samantha", "karen", "moira", "susan", "victoria"];
+
+      const byName =
+        preferredNames
+          .map((name) => voices.find((v) => v.name === name))
+          .find(Boolean) || null;
+
+      const byKeyword =
+        voices.find((v) =>
+          maleKeywords.some((k) => v.name?.toLowerCase().includes(k))
+        ) || null;
+
+      const enUsMale =
+        voices.find(
+          (v) =>
+            v.lang === "en-US" &&
+            !femaleKeywords.some((k) => v.name?.toLowerCase().includes(k))
+        ) || null;
+
+      const enAnyMale =
+        voices.find(
+          (v) =>
+            v.lang?.startsWith("en") &&
+            !femaleKeywords.some((k) => v.name?.toLowerCase().includes(k))
+        ) || null;
+
+      let selected = byName || byKeyword || enUsMale || enAnyMale || null;
+
+      if (!selected) {
+        selected =
+          voices.find((v) => v.lang === "en-US") ||
+          voices.find((v) => v.lang?.startsWith("en")) ||
+          null;
       }
-    } catch {}
+
+      voiceRef.current = selected;
+    };
+
+    pickVoice();
+    window.speechSynthesis?.addEventListener?.("voiceschanged", pickVoice);
+    return () => {
+      window.speechSynthesis?.removeEventListener?.("voiceschanged", pickVoice);
+    };
+  }, []);
+
+  /* ---------------- AUDIO UNLOCK (CRITICAL FIX) ---------------- */
+
+  const unlockAudio = () => {
+    if (audioUnlockedRef.current) return Promise.resolve();
+
+    return new Promise((resolve) => {
+      try {
+        const audio = clickAudioRef.current;
+        if (!audio) return resolve();
+        audio.muted = true;
+        const playPromise = audio.play();
+        if (playPromise && typeof playPromise.then === "function") {
+          playPromise
+            .then(() => {
+              audio.pause();
+              audio.currentTime = 0;
+              audio.muted = false;
+              audioUnlockedRef.current = true;
+              resolve();
+            })
+            .catch(() => resolve());
+        } else {
+          resolve();
+        }
+      } catch {
+        resolve();
+      }
+    });
+  };
+
+  const playActivationSound = () => {
+    const audio = clickAudioRef.current;
+    if (!audio) return Promise.resolve();
+
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        audio.removeEventListener("canplaythrough", onReady);
+        audio.removeEventListener("ended", finish);
+        resolve();
+      };
+
+      const onReady = () => {
+        audio.removeEventListener("canplaythrough", onReady);
+        audio.currentTime = 0;
+        const playPromise = audio.play();
+        if (playPromise && typeof playPromise.then === "function") {
+          playPromise.catch(finish);
+        }
+      };
+
+      audio.currentTime = 0;
+      audio.addEventListener("ended", finish);
+
+      if (audio.readyState < 3) {
+        audio.addEventListener("canplaythrough", onReady);
+      } else {
+        const playPromise = audio.play();
+        if (playPromise && typeof playPromise.then === "function") {
+          playPromise.catch(finish);
+        }
+      }
+
+      setTimeout(finish, 1200);
+    });
   };
 
   /* ---------------- SPEAK ---------------- */
@@ -73,26 +196,11 @@ const AiAssistant = () => {
     const utter = new SpeechSynthesisUtterance(message);
     utter.lang = "en-US";
     utter.rate = 1;
+    if (voiceRef.current) {
+      utter.voice = voiceRef.current;
+    }
     if (onEnd) utter.onend = onEnd;
     window.speechSynthesis.speak(utter);
-  };
-
-  /* ---------------- SCROLL ---------------- */
-
-  const scrollToSection = (id, label) => {
-    const doScroll = () => {
-      const el = document.getElementById(id);
-      if (el) el.scrollIntoView({ behavior: "smooth" });
-      else speak(`I could not find the ${label}.`);
-    };
-
-    speak(`Scrolling to ${label}.`);
-    if (location.pathname !== "/") {
-      navigate("/");
-      setTimeout(doScroll, 500);
-    } else {
-      doScroll();
-    }
   };
 
   /* ---------------- COMMAND EXECUTION ---------------- */
@@ -124,26 +232,30 @@ const AiAssistant = () => {
       c.keywords.some((k) => transcript.includes(k))
     );
 
-    if (cmd) {
-      if (cmd.type === "external") {
-        speak(`Opening ${cmd.label} now.`);
-        window.location.href = cmd.url;
-      }
-      if (cmd.type === "navigate") {
-        speak(`Navigating to the ${cmd.label}.`);
-        navigate(cmd.path);
-      }
-      if (cmd.type === "modal") {
-        speak(`Opening the ${cmd.label}.`);
-        openHelpCenter();
-      }
-      if (cmd.type === "scroll") {
-        scrollToSection(cmd.id, cmd.label);
-      }
+    if (!cmd) {
+      speak("Sorry, I did not understand that.");
       return;
     }
 
-    speak("Sorry, I did not understand that.");
+    if (cmd.type === "external") {
+      speak(`Opening ${cmd.label} now.`);
+      window.location.href = cmd.url;
+    }
+
+    if (cmd.type === "navigate") {
+      speak(`Navigating to the ${cmd.label}.`);
+      navigate(cmd.path);
+    }
+
+    if (cmd.type === "modal") {
+      speak(`Opening the ${cmd.label}.`);
+      openHelpCenter();
+    }
+
+    if (cmd.type === "scroll") {
+      const el = document.getElementById(cmd.id);
+      if (el) el.scrollIntoView({ behavior: "smooth" });
+    }
   };
 
   /* ---------------- LISTENING ---------------- */
@@ -152,8 +264,13 @@ const AiAssistant = () => {
     const SpeechRecognition =
       window.SpeechRecognition || window.webkitSpeechRecognition;
 
+    if (!window.isSecureContext) {
+      toast.error("Voice assistant requires HTTPS to access the microphone.");
+      return;
+    }
+
     if (!SpeechRecognition) {
-      toast.error("Voice assistant not supported.");
+      toast.error("Voice assistant works only in Chrome or Edge.");
       return;
     }
 
@@ -178,14 +295,26 @@ const AiAssistant = () => {
       }
     };
 
-    recognition.onerror = () => setActiveAi(false);
-
     recognition.start();
   };
 
   /* ---------------- CLICK ---------------- */
 
-  const handleInteraction = () => {
+  const ensureMicPermission = async () => {
+    if (!navigator.mediaDevices?.getUserMedia) return true;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((t) => t.stop());
+      return true;
+    } catch {
+      toast.error("Microphone permission denied.");
+      return false;
+    }
+  };
+
+  const handleInteraction = async () => {
+    await unlockAudio(); // 🔥 THIS LINE FIXES ALL DEVICES
+
     if (activeAi) {
       keepListeningRef.current = false;
       recognitionRef.current?.stop();
@@ -194,19 +323,23 @@ const AiAssistant = () => {
       return;
     }
 
-    playActivationSound();
+    await playActivationSound();
     keepListeningRef.current = true;
+
+    const hasMic = await ensureMicPermission();
+    if (!hasMic) {
+      keepListeningRef.current = false;
+      return;
+    }
 
     if (!hasGreeted) {
       setHasGreeted(true);
-      setTimeout(() => {
-        speak(
-          "Hello! Welcome to Aparaitech Software Solution. I am your AI assistant. How can I help you?",
-          startListening
-        );
-      }, 400);
+      speak(
+        "Hello! Welcome to Aparaitech Software Solution. I am your AI assistant. How can I help you?",
+        startListening
+      );
     } else {
-      setTimeout(startListening, 300);
+      startListening();
     }
   };
 

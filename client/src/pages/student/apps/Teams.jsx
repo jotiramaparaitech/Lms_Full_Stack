@@ -18,30 +18,115 @@ import {
   UserPlus,
   Check,
   X,
-  ArrowLeft
+  ArrowLeft,
+  MessageCircle,
+  Lock,
+  FileText,
+  Download,
+  File,
+  ExternalLink,
+  Eye,
+  Mic,
+  Link as LinkIcon,
+  Camera,
+  Upload,
+  Edit2,
+  MoreHorizontal
 } from "lucide-react";
 import moment from "moment";
-import { io } from "socket.io-client"; // ✅ ADDED
+import { io } from "socket.io-client";
 
 const Teams = () => {
   const { userData, backendUrl, getToken } = useContext(AppContext);
   const navigate = useNavigate();
 
-  const socketRef = useRef(null); // ✅ ADDED
+  const socketRef = useRef(null);
   const scrollRef = useRef();
+  const fileInputRef = useRef(null);
+  const imageInputRef = useRef(null);
+  const messagesContainerRef = useRef(null);
+  const logoInputRef = useRef(null);
+  const editLogoInputRef = useRef(null);
+  const editFileInputRef = useRef(null);
 
   const [teams, setTeams] = useState([]);
   const [activeTeam, setActiveTeam] = useState(null);
-  //const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [messages, setMessages] = useState([]);
+  const [files, setFiles] = useState([]);
   const [messageInput, setMessageInput] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [activeTab, setActiveTab] = useState("posts");
-
   const [newTeamName, setNewTeamName] = useState("");
   const [newTeamDesc, setNewTeamDesc] = useState("");
+  const [showTeamMenu, setShowTeamMenu] = useState(false);
+  const [showEditTeamModal, setShowEditTeamModal] = useState(false);
+  const [editedTeamName, setEditedTeamName] = useState("");
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [teamLogo, setTeamLogo] = useState(null);
+  const [editedTeamLogo, setEditedTeamLogo] = useState(null);
+  const [logoPreview, setLogoPreview] = useState(null);
+  
+  // Message edit/delete states
+  const [editingMessageId, setEditingMessageId] = useState(null);
+  const [editedContent, setEditedContent] = useState("");
+  const [openMessageMenu, setOpenMessageMenu] = useState(null);
+  const [editingFile, setEditingFile] = useState(false);
 
-  // ================= SOCKET.IO (ADDED ONLY) =================
+  // Check if user can send messages (team leader or admin)
+  const canSendMessages = activeTeam?.isMember && (activeTeam?.isLeader || userData?.role === "admin");
+
+  // Change team name 
+  const canEditTeam = activeTeam?.isLeader ||
+    activeTeam?.members?.some(
+      (m) => m.userId?._id === userData?._id && m.role === "admin"
+    );
+
+  // Check if user can edit/delete a specific message
+  const canEditDeleteMessage = (message) => {
+    if (!activeTeam || !userData || !message || message.deleted) return false;
+    
+    // Message sender can edit/delete
+    if (message.sender?._id === userData._id) return true;
+    
+    // Team leader can edit/delete any message
+    if (activeTeam.isLeader) return true;
+    
+    // Admin can edit/delete any message
+    const isAdmin = activeTeam.members?.some(
+      (m) => m.userId?._id === userData._id && m.role === "admin"
+    );
+    
+    return isAdmin;
+  };
+
+  // Handle scroll to detect if user scrolled up
+  useEffect(() => {
+    const handleScroll = () => {
+      if (messagesContainerRef.current) {
+        const scrollTop = messagesContainerRef.current.scrollTop;
+        setIsScrolled(scrollTop > 100);
+      }
+    };
+
+    const container = messagesContainerRef.current;
+    if (container) {
+      container.addEventListener('scroll', handleScroll);
+      return () => container.removeEventListener('scroll', handleScroll);
+    }
+  }, [activeTeam]);
+
+  // Reset edit modal when team changes
+  useEffect(() => {
+    if (activeTeam && showEditTeamModal) {
+      setEditedTeamName(activeTeam.name);
+      setEditedTeamLogo(null);
+      setLogoPreview(activeTeam.logo || null);
+    }
+  }, [activeTeam, showEditTeamModal]);
+
+  // ================= SOCKET.IO UPDATES =================
   useEffect(() => {
     socketRef.current = io(backendUrl, {
       transports: ["websocket"],
@@ -49,11 +134,37 @@ const Teams = () => {
     });
 
     socketRef.current.on("receive-message", (msg) => {
+      console.log("Received message via socket:", msg);
       setMessages((prev) => [...prev, msg]);
     });
 
+    socketRef.current.on("receive-file", (file) => {
+      setFiles((prev) => [...prev, file]);
+    });
+
+    // New socket events for edit/delete
+    socketRef.current.on("message-updated", (updatedMessage) => {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg._id === updatedMessage._id ? updatedMessage : msg
+        )
+      );
+    });
+
+    socketRef.current.on("message-deleted", (deletedMsg) => {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg._id === deletedMsg._id 
+            ? { ...msg, deleted: true, content: "[This message was deleted]" }
+            : msg
+        )
+      );
+    });
+
     return () => {
-      socketRef.current.disconnect();
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+      }
     };
   }, [backendUrl]);
 
@@ -62,15 +173,189 @@ const Teams = () => {
       socketRef.current.emit("join-team", activeTeam._id);
     }
   }, [activeTeam]);
-  // ==========================================================
 
   useEffect(() => {
-    scrollRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
   }, [messages]);
 
-  // -----------------------------
-  // Data Fetching (UNCHANGED)
-  // -----------------------------
+  // ================= FILE UPLOAD =================
+  const handleFileSelect = async (e, fileType = "file") => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("File size should be less than 10MB");
+      return;
+    }
+
+    // Validate file types
+    const allowedImageTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+    const allowedFileTypes = [
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "text/plain"
+    ];
+
+    if (fileType === "image" && !allowedImageTypes.includes(file.type)) {
+      toast.error("Please select a valid image (JPEG, PNG, GIF, WebP)");
+      return;
+    }
+
+    if (fileType === "file" && !allowedFileTypes.includes(file.type) && !allowedImageTypes.includes(file.type)) {
+      toast.error("Please select a valid file (PDF, Word, Excel, Text, or Images)");
+      return;
+    }
+
+    await uploadFile(file, fileType);
+    
+    // Reset input
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (imageInputRef.current) imageInputRef.current.value = "";
+  };
+
+  const uploadFile = async (file, fileType = "file") => {
+    if (!activeTeam) return;
+    
+    setUploadingFile(true);
+    try {
+      const token = await getToken();
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("teamId", activeTeam._id);
+
+      const { data } = await axios.post(
+        `${backendUrl}/api/teams/message/upload`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+
+      if (data.success) {
+        toast.success("File uploaded successfully!");
+        fetchMessages(activeTeam._id);
+      }
+    } catch (error) {
+      console.error("Upload error:", error);
+      toast.error(error.response?.data?.message || "Failed to upload file");
+    } finally {
+      setUploadingFile(false);
+    }
+  };
+
+  // Edit file message
+  const editFileMessage = async (file, messageId) => {
+    if (!activeTeam || !messageId) return;
+    
+    setEditingFile(true);
+    try {
+      const token = await getToken();
+      const formData = new FormData();
+      formData.append("messageId", messageId);
+      formData.append("file", file);
+      formData.append("teamId", activeTeam._id);
+
+      const { data } = await axios.put(
+        `${backendUrl}/api/teams/message/edit`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+
+      if (data.success) {
+        toast.success("File updated successfully!");
+        fetchMessages(activeTeam._id);
+      }
+    } catch (error) {
+      console.error("Edit file error:", error);
+      toast.error(error.response?.data?.message || "Failed to update file");
+    } finally {
+      setEditingFile(false);
+      setEditingMessageId(null);
+      if (editFileInputRef.current) editFileInputRef.current.value = "";
+    }
+  };
+
+  const fetchTeamFiles = async (teamId) => {
+    try {
+      const token = await getToken();
+      const { data } = await axios.get(
+        `${backendUrl}/api/teams/files/${teamId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (data.success) {
+        console.log("Files data:", data.files);
+        setFiles(data.files);
+      }
+    } catch (error) {
+      console.error("Failed to fetch files:", error);
+    }
+  };
+
+  const getFileUrl = (message) => {
+    if (!message) return null;
+    
+    if (message.attachmentUrl && message.attachmentUrl.startsWith('http')) {
+      return message.attachmentUrl;
+    }
+    
+    if (message.type === 'text' && message.content) {
+      return null;
+    }
+    
+    return null;
+  };
+
+  const getFileName = (message) => {
+    if (message.content && message.type !== 'text') {
+      return message.content;
+    }
+    
+    if (message.attachmentUrl) {
+      const urlParts = message.attachmentUrl.split('/');
+      return urlParts[urlParts.length - 1];
+    }
+    
+    return "file";
+  };
+
+  const downloadFile = async (url, fileName) => {
+    try {
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', fileName || 'file');
+      link.setAttribute('target', '_blank');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error("Download error:", error);
+      toast.error("Failed to download file");
+    }
+  };
+
+  const viewFile = (url) => {
+    if (url) {
+      window.open(url, '_blank');
+    } else {
+      toast.error("Cannot open file: URL not available");
+    }
+  };
+
+  // ================= DATA FETCHING =================
   const fetchTeams = async () => {
     try {
       const token = await getToken();
@@ -81,10 +366,13 @@ const Teams = () => {
         setTeams(data.teams);
         if (activeTeam) {
           const updated = data.teams.find(t => t._id === activeTeam._id);
-          if (updated) setActiveTeam(updated);
+          if (updated) {
+            setActiveTeam(updated);
+            setLogoPreview(updated.logo || null);
+          }
         }
       }
-    } catch {
+    } catch (error) {
       toast.error("Failed to load teams");
     } finally {
       setLoading(false);
@@ -98,8 +386,13 @@ const Teams = () => {
         `${backendUrl}/api/teams/messages/${teamId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      if (data.success) setMessages(data.messages);
-    } catch {}
+      if (data.success) {
+        console.log("Fetched messages:", data.messages);
+        setMessages(data.messages);
+      }
+    } catch (error) {
+      console.error("Failed to fetch messages:", error);
+    }
   };
 
   useEffect(() => {
@@ -109,30 +402,216 @@ const Teams = () => {
   useEffect(() => {
     if (activeTeam && activeTeam.isMember) {
       fetchMessages(activeTeam._id);
+      if (activeTab === "files") {
+        fetchTeamFiles(activeTeam._id);
+      }
     }
   }, [activeTeam]);
 
-  // -----------------------------
-  // Actions (ALL KEPT)
-  // -----------------------------
-  const handleCreateTeam = async (e) => {
-    e.preventDefault();
+  useEffect(() => {
+    if (activeTeam && activeTab === "files") {
+      fetchTeamFiles(activeTeam._id);
+    }
+  }, [activeTab, activeTeam]);
+
+  // ================= MESSAGE EDIT/DELETE FUNCTIONS =================
+  const handleEditMessage = async () => {
+    if (!editedContent.trim()) {
+      toast.error("Message cannot be empty");
+      return;
+    }
+
     try {
       const token = await getToken();
-      const { data } = await axios.post(
-        `${backendUrl}/api/teams/create`,
-        { name: newTeamName, description: newTeamDesc },
+      const { data } = await axios.put(
+        `${backendUrl}/api/teams/message/edit`,
+        { 
+          messageId: editingMessageId, 
+          content: editedContent,
+          teamId: activeTeam._id 
+        },
         { headers: { Authorization: `Bearer ${token}` } }
       );
+
       if (data.success) {
-        toast.success("Team created!");
+        toast.success("Message updated");
+        setEditingMessageId(null);
+        setEditedContent("");
+        // Socket will handle the update
+      }
+    } catch (error) {
+      console.error("Edit message error:", error);
+      toast.error(error.response?.data?.message || "Failed to edit message");
+    }
+  };
+
+  const handleDeleteMessage = async (messageId) => {
+    if (!window.confirm("Are you sure you want to delete this message?")) {
+      return;
+    }
+
+    try {
+      const token = await getToken();
+      const { data } = await axios.delete(
+        `${backendUrl}/api/teams/message/delete`,
+        {
+          data: { messageId, teamId: activeTeam._id },
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+
+      if (data.success) {
+        toast.success("Message deleted");
+        setOpenMessageMenu(null);
+        // Socket will handle the update
+      }
+    } catch (error) {
+      console.error("Delete message error:", error);
+      toast.error(error.response?.data?.message || "Failed to delete message");
+    }
+  };
+
+  // Handle file edit selection
+  const handleEditFileSelect = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("File size should be less than 10MB");
+      return;
+    }
+
+    // Validate file types
+    const allowedImageTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+    const allowedFileTypes = [
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "text/plain"
+    ];
+
+    if (!allowedImageTypes.includes(file.type) && !allowedFileTypes.includes(file.type)) {
+      toast.error("Please select a valid file (PDF, Word, Excel, Text, or Images)");
+      return;
+    }
+
+    await editFileMessage(file, editingMessageId);
+  };
+
+  // ================= TEAM ACTIONS =================
+  const handleCreateTeam = async (e) => {
+    e.preventDefault();
+
+    if (!newTeamName.trim()) {
+      toast.error("Team name is required");
+      return;
+    }
+
+    try {
+      const token = await getToken();
+      const formData = new FormData();
+
+      formData.append("name", newTeamName);       
+      formData.append("description", newTeamDesc);
+
+      if (teamLogo) {
+        formData.append("logo", teamLogo);         
+      }
+
+      const { data } = await axios.post(
+        `${backendUrl}/api/teams/create`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data"
+          }
+        }
+      );
+
+      if (data.success) {
+        toast.success("Team created successfully");
         setShowCreateModal(false);
         setNewTeamName("");
         setNewTeamDesc("");
+        setTeamLogo(null);
         fetchTeams();
       }
-    } catch {
-      toast.error("Failed to create team");
+    } catch (error) {
+      console.error(error);
+      toast.error(error.response?.data?.message || "Failed to create team");
+    }
+  };
+
+  const handleUpdateTeam = async () => {
+    if (!editedTeamName.trim() && !editedTeamLogo) {
+      toast.error("Nothing to update");
+      return;
+    }
+
+    try {
+      const token = await getToken();
+      const formData = new FormData();
+
+      formData.append("teamId", activeTeam._id);
+
+      if (editedTeamName.trim()) {
+        formData.append("name", editedTeamName);
+      }
+
+      if (editedTeamLogo) {
+        formData.append("logo", editedTeamLogo);
+      }
+
+      const { data } = await axios.put(
+        `${backendUrl}/api/teams/update`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data"
+          }
+        }
+      );
+
+      if (data.success) {
+        toast.success("Team updated successfully");
+        setShowEditTeamModal(false);
+        setShowTeamMenu(false);
+        setEditedTeamLogo(null);
+        setEditedTeamName("");
+        fetchTeams();
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Update failed");
+    }
+  };
+
+  const handleLogoSelect = (e, isEditModal = false) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Please select a valid image (JPEG, PNG, GIF, WebP, SVG)');
+      return;
+    }
+
+    // Validate file size (max 5MB for logos)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Logo size should be less than 5MB');
+      return;
+    }
+
+    if (isEditModal) {
+      setEditedTeamLogo(file);
+      setLogoPreview(URL.createObjectURL(file));
+    } else {
+      setTeamLogo(file);
     }
   };
 
@@ -148,14 +627,14 @@ const Teams = () => {
         toast.success("Request sent!");
         fetchTeams();
       }
-    } catch {
-      toast.error("Failed");
+    } catch (error) {
+      toast.error("Failed to send request");
     }
   };
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!messageInput.trim()) return;
+    if (!messageInput.trim() || !canSendMessages) return;
 
     try {
       const token = await getToken();
@@ -164,13 +643,18 @@ const Teams = () => {
         { teamId: activeTeam._id, content: messageInput, type: "text" },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setMessageInput(""); // ✅ socket updates UI
-    } catch {
-      toast.error("Failed to send");
+      setMessageInput("");
+    } catch (error) {
+      toast.error("Failed to send message");
     }
   };
 
   const postMeetingLink = async (type) => {
+    if (!canSendMessages) {
+      toast.error("Only team leaders can post meeting links");
+      return;
+    }
+    
     const link = prompt(`Enter ${type} Meeting URL:`);
     if (!link) return;
 
@@ -186,7 +670,8 @@ const Teams = () => {
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-    } catch {
+      toast.success("Meeting link posted!");
+    } catch (error) {
       toast.error("Failed to post meeting");
     }
   };
@@ -210,19 +695,283 @@ const Teams = () => {
         toast.success("Success");
         fetchTeams();
       }
-    } catch {
+    } catch (error) {
       toast.error("Action failed");
     }
   };
 
-  // -----------------------------
-  // Render (UNCHANGED UI)
-  // -----------------------------
-  //if (loading) return <div className="p-10 text-center">Loading Teams...</div>;
+  const handleDeleteTeam = async () => {
+    if (!window.confirm("Are you sure you want to delete this team? This action is irreversible.")) {
+      return;
+    }
+
+    try {
+      const token = await getToken();
+      const { data } = await axios.delete(
+        `${backendUrl}/api/teams/delete/${activeTeam._id}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (data.success) {
+        toast.success("Team deleted successfully");
+        setActiveTeam(null);
+        setShowTeamMenu(false);
+        fetchTeams();
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to delete team");
+    }
+  };
+
+  useEffect(() => {
+    setShowTeamMenu(false);
+  }, [activeTeam]);
+
+  const formatFileSize = (bytes) => {
+    if (!bytes || bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  // ================= RENDER MESSAGE ITEM =================
+  const renderMessageItem = (msg) => {
+    const fileUrl = getFileUrl(msg);
+    const fileName = getFileName(msg);
+    const canEditDelete = canEditDeleteMessage(msg);
+    const isEditing = editingMessageId === msg._id;
+
+    return (
+      <div key={msg._id} className="flex gap-3 group">
+        <div className="flex-shrink-0">
+          <img 
+            src={msg.sender?.imageUrl || "/default-avatar.png"} 
+            alt={msg.sender?.name}
+            className="w-9 h-9 rounded-full object-cover shadow-sm bg-white border border-gray-200" 
+          />
+          {msg.sender?._id === activeTeam.leaderId && (
+            <div className="text-[10px] text-center mt-1 text-blue-600 font-medium bg-blue-50 px-1.5 py-0.5 rounded-full">
+              Leader
+            </div>
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-baseline justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-gray-900 text-sm">{msg.sender?.name}</span>
+              <span className="text-xs text-gray-400">{moment(msg.createdAt).format("h:mm A")}</span>
+              {msg.edited && !msg.deleted && (
+                <span className="text-xs text-gray-400 italic">(edited)</span>
+              )}
+              {msg.deleted && (
+                <span className="text-xs text-gray-400 italic">(deleted)</span>
+              )}
+            </div>
+            
+            {/* Message Actions Menu (Three Dots) */}
+            {canEditDelete && !msg.deleted && (
+              <div className="relative">
+                <button
+                  onClick={() => setOpenMessageMenu(openMessageMenu === msg._id ? null : msg._id)}
+                  className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors opacity-0 group-hover:opacity-100"
+                >
+                  <MoreVertical size={16} />
+                </button>
+                
+                {openMessageMenu === msg._id && (
+                  <div className="absolute right-0 mt-1 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
+                    <button
+                      onClick={() => {
+                        if (msg.type === "text") {
+                          setEditingMessageId(msg._id);
+                          setEditedContent(msg.content);
+                          setOpenMessageMenu(null);
+                        } else if (msg.type === "image" || msg.type === "file") {
+                          editFileInputRef.current.click();
+                          setEditingMessageId(msg._id);
+                          setOpenMessageMenu(null);
+                        }
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 text-gray-700 flex items-center gap-2"
+                      disabled={editingFile}
+                    >
+                      {editingFile && msg._id === editingMessageId ? (
+                        <div className="animate-spin rounded-full h-3 w-3 border-t-2 border-b-2 border-blue-500"></div>
+                      ) : (
+                        <Edit2 size={14} />
+                      )}
+                      {editingFile && msg._id === editingMessageId ? "Uploading..." : "Edit"}
+                    </button>
+                    <button
+                      onClick={() => handleDeleteMessage(msg._id)}
+                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                    >
+                      <Trash2 size={14} />
+                      Delete
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          
+          {/* Edit Message Input (for text messages) */}
+          {isEditing && msg.type === "text" ? (
+            <div className="mt-2">
+              <textarea
+                className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none text-sm"
+                value={editedContent}
+                onChange={(e) => setEditedContent(e.target.value)}
+                rows={3}
+                autoFocus
+              />
+              <div className="flex justify-end gap-2 mt-2">
+                <button
+                  onClick={() => {
+                    setEditingMessageId(null);
+                    setEditedContent("");
+                  }}
+                  className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleEditMessage}
+                  disabled={!editedContent.trim()}
+                  className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                    editedContent.trim()
+                      ? "bg-blue-600 text-white hover:bg-blue-700"
+                      : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  }`}
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* Regular Message Content */
+            <>
+              {msg.type === 'text' && (
+                <p className="text-gray-800 text-sm mt-1 leading-relaxed bg-white p-3 rounded-tr-xl rounded-br-xl rounded-bl-xl shadow-sm border border-gray-100 break-words">
+                  {msg.deleted ? "[This message was deleted]" : msg.content}
+                </p>
+              )}
+
+              {/* File/Image Messages */}
+              {(msg.type === 'image' || msg.type === 'file') && fileUrl && !msg.deleted && (
+                <div className="mt-2 max-w-md">
+                  <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        {msg.type === 'image' ? (
+                          <ImageIcon size={14} className="text-green-500" />
+                        ) : (
+                          <FileText size={14} className="text-blue-500" />
+                        )}
+                        <span className="text-xs font-medium text-gray-700">
+                          {msg.type === 'image' ? 'Image' : 'File'}
+                        </span>
+                      </div>
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => viewFile(fileUrl)}
+                          className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                          title={msg.type === 'image' ? "View Image" : "View File"}
+                        >
+                          <Eye size={10} />
+                          View
+                        </button>
+                        <button
+                          onClick={() => downloadFile(fileUrl, fileName)}
+                          className="text-xs text-gray-600 hover:text-gray-800 flex items-center gap-1"
+                          title="Download"
+                        >
+                          <Download size={10} />
+                          Download
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {msg.type === 'image' ? (
+                      <div className="relative">
+                        <img 
+                          src={fileUrl} 
+                          alt={fileName || "Shared image"}
+                          className="w-full rounded-lg max-h-48 object-contain bg-gray-50"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = "https://placehold.co/400x300/e2e8f0/64748b?text=Image+Not+Found";
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                        <div className="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center">
+                          <FileText size={18} className="text-blue-500" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-gray-800 text-sm truncate">
+                            {fileName}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            Click to download
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              
+              {/* Meeting Link Messages */}
+              {msg.type === 'call_link' && !msg.deleted && (
+                <div className="mt-2 bg-blue-50 border border-blue-100 rounded-lg p-3 max-w-md">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-9 h-9 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
+                      {msg.linkData?.title?.includes('Voice') ? <Mic size={18} /> : <Video size={18} />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-bold text-gray-900 text-sm truncate">{msg.linkData?.title || "Meeting"}</h4>
+                      <p className="text-xs text-gray-500 truncate">Call started by team leader</p>
+                    </div>
+                  </div>
+                  <a 
+                    href={msg.linkData?.url} 
+                    target="_blank" 
+                    rel="noreferrer" 
+                    className="block w-full text-center bg-blue-600 text-white py-2 rounded-md text-sm font-semibold hover:bg-blue-700 transition-colors text-xs md:text-sm"
+                  >
+                    Join Meeting
+                  </a>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // ================= RENDER =================
+  if (loading) {
+    return (
+      <StudentLayout>
+        <div className="flex items-center justify-center h-[calc(100vh-80px)]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading Teams...</p>
+          </div>
+        </div>
+      </StudentLayout>
+    );
+  }
 
   return (
     <StudentLayout>
-       <div className="flex h-[calc(100vh-80px)] bg-gray-50 font-sans">
+      <div className="flex h-[calc(100vh-80px)] bg-gray-50 font-sans">
         
         {/* SIDEBAR: TEAM LIST */}
         <div className={`${activeTeam ? "hidden md:flex" : "flex w-full"} md:w-80 bg-white border-r border-gray-200 flex-col`}>
@@ -241,12 +990,19 @@ const Teams = () => {
           <div className="p-3">
              <div className="relative">
                 <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
-                <input placeholder="Search or Join..." className="w-full bg-gray-100 pl-9 pr-3 py-2 rounded-md text-sm outline-none focus:ring-1 focus:ring-blue-500" />
+                <input 
+                  placeholder="Search or Join..." 
+                  className="w-full bg-gray-100 pl-9 pr-3 py-2 rounded-md text-sm outline-none focus:ring-1 focus:ring-blue-500" 
+                />
              </div>
           </div>
           
           <div className="flex-1 overflow-y-auto">
-            {teams.length === 0 && <div className="p-4 text-center text-gray-500 text-sm">No teams found. Join or create one!</div>}
+            {teams.length === 0 && (
+              <div className="p-4 text-center text-gray-500 text-sm">
+                No teams found. Join or create one!
+              </div>
+            )}
             {teams.map((team) => (
               <div
                 key={team._id}
@@ -256,20 +1012,28 @@ const Teams = () => {
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
-                    {team.name.substring(0, 2).toUpperCase()}
-                  </div>
+                  {team.logo ? (
+                    <img
+                      src={team.logo}
+                      alt={team.name}
+                      className="w-10 h-10 rounded-lg object-cover border border-gray-200"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
+                      {team.name.substring(0, 2).toUpperCase()}
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-gray-800 truncate text-sm">{team.name}</h3>
                     <p className="text-xs text-gray-500 truncate">{team.members.length} members</p>
                   </div>
                   {!team.isMember && !team.isPending && (
-                       <button 
-                        onClick={(e) => { e.stopPropagation(); handleJoinRequest(team._id); }}
-                        className="text-xs bg-gray-100 px-2 py-1 rounded hover:bg-gray-200"
-                        >
-                           Join
-                       </button>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); handleJoinRequest(team._id); }}
+                      className="text-xs bg-gray-100 px-2 py-1 rounded hover:bg-gray-200"
+                    >
+                      Join
+                    </button>
                   )}
                   {team.isPending && <span className="text-xs text-orange-500">Pending</span>}
                 </div>
@@ -282,8 +1046,10 @@ const Teams = () => {
         <div className={`${activeTeam ? "flex w-full" : "hidden md:flex"} flex-1 flex-col bg-white`}>
           {activeTeam ? (
             <>
-              {/* HEADER */}
-              <div className="h-16 border-b border-gray-200 flex items-center justify-between px-4 md:px-6 bg-white shadow-sm z-10">
+              {/* FIXED HEADER - Stays visible when scrolling */}
+              <div className={`h-16 border-b border-gray-200 flex items-center justify-between px-4 md:px-6 bg-white sticky top-0 z-20 transition-all duration-200 ${
+                isScrolled ? 'shadow-sm' : ''
+              }`}>
                  <div className="flex items-center gap-3">
                     <button 
                       onClick={() => setActiveTeam(null)} 
@@ -291,42 +1057,112 @@ const Teams = () => {
                     >
                         <ArrowLeft size={20} />
                     </button>
-                    <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center font-bold">
-                         {activeTeam.name.substring(0,2).toUpperCase()}
-                    </div>
+                    {activeTeam.logo ? (
+                      <img
+                        src={activeTeam.logo}
+                        alt={activeTeam.name}
+                        className="w-10 h-10 rounded-lg object-cover border border-gray-200"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
+                        {activeTeam.name.substring(0, 2).toUpperCase()}
+                      </div>
+                    )}
                     <div>
-                        <h2 className="font-bold text-gray-800">{activeTeam.name}</h2>
-                        <p className="text-xs text-gray-500">{activeTeam.description || "Active Project Team"}</p>
+                        <h2 className="font-bold text-gray-800 text-sm md:text-base truncate max-w-[200px] md:max-w-[300px]">
+                          {activeTeam.name}
+                        </h2>
+                        <p className="text-xs text-gray-500 truncate max-w-[200px]">
+                          {activeTeam.isLeader && " • You are the leader"}
+                        </p>
                     </div>
                  </div>
                  
                  {activeTeam.isMember && (
-                    <div className="flex items-center gap-3 text-gray-600">
-                        <button onClick={() => postMeetingLink('Video')} className="p-2 hover:bg-gray-100 rounded-full transition-colors" title="Start Video Call">
+                    <div className="flex items-center gap-2">
+                        <button 
+                          onClick={() => postMeetingLink('Video')} 
+                          className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-600" 
+                          title="Start Video Call"
+                          disabled={!canSendMessages}
+                        >
                             <Video size={20} />
                         </button>
-                        <button onClick={() => postMeetingLink('Voice')} className="p-2 hover:bg-gray-100 rounded-full transition-colors" title="Start Voice Call">
+                        <button 
+                          onClick={() => postMeetingLink('Voice')} 
+                          className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-600" 
+                          title="Start Voice Call"
+                          disabled={!canSendMessages}
+                        >
                             <Phone size={20} />
                         </button>
-                        <div className="h-6 w-px bg-gray-300 mx-1"></div>
-                        <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-                            <MoreVertical size={20} />
-                        </button>
+                        <div className="relative">
+                           <button
+                             onClick={() => setShowTeamMenu((prev) => !prev)}
+                             className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-600"
+                           >
+                             <MoreVertical size={20} />
+                           </button>
+                           
+                           {showTeamMenu && canEditTeam && (
+                              <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
+                                <button
+                                  onClick={() => {
+                                    setShowTeamMenu(false);
+                                    setEditedTeamName(activeTeam.name);
+                                    setLogoPreview(activeTeam.logo || null);
+                                    setShowEditTeamModal(true);
+                                  }}
+                                  className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 text-gray-700 flex items-center gap-2"
+                                >
+                                  <Camera size={16} />
+                                  Edit Team
+                                </button>
+                                {activeTeam.isLeader && (
+                                  <button
+                                    onClick={() => {
+                                      setShowTeamMenu(false);
+                                      handleDeleteTeam();
+                                    }}
+                                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                                  >
+                                    <Trash2 size={16} />
+                                    Delete Team
+                                  </button>
+                                )}
+                              </div>
+                           )}
+                         </div>
                     </div>
                  )}
               </div>
 
-               {/* TABS (Only visible if member) */}
+              {/* TABS - Fixed position below header */}
               {activeTeam.isMember && (
-                  <div className="flex border-b border-gray-200 px-6 gap-6 text-sm">
-                      <button onClick={() => setActiveTab('posts')} className={`py-3 font-medium border-b-2 transition-colors ${activeTab === 'posts' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}>Posts</button>
-                      <button onClick={() => setActiveTab('files')} className={`py-3 font-medium border-b-2 transition-colors ${activeTab === 'files' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}>Files</button>
-                      <button onClick={() => setActiveTab('members')} className={`py-3 font-medium border-b-2 transition-colors ${activeTab === 'members' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}>Members ({activeTeam.members.length})</button>
+                  <div className="sticky top-16 z-10 bg-white border-b border-gray-200 px-6 flex gap-6 text-sm">
+                      <button 
+                        onClick={() => setActiveTab('posts')} 
+                        className={`py-3 font-medium border-b-2 transition-colors ${activeTab === 'posts' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}
+                      >
+                        Posts
+                      </button>
+                      <button 
+                        onClick={() => setActiveTab('files')} 
+                        className={`py-3 font-medium border-b-2 transition-colors ${activeTab === 'files' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}
+                      >
+                        Files
+                      </button>
+                      <button 
+                        onClick={() => setActiveTab('members')} 
+                        className={`py-3 font-medium border-b-2 transition-colors ${activeTab === 'members' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}
+                      >
+                        Members ({activeTeam.members.length})
+                      </button>
                   </div>
               )}
 
               {/* CONTENT AREA */}
-              <div className="flex-1 overflow-hidden relative bg-gray-50/50">
+              <div className="flex-1 overflow-hidden bg-gray-50/50 relative">
                   {/* NON-MEMBER VIEW */}
                   {!activeTeam.isMember && (
                       <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-500">
@@ -335,7 +1171,10 @@ const Teams = () => {
                           {activeTeam.isPending ? (
                               <p className="text-orange-500 mt-2">Join request pending approval.</p>
                           ) : (
-                             <button onClick={() => handleJoinRequest(activeTeam._id)} className="mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                             <button 
+                               onClick={() => handleJoinRequest(activeTeam._id)} 
+                               className="mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                             >
                                  Request to Join
                              </button>
                           )}
@@ -345,115 +1184,314 @@ const Teams = () => {
                   {/* POSTS TAB */}
                   {activeTeam.isMember && activeTab === 'posts' && (
                       <div className="flex flex-col h-full">
-                          <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                              {messages.map((msg) => (
-                                  <div key={msg._id} className="flex gap-4 group">
-                                      <img src={msg.sender?.imageUrl || "/default-avatar.png"} className="w-10 h-10 rounded-full object-cover shadow-sm bg-white" />
-                                      <div className="flex-1">
-                                          <div className="flex items-baseline gap-2">
-                                              <span className="font-bold text-gray-900 text-sm">{msg.sender?.name}</span>
-                                              <span className="text-xs text-gray-400">{moment(msg.createdAt).format("h:mm A")}</span>
-                                          </div>
-                                          
-                                          {msg.type === 'text' && (
-                                              <p className="text-gray-800 text-sm mt-1 leading-relaxed bg-white p-3 rounded-tr-xl rounded-br-xl rounded-bl-xl shadow-sm inline-block max-w-[80%] border border-gray-100">
-                                                  {msg.content}
-                                              </p>
-                                          )}
-                                          
-                                          {msg.type === 'call_link' && (
-                                              <div className="mt-2 bg-blue-50 border border-blue-100 rounded-lg p-4 max-w-md">
-                                                  <div className="flex items-center gap-3 mb-2">
-                                                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
-                                                          <Video size={20} />
-                                                      </div>
-                                                      <div>
-                                                          <h4 className="font-bold text-gray-900">{msg.linkData?.title || "Meeting"}</h4>
-                                                          <p className="text-xs text-gray-500">Video call started</p>
-                                                      </div>
-                                                  </div>
-                                                  <a href={msg.linkData?.url} target="_blank" rel="noreferrer" className="block w-full text-center bg-blue-600 text-white py-2 rounded-md text-sm font-semibold hover:bg-blue-700 transition-colors">
-                                                      Join Meeting
-                                                  </a>
-                                              </div>
-                                          )}
-                                      </div>
-                                  </div>
-                              ))}
+                          <div 
+                            ref={messagesContainerRef}
+                            className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6"
+                          >
+                              {messages.length === 0 ? (
+                                <div className="text-center py-12 text-gray-400">
+                                  <MessageCircle size={48} className="mx-auto mb-4 text-gray-300" />
+                                  <p className="text-lg font-medium">No messages yet</p>
+                                  <p className="text-sm mt-2">
+                                    {canSendMessages 
+                                      ? "Be the first to send a message!" 
+                                      : "Only team leaders can send messages"}
+                                  </p>
+                                </div>
+                              ) : (
+                                messages.map(renderMessageItem)
+                              )}
                               <div ref={scrollRef}></div>
                           </div>
 
-                          {/* INPUT DECK */}
-                          <div className="p-4 bg-white border-t border-gray-200">
-                              <form onSubmit={handleSendMessage} className="flex flex-col gap-3 bg-gray-50 p-3 rounded-xl border border-gray-200">
-                                  <textarea 
-                                    className="w-full bg-white border border-gray-200 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none text-sm min-h-[60px]"
-                                    placeholder="Type a new message..."
-                                    rows={2}
-                                    value={messageInput}
-                                    onChange={(e) => setMessageInput(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter' && !e.shiftKey) {
-                                            e.preventDefault();
-                                            handleSendMessage(e);
-                                        }
-                                    }}
-                                  />
-                                  <div className="flex justify-between items-center px-1">
-                                      <div className="flex gap-3 text-gray-400 bg-white p-1.5 rounded-lg border border-gray-100 shadow-sm">
-                                          <button type="button" className="hover:text-blue-500 p-1.5 rounded-md hover:bg-blue-50 transition-colors"><ImageIcon size={18} /></button>
-                                          <button type="button" className="hover:text-blue-500 p-1.5 rounded-md hover:bg-blue-50 transition-colors"><Paperclip size={18} /></button>
-                                      </div>
-                                      <button 
-                                        type="submit" 
-                                        disabled={!messageInput.trim()}
-                                        className={`p-2.5 rounded-lg transition-all flex items-center gap-2 shadow-sm font-medium text-xs ${
-                                            messageInput.trim() 
-                                            ? "bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md transform hover:-translate-y-0.5" 
-                                            : "bg-gray-200 text-gray-400 cursor-not-allowed"
-                                        }`}
-                                      >
-                                          Send <Send size={16} />
-                                      </button>
-                                  </div>
-                              </form>
-                          </div>
+                          {/* Hidden file inputs */}
+                          <input
+                            type="file"
+                            ref={imageInputRef}
+                            className="hidden"
+                            accept="image/*"
+                            onChange={(e) => handleFileSelect(e, "image")}
+                          />
+                          <input
+                            type="file"
+                            ref={fileInputRef}
+                            className="hidden"
+                            accept=".pdf,.doc,.docx,.txt,.xls,.xlsx,image/*"
+                            onChange={(e) => handleFileSelect(e, "file")}
+                          />
+                          {/* Hidden edit file input */}
+                          <input
+                            ref={editFileInputRef}
+                            type="file"
+                            className="hidden"
+                            accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+                            onChange={handleEditFileSelect}
+                          />
+
+                          {/* IMPROVED MESSAGE INPUT */}
+                          {canSendMessages ? (
+                            <div className="p-4 bg-white border-t border-gray-200">
+                                <form onSubmit={handleSendMessage} className="flex gap-3 bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
+                                    <div className="flex gap-2">
+                                        <button 
+                                          type="button" 
+                                          onClick={() => imageInputRef.current.click()}
+                                          className="p-2 text-gray-400 hover:text-green-500 rounded-lg hover:bg-green-50 transition-colors border border-gray-200"
+                                          disabled={uploadingFile}
+                                          title="Upload Image"
+                                        >
+                                          <ImageIcon size={18} />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => fileInputRef.current.click()}
+                                          className="p-2 text-gray-400 hover:text-blue-500 rounded-lg hover:bg-blue-50 transition-colors border border-gray-200"
+                                          disabled={uploadingFile}
+                                          title="Upload File"
+                                        >
+                                          {uploadingFile ? (
+                                            <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500"></div>
+                                          ) : (
+                                            <Paperclip size={18} />
+                                          )}
+                                        </button>
+                                    </div>
+                                    
+                                    <div className="flex-1 relative">
+                                        <textarea 
+                                          className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 pr-12 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none text-sm min-h-[60px]"
+                                          placeholder="Type a new message..."
+                                          rows={2}
+                                          value={messageInput}
+                                          onChange={(e) => setMessageInput(e.target.value)}
+                                          onKeyDown={(e) => {
+                                              if (e.key === 'Enter' && !e.shiftKey) {
+                                                  e.preventDefault();
+                                                  handleSendMessage(e);
+                                              }
+                                          }}
+                                        />
+                                        <button 
+                                          type="submit" 
+                                          disabled={!messageInput.trim() || uploadingFile}
+                                          className={`absolute right-2 bottom-2 p-2 rounded-lg transition-all ${
+                                              messageInput.trim() && !uploadingFile
+                                              ? "bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md" 
+                                              : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                          }`}
+                                          title="Send Message"
+                                        >
+                                            <Send size={18} />
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                          ) : (
+                            <div className="p-4 bg-gray-50 border-t border-gray-200">
+                              <div className="flex items-center justify-center gap-2 text-gray-500 p-3 bg-white rounded-xl border border-gray-200">
+                                <Lock size={14} />
+                                <p className="text-xs font-medium">
+                                  Only team leaders can send messages in this team
+                                </p>
+                              </div>
+                            </div>
+                          )}
                       </div>
+                  )}
+
+                  {/* FILES TAB */}
+                  {activeTeam.isMember && activeTab === 'files' && (
+                    <div className="p-4 md:p-6 h-full overflow-y-auto">
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
+                        <h3 className="text-lg font-bold text-gray-800">Team Files</h3>
+                        {canSendMessages && (
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => imageInputRef.current.click()}
+                              className="px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors flex items-center gap-2"
+                              disabled={uploadingFile}
+                            >
+                              <ImageIcon size={14} />
+                              <span className="hidden sm:inline">Upload Image</span>
+                              <span className="sm:hidden">Image</span>
+                            </button>
+                            <button
+                              onClick={() => fileInputRef.current.click()}
+                              className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
+                              disabled={uploadingFile}
+                            >
+                              {uploadingFile ? (
+                                <>
+                                  <div className="animate-spin rounded-full h-3 w-3 border-t-2 border-b-2 border-white"></div>
+                                  <span className="hidden sm:inline">Uploading...</span>
+                                  <span className="sm:hidden">...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Plus size={14} />
+                                  <span className="hidden sm:inline">Upload File</span>
+                                  <span className="sm:hidden">File</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {messages.filter(m => m.type === 'image' || m.type === 'file').length === 0 ? (
+                        <div className="text-center py-12 text-gray-400">
+                          <FileText size={48} className="mx-auto mb-4 text-gray-300" />
+                          <p className="text-lg font-medium">No files shared yet</p>
+                          <p className="text-sm mt-2">
+                            {canSendMessages 
+                              ? "Upload your first file using the upload buttons above" 
+                              : "Only team leaders can upload files"}
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="grid gap-3">
+                          {messages
+                            .filter(m => m.type === 'image' || m.type === 'file')
+                            .map((file) => {
+                              const fileUrl = getFileUrl(file);
+                              const fileName = getFileName(file);
+                              const fileExtension = fileName?.split('.').pop()?.toUpperCase() || 'FILE';
+                              const canEditDelete = canEditDeleteMessage(file);
+                              
+                              return (
+                                <div 
+                                  key={file._id} 
+                                  className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow group"
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                                        file.type === 'image' ? 'bg-green-50' : 'bg-blue-50'
+                                      }`}>
+                                        {file.type === 'image' ? (
+                                          <ImageIcon size={20} className="text-green-500" />
+                                        ) : (
+                                          <div className="text-center">
+                                            <FileText size={18} className="text-blue-500" />
+                                            <span className="text-[8px] text-blue-600 font-bold block -mt-1">{fileExtension}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <div className="font-medium text-gray-800 text-sm truncate" title={fileName}>
+                                          {fileName}
+                                        </div>
+                                        <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 mt-1">
+                                          <span className="flex items-center gap-1">
+                                            {file.type === 'image' ? 'Image' : 
+                                             fileName?.endsWith('.pdf') ? 'PDF' :
+                                             fileName?.endsWith('.doc') || fileName?.endsWith('.docx') ? 'Word' :
+                                             fileName?.endsWith('.xls') || fileName?.endsWith('.xlsx') ? 'Excel' : 'File'}
+                                          </span>
+                                          <span className="hidden sm:inline">•</span>
+                                          <span className="truncate">Uploaded by {file.sender?.name}</span>
+                                          <span className="hidden sm:inline">•</span>
+                                          <span>{moment(file.createdAt).fromNow()}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 ml-3">
+                                      {canEditDelete && (
+                                        <div className="relative">
+                                          <button
+                                            onClick={() => setOpenMessageMenu(openMessageMenu === file._id ? null : file._id)}
+                                            className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors rounded hover:bg-gray-100"
+                                            title="More actions"
+                                          >
+                                            <MoreVertical size={16} />
+                                          </button>
+                                          
+                                          {openMessageMenu === file._id && (
+                                            <div className="absolute right-0 mt-1 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
+                                              <button
+                                                onClick={() => {
+                                                  editFileInputRef.current.click();
+                                                  setEditingMessageId(file._id);
+                                                  setOpenMessageMenu(null);
+                                                }}
+                                                className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 text-gray-700 flex items-center gap-2"
+                                                disabled={editingFile}
+                                              >
+                                                <Edit2 size={14} />
+                                                Edit File
+                                              </button>
+                                              <button
+                                                onClick={() => handleDeleteMessage(file._id)}
+                                                className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                                              >
+                                                <Trash2 size={14} />
+                                                Delete
+                                              </button>
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                      <button
+                                        onClick={() => viewFile(fileUrl)}
+                                        className="p-1.5 text-gray-400 hover:text-blue-500 transition-colors rounded hover:bg-gray-100"
+                                        title="View"
+                                      >
+                                        <Eye size={16} />
+                                      </button>
+                                      <button
+                                        onClick={() => downloadFile(fileUrl, fileName)}
+                                        className="p-1.5 text-gray-400 hover:text-blue-500 transition-colors rounded hover:bg-gray-100"
+                                        title="Download"
+                                      >
+                                        <Download size={16} />
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                        </div>
+                      )}
+                    </div>
                   )}
 
                   {/* MEMBERS TAB */}
                   {activeTeam.isMember && activeTab === 'members' && (
-                      <div className="p-6 h-full overflow-y-auto">
+                      <div className="p-4 md:p-6 h-full overflow-y-auto">
                            {/* PENDING REQUESTS (Leader Only) */}
                            {activeTeam.isLeader && activeTeam.pendingRequests?.length > 0 && (
-                               <div className="mb-8 p-4 bg-orange-50 border border-orange-100 rounded-lg">
+                               <div className="mb-6 p-3 bg-orange-50 border border-orange-100 rounded-lg">
                                    <h3 className="font-bold text-orange-800 mb-3 text-sm flex items-center gap-2">
-                                       <UserPlus size={16} /> Pending Requests
+                                       <UserPlus size={14} /> Pending Requests
                                    </h3>
                                    <div className="space-y-2">
                                        {activeTeam.pendingRequests.map(user => (
                                            <div key={user._id} className="flex justify-between items-center bg-white p-3 rounded-lg border border-orange-100 shadow-sm hover:shadow-md transition-shadow">
                                                <div className="flex items-center gap-3">
-                                                    <img src={user.imageUrl || '/default-avatar.png'} className="w-9 h-9 rounded-full object-cover border border-gray-200" />
-                                                    <div>
-                                                        <p className="font-semibold text-gray-800 text-sm">{user.name}</p>
-                                                        <p className="text-xs text-gray-500">{user.email}</p>
+                                                    <img 
+                                                      src={user.imageUrl || '/default-avatar.png'} 
+                                                      alt={user.name}
+                                                      className="w-8 h-8 rounded-full object-cover border border-gray-200" 
+                                                    />
+                                                    <div className="min-w-0">
+                                                        <p className="font-semibold text-gray-800 text-sm truncate">{user.name}</p>
+                                                        <p className="text-xs text-gray-500 truncate">{user.email}</p>
                                                     </div>
                                                </div>
-                                               <div className="flex gap-2">
+                                               <div className="flex gap-1">
                                                    <button 
                                                     onClick={() => handleMemberAction(user._id, 'accept')} 
                                                     className="p-1.5 bg-green-100 text-green-600 rounded-md hover:bg-green-200 transition-colors"
                                                     title="Accept"
                                                    >
-                                                       <Check size={18}/>
+                                                       <Check size={16}/>
                                                    </button>
                                                    <button 
                                                     onClick={() => handleMemberAction(user._id, 'reject')} 
                                                     className="p-1.5 bg-red-100 text-red-600 rounded-md hover:bg-red-200 transition-colors"
                                                     title="Reject"
                                                    >
-                                                       <X size={18}/>
+                                                       <X size={16}/>
                                                    </button>
                                                </div>
                                            </div>
@@ -467,14 +1505,29 @@ const Teams = () => {
                                {activeTeam.members.map((member) => (
                                    <div key={member.userId._id} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-lg hover:shadow-sm transition-shadow">
                                        <div className="flex items-center gap-3">
-                                            <img src={member.userId.imageUrl || '/default-avatar.png'} className="w-10 h-10 rounded-full object-cover" />
-                                            <div>
-                                                <p className="font-semibold text-gray-800 text-sm">{member.userId.name}</p>
-                                                <p className="text-xs text-gray-500 capitalize">{member.role}</p>
+                                            <img 
+                                              src={member.userId.imageUrl || '/default-avatar.png'} 
+                                              alt={member.userId.name}
+                                              className="w-9 h-9 rounded-full object-cover border border-gray-200" 
+                                            />
+                                            <div className="min-w-0">
+                                                <p className="font-semibold text-gray-800 text-sm flex items-center gap-2 truncate">
+                                                  {member.userId.name}
+                                                  {member.userId._id === activeTeam.leaderId && (
+                                                    <span className="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full flex-shrink-0">
+                                                      Leader
+                                                    </span>
+                                                  )}
+                                                </p>
+                                                <p className="text-xs text-gray-500 capitalize truncate">{member.role}</p>
                                             </div>
                                        </div>
                                        {activeTeam.isLeader && member.userId._id !== userData._id && (
-                                           <button onClick={() => handleMemberAction(member.userId._id, 'remove')} className="text-gray-400 hover:text-red-500 p-2">
+                                           <button 
+                                             onClick={() => handleMemberAction(member.userId._id, 'remove')} 
+                                             className="text-gray-400 hover:text-red-500 p-1.5 rounded hover:bg-gray-100"
+                                             title="Remove Member"
+                                           >
                                                <Trash2 size={16} />
                                            </button>
                                        )}
@@ -497,8 +1550,8 @@ const Teams = () => {
         </div>
       </div>
 
-       {/* CREATE TEAM MODAL */}
-       {showCreateModal && (
+      {/* CREATE TEAM MODAL */}
+      {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 transform transition-all scale-100">
             <h2 className="text-xl font-bold mb-4 text-gray-800">Create New Team</h2>
@@ -524,11 +1577,64 @@ const Teams = () => {
                     placeholder="What's this team about?"
                   />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Team Logo
+                  </label>
+                  <div className="flex items-center gap-4">
+                    <div 
+                      className="relative w-20 h-20 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 flex items-center justify-center overflow-hidden cursor-pointer hover:border-gray-400 transition-colors group"
+                      onClick={() => logoInputRef.current.click()}
+                    >
+                      {teamLogo ? (
+                        <>
+                          <img 
+                            src={URL.createObjectURL(teamLogo)} 
+                            alt="Logo preview" 
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Camera size={20} className="text-white" />
+                          </div>
+                        </>
+                      ) : (
+                        <Camera size={24} className="text-gray-400" />
+                      )}
+                    </div>
+                    
+                    <div className="flex-1">
+                      <input
+                        ref={logoInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleLogoSelect(e, false)}
+                        className="hidden"
+                      />
+                      
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() => logoInputRef.current.click()}
+                          className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-800"
+                        >
+                          <Upload size={16} />
+                          {teamLogo ? 'Change logo' : 'Upload logo'}
+                        </button>
+                        <p className="text-xs text-gray-500 mt-1">
+                          PNG, JPG, SVG up to 5MB
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
               <div className="mt-6 flex justify-end gap-3">
                 <button
                   type="button"
-                  onClick={() => setShowCreateModal(false)}
+                  onClick={() => {
+                    setShowCreateModal(false);
+                    setTeamLogo(null);
+                  }}
                   className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium"
                 >
                   Cancel
@@ -541,6 +1647,138 @@ const Teams = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT TEAM MODAL - IMPROVED VERSION */}
+      {showEditTeamModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-800">Edit Team</h2>
+              <button
+                onClick={() => {
+                  setShowEditTeamModal(false);
+                  setEditedTeamLogo(null);
+                  setLogoPreview(activeTeam.logo || null);
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              {/* Logo Section */}
+              <div className="flex flex-col items-center">
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Team Logo
+                </label>
+                
+                <div className="relative mb-4">
+                  {/* Logo Preview */}
+                  <div 
+                    className="w-32 h-32 rounded-full border-4 border-dashed border-gray-300 bg-gray-50 flex items-center justify-center overflow-hidden cursor-pointer group"
+                    onClick={() => editLogoInputRef.current.click()}
+                  >
+                    {logoPreview ? (
+                      <>
+                        <img 
+                          src={typeof logoPreview === 'string' && logoPreview.startsWith('blob:') ? logoPreview : logoPreview} 
+                          alt="Team logo preview" 
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="text-center text-white">
+                            <Camera size={24} className="mx-auto mb-1" />
+                            <span className="text-xs font-medium">Change Logo</span>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-center text-gray-400">
+                        <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                          <Users size={32} className="text-gray-400" />
+                        </div>
+                        <p className="text-sm font-medium">Upload Logo</p>
+                        <p className="text-xs mt-1">Click to select</p>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Remove Button (only when logo exists) */}
+                  {logoPreview && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setLogoPreview(null);
+                        setEditedTeamLogo(null);
+                      }}
+                      className="absolute -top-2 -right-2 w-8 h-8 bg-red-100 text-red-600 rounded-full flex items-center justify-center hover:bg-red-200 transition-colors shadow-sm"
+                      title="Remove logo"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+                
+                {/* Hidden File Input */}
+                <input
+                  ref={editLogoInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleLogoSelect(e, true)}
+                  className="hidden"
+                />
+                
+                <p className="text-xs text-gray-500 text-center mt-2">
+                  Recommended: 500×500px PNG, JPG, or SVG
+                  <br />
+                  Max size: 5MB
+                </p>
+              </div>
+
+              {/* Team Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Team Name
+                </label>
+                <input
+                  type="text"
+                  value={editedTeamName}
+                  onChange={(e) => setEditedTeamName(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                  placeholder="Enter team name"
+                />
+              </div>
+            </div>
+            
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEditTeamModal(false);
+                  setEditedTeamLogo(null);
+                  setLogoPreview(activeTeam.logo || null);
+                }}
+                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpdateTeam}
+                disabled={!editedTeamName.trim() && !editedTeamLogo}
+                className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+                  editedTeamName.trim() || editedTeamLogo
+                    ? "bg-blue-600 text-white hover:bg-blue-700"
+                    : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                }`}
+              >
+                Save Changes
+              </button>
+            </div>
           </div>
         </div>
       )}
