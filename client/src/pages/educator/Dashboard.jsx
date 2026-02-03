@@ -1,10 +1,17 @@
 import React, { useContext, useEffect, useState } from "react";
-import { assets } from "../../assets/assets";
 import { AppContext } from "../../context/AppContext";
 import axios from "axios";
 import { toast } from "react-toastify";
 import Loading from "../../components/student/Loading";
 import { motion } from "framer-motion";
+
+// Assuming you have these assets or you can replace them
+// Remove this if you don't have assets or replace with your own
+const assets = {
+  patients_icon: "https://cdn-icons-png.flaticon.com/512/3034/3034831.png",
+  appointments_icon: "https://cdn-icons-png.flaticon.com/512/3135/3135715.png",
+  earning_icon: "https://cdn-icons-png.flaticon.com/512/3135/3135679.png"
+};
 
 const Dashboard = () => {
   const { backendUrl, isEducator, currency, getToken } = useContext(AppContext);
@@ -57,11 +64,7 @@ const Dashboard = () => {
     if (isEducator && isAuthenticated) {
       fetchDashboardData();
     }
-  }, [isEducator, isAuthenticated]);
-    if (isEducator && isAuthenticated) {
-      fetchDashboardData();
-    }
-  }, [isEducator, isAuthenticated]);
+  }, [isEducator, isAuthenticated, backendUrl, getToken]);
 
   const cards = [
     {
@@ -121,26 +124,26 @@ const Dashboard = () => {
                   autoFocus
                   disabled={isLoading}
                 />
-               <button
-  type="button"
-  onClick={togglePasswordVisibility}
-  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none p-1"
-  disabled={isLoading}
-  aria-label={showPassword ? "Hide password" : "Show password"}
->
-  {showPassword ? (
-    // OPEN eye icon - password IS visible
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-    </svg>
-  ) : (
-    // CLOSED/SLASHED eye icon - password is HIDDEN
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L6.59 6.59m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path>
-    </svg>
-  )}
-</button>
+                <button
+                  type="button"
+                  onClick={togglePasswordVisibility}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none p-1"
+                  disabled={isLoading}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? (
+                    // OPEN eye icon - password IS visible
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                    </svg>
+                  ) : (
+                    // CLOSED/SLASHED eye icon - password is HIDDEN
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L6.59 6.59m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path>
+                    </svg>
+                  )}
+                </button>
               </div>
               <div className="flex items-center justify-between mt-2">
                 <div className="flex items-center">
@@ -261,42 +264,13 @@ const Dashboard = () => {
                 <th className="px-6 py-3 font-semibold text-center hidden sm:table-cell">
                   #
                 </th>
-                <th className="px6 py-3 font-semibold">Student Name</th>
+                <th className="px-6 py-3 font-semibold">Student Name</th>
                 <th className="px-6 py-3 font-semibold">Project Title</th>
               </tr>
             </thead>
             <tbody className="text-gray-700">
               {dashboardData.enrolledStudentsData
-                .filter(
-                  (item) =>
-                    item &&
-                    item.student &&
-                    item.student._id &&
-                    item.student.name
-                )
-                .map((item, index) => (
-                  <motion.tr
-                    key={index}
-                    whileHover={{ scale: 1.02, backgroundColor: "#E0F2FE" }}
-                    className="border-b border-gray-200 transition-all"
-                  >
-                    <td className="px-6 py-3 text-center hidden sm:table-cell">
-                      {index + 1}
-                    </td>
-                    <td className="px-6 py-3 flex items-center gap-3">
-                      <img
-                        src={item.student.imageUrl || "/default-avatar.png"}
-                        alt="Profile"
-                        className="w-10 h-10 rounded-full shadow-md ring-2 ring-sky-300"
-                      />
-                      <span className="font-medium">{item.student.name}</span>
-                    </td>
-                    <td className="px-6 py-3 truncate">{item.courseTitle}</td>
-                  </motion.tr>
-                ))}
-            <tbody className="text-gray-700">
-              {dashboardData.enrolledStudentsData
-                .filter(
+                ?.filter(
                   (item) =>
                     item &&
                     item.student &&
@@ -326,7 +300,6 @@ const Dashboard = () => {
             </tbody>
           </table>
         </div>
-      </motion.div>
       </motion.div>
     </div>
   ) : (
