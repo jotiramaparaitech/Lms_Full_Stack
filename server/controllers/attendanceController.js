@@ -75,9 +75,9 @@ export const markAttendance = async (req, res) => {
 
     // ✅ FIXED TIME WINDOWS
     const LOGIN_START = 9 * 60 + 30;   
-    const LOGIN_END = 19 * 60 + 30;    
-    const LOGOUT_START = 20 * 60;      
-    const LOGOUT_END = 21 * 60;        
+    const LOGIN_END = 10 * 60 + 30;    
+    const LOGOUT_START = 18 * 60;      
+    const LOGOUT_END = 19 * 60;        
 
     if (
       (session === "LOGIN" &&
