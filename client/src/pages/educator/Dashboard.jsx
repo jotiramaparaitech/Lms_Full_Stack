@@ -14,7 +14,7 @@ const Dashboard = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   
-  const DASHBOARD_PASSWORD = import.meta.env.VITE_DASHBOARD_PASSWORD || "jay_kashid";
+  const DASHBOARD_PASSWORD = import.meta.env.VITE_DASHBOARD_PASSWORD || "Aparaitech@123";
 
   const handlePasswordSubmit = (e) => {
     e.preventDefault();
