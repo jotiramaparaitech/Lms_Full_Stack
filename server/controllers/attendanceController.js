@@ -69,7 +69,7 @@ export const markAttendance = async (req, res) => {
     const currentMinutes = hours * 60 + minutes;
 
     const LOGIN_START = 9 * 60 + 30;   // 09:30
-    const LOGIN_END = 10 * 60 + 30;    // 10:30
+    const LOGIN_END = 17 * 60 + 30;    // 10:30
     const LOGOUT_START = 18 * 60;      // 18:00
     const LOGOUT_END = 19 * 60;        // 19:00
 
