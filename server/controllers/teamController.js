@@ -94,12 +94,12 @@ export const updateTeamDetails = async (req, res) => {
     if (req.file) {
       const uploadResult = await cloudinary.uploader.upload(
         `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`,
-        { 
+        {
           folder: "team-logos",
           resource_type: "image"
         }
       );
-      
+
       // FIXED: Save to logo field, not banner
       team.logo = uploadResult.secure_url;
       console.log("✅ Logo updated:", uploadResult.secure_url);
@@ -484,6 +484,7 @@ export const getStudentInfo = async (req, res) => {
           imageUrl: user?.imageUrl || "",
           role: m.role,
           progress: m.progress ?? 0,
+          lorUnlocked: m.lorUnlocked ?? false,
 
           // ✅ AUTO PROJECT FETCH FROM ENROLLED COURSES
           projects: (user?.enrolledCourses || [])
@@ -514,7 +515,7 @@ export const updateStudentProgress = async (req, res) => {
     const auth = req.auth();
     const leaderId = auth?.userId;
 
-    const { studentId, progress, projectName } = req.body;
+    const { studentId, progress, projectName, lorUnlocked } = req.body;
 
     if (!leaderId) {
       return res.status(401).json({ success: false, message: "Unauthorized" });
@@ -559,6 +560,10 @@ export const updateStudentProgress = async (req, res) => {
 
     if (projectName !== undefined) {
       team.members[memberIndex].projectName = projectName;
+    }
+
+    if (lorUnlocked !== undefined) {
+      team.members[memberIndex].lorUnlocked = lorUnlocked;
     }
 
     await team.save();
@@ -607,6 +612,7 @@ export const getMyTeamProgress = async (req, res) => {
       teamId: team._id,
       progress: member?.progress ?? 0,
       projectName: member?.projectName ?? "",
+      lorUnlocked: member?.lorUnlocked ?? false,
       isLeader,
     });
   } catch (error) {
