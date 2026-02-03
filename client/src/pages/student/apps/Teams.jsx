@@ -167,7 +167,6 @@ const Teams = () => {
     });
 
     socketRef.current.on("receive-message", (msg) => {
-      console.log("Received message via socket:", msg);
       setMessages((prev) => [...prev, msg]);
     });
 
@@ -177,7 +176,6 @@ const Teams = () => {
 
     // New socket events for edit/delete
     socketRef.current.on("message-updated", (updatedMessage) => {
-      console.log("Message updated via socket:", updatedMessage);
       setUpdatingMessages(prev => ({ ...prev, [updatedMessage._id]: false }));
       setMessages((prev) =>
         prev.map((msg) =>
@@ -299,7 +297,6 @@ const Teams = () => {
         }
       }
     } catch (error) {
-      console.error("Upload error:", error);
       toast.error(error.response?.data?.message || "Failed to upload file");
     } finally {
       if (isFilesTab) {
@@ -381,7 +378,6 @@ const Teams = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (data.success) {
-        console.log("Files data:", data.files);
         setFiles(data.files);
       }
     } catch (error) {
@@ -499,7 +495,6 @@ const Teams = () => {
         return;
         
       } catch (fetchError) {
-        console.log("Fetch method failed, trying alternative...");
         
         // Method 2: Force download by adding download attribute
         const link = document.createElement('a');
@@ -607,7 +602,6 @@ const Teams = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (data.success) {
-        console.log("Fetched messages:", data.messages);
         setMessages(data.messages);
       }
     } catch (error) {
