@@ -42,6 +42,8 @@ const Certificates = () => {
   const [certificateName, setCertificateName] = useState("");
   const [domainName, setDomainName] = useState("");
   const [duration, setDuration] = useState("3-month"); // 🆕 Duration for completion cert
+  const [startDate, setStartDate] = useState(""); // 🆕 Start Date for LOR
+  const [endDate, setEndDate] = useState(""); // 🆕 End Date for LOR
   const [selectedCertificate, setSelectedCertificate] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -75,6 +77,8 @@ const Certificates = () => {
       generateProgressCertificate();
     } else if (selectedCertificate?.title === "Project Completion Certificate") {
       generateCompletionCertificate();
+    } else if (selectedCertificate?.title === "Letter of Recommendation (LOR)") {
+      generateLORCertificate();
     } else {
       // Fallback or other certificates
       generateProgressCertificate();
@@ -172,10 +176,24 @@ const Certificates = () => {
         }
       }
 
+      // ⬜ Masking Strategy (Clip images outside border)
+      // Border is at 3mm margin. We mask everything outside this 3mm box.
+      const margin = 3;
+      doc.setFillColor(255, 255, 255);
+
+      // Top Mask
+      doc.rect(0, 0, width, margin, "F");
+      // Bottom Mask
+      doc.rect(0, height - margin, width, margin, "F");
+      // Left Mask
+      doc.rect(0, 0, margin, height, "F");
+      // Right Mask
+      doc.rect(width - margin, 0, margin, height, "F");
+
       // Border lines (Single Border, tighter padding)
       doc.setDrawColor(88, 188, 206);
       doc.setLineWidth(0.5);
-      doc.rect(3, 3, width - 6, height - 6);
+      doc.rect(margin, margin, width - (margin * 2), height - (margin * 2));
       // doc.setLineWidth(0.2);
       // doc.rect(8, 8, width - 16, height - 16);
 
@@ -186,16 +204,16 @@ const Certificates = () => {
           const logoHeight = 35;
           doc.addImage(logoBase64, "PNG", (width / 2) - (logoWidth / 2), 15, logoWidth, logoHeight);
         } catch (e) {
-          doc.setFont("helvetica", "bold");
+          doc.setFont("times", "bold");
           doc.text("APARAITECH", width / 2, 30, { align: "center" });
         }
       } else {
-        doc.setFont("helvetica", "bold");
+        doc.setFont("times", "bold");
         doc.text("APARAITECH", width / 2, 30, { align: "center" });
       }
 
       // Logo has text in it usually, but if not:
-      // doc.setFont("helvetica", "normal");
+      // doc.setFont("times", "normal");
       // doc.setFontSize(8);
       // doc.text("SOFTWARE COMPANY", width/2, 45, { align: "center" });
 
@@ -214,10 +232,10 @@ const Certificates = () => {
 
       // 👤 PRESENTED TO
       doc.setFont("times", "normal");
-      doc.setFontSize(9);
+      doc.setFontSize(10);
       doc.setCharSpace(1);
       doc.setTextColor(80, 80, 80);
-      doc.text("PRESENTED TO :", width / 2, 100, { align: "center" });
+      doc.text("PRESENTED TO :", width / 2.1, 100, { align: "center" });
 
       // 🧑 User Name
       doc.setFont("times", "normal");
@@ -228,7 +246,7 @@ const Certificates = () => {
 
       // 📜 Description text
       doc.setFont("times", "normal");
-      doc.setFontSize(11);
+      doc.setFontSize(12);
       doc.setTextColor(40, 40, 40);
       const descLine = "In recognition of successfully reaching the 75% milestone in the Live Project.";
       doc.text(descLine, width / 2, 135, { align: "center" });
@@ -252,11 +270,11 @@ const Certificates = () => {
 
       // 🆔 Bottom Info
       const footerY = 190;
-      doc.setFont("helvetica", "normal");
+      doc.setFont("times", "normal");
       doc.setFontSize(9);
       doc.setTextColor(100, 100, 100);
 
-      const idText = `Creditional ID : ${credentialId}`;
+      const idText = `Credential ID : ${credentialId}`;
       const linkText = "Certification Verification : lms.aparaitech.org";
 
       doc.text(idText, (width / 2) - 6, footerY, { align: "right" });
@@ -342,7 +360,7 @@ const Certificates = () => {
       doc.text("OF COMPLETION", contentX, 65, { align: "left" });
 
       // PROUDLY PRESENTED TO
-      doc.setFont("helvetica", "normal");
+      doc.setFont("times", "normal");
       doc.setFontSize(10);
       doc.setTextColor(50, 50, 50);
       doc.text("PROUDLY PRESENTED TO", contentX, 85, { align: "left" });
@@ -366,7 +384,7 @@ const Certificates = () => {
       const textBold1 = `${duration} real-world live project`;
       const text2 = ` in the`;
       const textLine2 = `domain of `;
-      const textBold2 = `[${domainName}]`;
+      const textBold2 = ` ${domainName}`;
       const text3 = ` at `;
       const textBold3 = `Aparaitech Software.`;
 
@@ -450,12 +468,12 @@ const Certificates = () => {
 
       // 🆔 Credential Info (Right Bottom)
       const footerY = height - 20;
-      doc.setFont("helvetica", "normal");
+      doc.setFont("times", "normal");
       doc.setFontSize(9);
       doc.setTextColor(0, 0, 0);
 
       const dateText = `Date : ${new Date().toLocaleDateString("en-US", { year: 'numeric', month: 'short', day: 'numeric' })}`;
-      doc.text(`Creditional ID :`, width - 50, footerY - 5);
+      doc.text(`Credential ID :`, width - 50, footerY - 5);
       doc.text(credentialId, width - 60, footerY);
 
       doc.text(dateText, width - 60, footerY + 5);
@@ -465,6 +483,204 @@ const Certificates = () => {
       setShowModal(false);
     } catch (error) {
       console.error("Error generating completion certificate:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 🟦 Letter of Recommendation (LOR) Generation
+  const generateLORCertificate = async () => {
+    setLoading(true);
+    try {
+      const doc = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+      });
+
+      // Load Images
+      // For LOR we need the logo. Using the standard one.
+      const logoBase64 = await getBase64ImageFromUrl(logoImg);
+
+      const credentialId = generateCredentialId();
+      const width = doc.internal.pageSize.getWidth();
+      const height = doc.internal.pageSize.getHeight();
+
+      // Background
+      doc.setFillColor(255, 255, 255);
+      doc.rect(0, 0, width, height, "F");
+
+      // 🟦 Border (Simple Blue Border)
+      const margin = 5;
+      doc.setDrawColor(30, 60, 120); // Dark Blue
+      doc.setLineWidth(1);
+      doc.rect(margin, margin, width - (margin * 2), height - (margin * 2));
+      // Inner thin line
+      doc.setLineWidth(0.3);
+      doc.rect(margin + 1.5, margin + 1.5, width - (margin * 2 + 3), height - (margin * 2 + 3));
+
+      // 🏢 Header
+      const headerY = 20;
+      const logoSize = 25;
+
+      // Logo Box
+      if (logoBase64) {
+        doc.addImage(logoBase64, "PNG", 15, headerY, logoSize, logoSize);
+      }
+
+      // Company Name & Info (Center-Left)
+      const headerTextX = 45;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(22);
+      doc.setTextColor(30, 60, 120); // Dark Blue
+      doc.text("APARAITECH", headerTextX, headerY + 8);
+
+      doc.setFontSize(8);
+      doc.setTextColor(50, 50, 50);
+      doc.text("SOFTWARE COMPANY", headerTextX + 1, headerY + 13);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.setTextColor(0, 0, 150); // Blue Link
+      doc.text("www.aparaitech.org", headerTextX, headerY + 20);
+      doc.setTextColor(50, 50, 50);
+      doc.text("info@aparaitechsoftware.org", headerTextX, headerY + 25);
+
+      // Address (Right Side)
+      const addressX = width - 85;
+      doc.setFontSize(9);
+      doc.setTextColor(0, 0, 0);
+      const addressLine1 = "#360, Neeladri Road, Karuna Nagar,";
+      const addressLine2 = "Electronic City Phase I, Bengaluru – 560100";
+      const addressLine3 = "5H4J+RGO, Anand Nagar Colony, Anandnagar,";
+      const addressLine4 = "Ashok Nagar Colony, Baramati, Maharashtra 413102";
+
+      doc.text(addressLine1, addressX, headerY + 5);
+      doc.text(addressLine2, addressX, headerY + 10);
+
+      doc.text(addressLine3, addressX, headerY + 20);
+      doc.text(addressLine4, addressX, headerY + 25);
+
+      // Divider Line
+      doc.setDrawColor(30, 60, 120);
+      doc.setLineWidth(1);
+      doc.line(15, headerY + 35, width - 15, headerY + 35);
+
+
+      // 📝 Title
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(20);
+      doc.setTextColor(30, 60, 120);
+      doc.text("LETTER OF RECOMMENDATION", width / 2, 80, { align: "center" });
+
+      // 👤 To Section
+      const contentX = 20;
+      let cursorY = 100;
+      doc.setFont("times", "normal");
+      doc.setFontSize(12);
+      doc.setTextColor(0, 0, 0);
+
+      doc.text("To,", contentX, cursorY);
+      cursorY += 8;
+      doc.text(`Name: ${certificateName}`, contentX, cursorY);
+      cursorY += 8;
+      doc.text(`Domain: ${domainName}`, contentX, cursorY);
+
+      // Date (Right Side)
+      const dateStr = new Date().toLocaleDateString("en-GB", { day: 'numeric', month: 'short', year: 'numeric' });
+      doc.text(`Date : ${dateStr}`, width - 20, 105, { align: "right" });
+
+      cursorY += 15;
+      doc.text("Dear Candidate,", contentX, cursorY);
+
+      // 📄 Body Content
+      cursorY += 10;
+      const lineHeight = 6;
+      const maxWidth = width - 40;
+
+      // Paragraph 1 with Bold parts
+      const p1_start = "It is our pleasure to recommend ";
+      const p1_name = `${certificateName}`;
+      const p1_mid = ", who was associated with ";
+      const p1_comp = "Aparaitech Software";
+      const p1_mid2 = " as a Project Associate for a ";
+      const p1_dur = "3-month real-world"; // Standardizing for LOR or use duration input if needed
+      const p1_mid3 = " live project, from ";
+      const p1_dates = `[${startDate}] to [${endDate}].`;
+
+      // Helper for wrapped text with bold support is complex in jsPDF.
+      // We'll simplisticly construct it or use splitTextToSize for plain text.
+      // For accurate bolding inline, we need to calculate widths.
+
+      // Let's simplify and just write the text cleanly.
+      const fullText = `It is our pleasure to recommend ${certificateName}, who was associated with Aparaitech Software as a Project Associate for a 3-month real-world live project, from ${startDate} to ${endDate}.`;
+
+      const splitText1 = doc.splitTextToSize(fullText, maxWidth);
+      doc.text(splitText1, contentX, cursorY);
+      cursorY += (splitText1.length * lineHeight) + 5;
+
+      const p2 = "During this period, the candidate worked on real-world live projects, gaining hands-on experience in addressing practical industry challenges within a professional project environment.";
+      const splitText2 = doc.splitTextToSize(p2, maxWidth);
+      doc.text(splitText2, contentX, cursorY);
+      cursorY += (splitText2.length * lineHeight) + 5;
+
+      const p3 = "The candidate demonstrated the ability to understand project requirements, apply appropriate tools and technologies, and contribute effectively to project deliverables with responsibility and adaptability.";
+      const splitText3 = doc.splitTextToSize(p3, maxWidth);
+      doc.text(splitText3, contentX, cursorY);
+      cursorY += (splitText3.length * lineHeight) + 5;
+
+      const p4 = "Throughout the association, the candidate displayed strong problem-solving skills, teamwork, and adherence to deadlines and quality standards.";
+      const splitText4 = doc.splitTextToSize(p4, maxWidth);
+      doc.text(splitText4, contentX, cursorY);
+      cursorY += (splitText4.length * lineHeight) + 5;
+
+      const p5 = "This real-world project exposure at Aparaitech Software has equipped the candidate with practical skills and professional confidence for future academic or career opportunities.";
+      const splitText5 = doc.splitTextToSize(p5, maxWidth);
+      doc.text(splitText5, contentX, cursorY);
+      cursorY += (splitText5.length * lineHeight) + 10;
+
+      // Bold Recommendation
+      doc.setFont("times", "bold");
+      const pRef = "We strongly recommend the candidate and wish them every success in future endeavors.";
+      doc.text(pRef, width / 2, cursorY, { align: "center" });
+
+
+      // 🦶 Footer
+      const footY = height - 40;
+
+      // Signature
+      doc.setFont("times", "bold");
+      doc.text("Signature and Designation", contentX, footY);
+      doc.setFont("times", "normal");
+      doc.text("(Organization Stamp)", contentX + 5, footY + 5);
+
+      // Credential Info
+      const rightX = width - 70;
+      doc.setFont("times", "bold");
+      doc.text(`Credential ID :`, rightX, footY);
+      doc.setFont("times", "normal");
+      doc.text(credentialId, rightX + 30, footY);
+
+      doc.setFont("times", "bold");
+      doc.text(`Place :`, rightX, footY + 6);
+      doc.setFont("times", "normal");
+      doc.text("Baramati", rightX + 15, footY + 6);
+
+      // Watermark (Center)
+      if (logoBase64) {
+        try {
+          doc.setGState(new doc.GState({ opacity: 0.05 }));
+          const wSize = 100;
+          doc.addImage(logoBase64, "PNG", (width / 2) - (wSize / 2), (height / 2) - (wSize / 2), wSize, wSize);
+          doc.setGState(new doc.GState({ opacity: 1.0 }));
+        } catch (e) { }
+      }
+
+
+      doc.save(`LOR_${certificateName.replace(/\s+/g, "_")}.pdf`);
+      setShowModal(false);
+    } catch (error) {
+      console.error("Error generating LOR:", error);
     } finally {
       setLoading(false);
     }
@@ -1001,7 +1217,7 @@ const Certificates = () => {
                     value={domainName}
                     onChange={(e) => setDomainName(e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition"
-                    placeholder="e.g. MERN Stack Development"
+                    placeholder="e.g. Web Development"
                   />
                 </div>
 
@@ -1018,6 +1234,34 @@ const Certificates = () => {
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition"
                       placeholder="e.g. 3-month"
                     />
+                  </div>
+                )}
+
+                {/* 🆕 Start/End Date Inputs (Only for LOR) */}
+                {selectedCertificate?.title === "Letter of Recommendation (LOR)" && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Start Date
+                      </label>
+                      <input
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        End Date
+                      </label>
+                      <input
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition"
+                      />
+                    </div>
                   </div>
                 )}
 
