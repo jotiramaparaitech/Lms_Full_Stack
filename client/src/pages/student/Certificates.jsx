@@ -23,6 +23,11 @@ import {
   Loader,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import logoImg from "../../assets/logo.png";
+import logoProgress from "../../assets/logo_progress_certificate.png";
+import bgProgress from "../../assets/bg_progress_certificate.png";
+import headerLine from "../../assets/Progress_header_line.jpg";
+import footerLine from "../../assets/Progress_footer_line.jpg";
 
 const Certificates = () => {
   const { teamProgress, fetchMyTeamProgress, userData } =
@@ -32,10 +37,27 @@ const Certificates = () => {
     fetchMyTeamProgress();
   }, []);
 
+  /* State for certificate */
   const [showModal, setShowModal] = useState(false);
   const [certificateName, setCertificateName] = useState("");
+  const [domainName, setDomainName] = useState("");
+  const [duration, setDuration] = useState("3-month"); // 🆕 Duration for completion cert
   const [selectedCertificate, setSelectedCertificate] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  // Generate random credential ID with format APA + YY + MM + Serial (7000 series)
+  const generateCredentialId = () => {
+    const date = new Date();
+    const year = date.getFullYear().toString().slice(-2);
+    const month = (date.getMonth() + 1).toString().padStart(2, "0");
+
+    // Serial starting with 7000, avoiding Math.random()
+    // Using milliseconds to give slight variation or fixed if preferred.
+    // User requested "start with 7000 series".
+    const serial = 7000 + (date.getMilliseconds() % 1000);
+
+    return `APA${year}${month}${serial}`;
+  };
 
   useEffect(() => {
     if (userData) {
@@ -44,9 +66,41 @@ const Certificates = () => {
   }, [userData]);
 
   const generateCertificate = () => {
-    if (!certificateName.trim()) return;
-    setLoading(true);
+    if (!certificateName.trim() || !domainName.trim()) return;
 
+    // Check duration for completion certificate
+    if (selectedCertificate?.title === "Project Completion Certificate" && !duration.trim()) return;
+
+    if (selectedCertificate?.title === "Project Progress Certificate") {
+      generateProgressCertificate();
+    } else if (selectedCertificate?.title === "Project Completion Certificate") {
+      generateCompletionCertificate();
+    } else {
+      // Fallback or other certificates
+      generateProgressCertificate();
+    }
+  };
+
+  // Helper to convert image URL to Base64
+  const getBase64ImageFromUrl = async (imageUrl) => {
+    try {
+      const res = await fetch(imageUrl);
+      const blob = await res.blob();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (e) {
+      console.error("Error converting image:", e);
+      return null;
+    }
+  };
+
+  // 🟦 Original Progress Certificate Generation (Teal Design)
+  const generateProgressCertificate = async () => {
+    setLoading(true);
     try {
       const doc = new jsPDF({
         orientation: "landscape",
@@ -54,92 +108,363 @@ const Certificates = () => {
         format: "a4",
       });
 
-      // Background color
+      // Load images
+      const [logoBase64, bgBase64, headerBase64, footerBase64] = await Promise.all([
+        getBase64ImageFromUrl(logoProgress),
+        getBase64ImageFromUrl(bgProgress),
+        getBase64ImageFromUrl(headerLine),
+        getBase64ImageFromUrl(footerLine)
+      ]);
+
+      const credentialId = generateCredentialId();
+      const width = doc.internal.pageSize.getWidth();
+      const height = doc.internal.pageSize.getHeight();
+
+      // Background Color
       doc.setFillColor(255, 255, 255);
-      doc.rect(0, 0, 297, 210, "F");
+      doc.rect(0, 0, width, height, "F");
 
-      // Decorative Border
-      doc.setLineWidth(2);
-      doc.setDrawColor(20, 184, 166); // Teal color
-      doc.rect(10, 10, 277, 190);
+      // 🌊 Header Line (Top)
+      if (headerBase64) {
+        try {
+          const hWidth = width;
+          const hHeight = 35; // Adjust height to maintain aspect ratio approx
+          doc.addImage(headerBase64, "JPEG", 0, 0, hWidth, hHeight);
+        } catch (e) {
+          console.error("Error adding header line:", e);
+        }
+      }
 
-      doc.setLineWidth(1);
-      doc.setDrawColor(45, 212, 191); // Light teal
-      doc.rect(15, 15, 267, 180);
+      // 🌊 Footer Line (Bottom)
+      if (footerBase64) {
+        try {
+          // Opacity for footer line
+          doc.setGState(new doc.GState({ opacity: 0.5 }));
 
-      // Logo/Header Area
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(36);
-      doc.setTextColor(13, 148, 136); // Teal-700
-      doc.text("CERTIFICATE", 148.5, 50, { align: "center" });
+          const fWidth = width;
+          const fHeight = 35;
+          doc.addImage(footerBase64, "JPEG", 0, height - fHeight, fWidth, fHeight);
 
-      doc.setFontSize(16);
+          // Reset Opacity
+          doc.setGState(new doc.GState({ opacity: 1.0 }));
+        } catch (e) {
+          console.error("Error adding footer line:", e);
+        }
+      }
+
+      // 🖼️ Background Image (Mountains)
+      if (bgBase64) {
+        try {
+          // Set opacity for background
+          doc.setGState(new doc.GState({ opacity: 0.18 }));
+
+          const bgWidth = 180; // Reduced width from 260
+          const bgHeight = 100; // Adjusted height to maintain aspect ratio roughly
+          const bgX = (width - bgWidth) / 2;
+          const bgY = (height - bgHeight) / 2 + 10;
+          doc.addImage(bgBase64, "PNG", bgX, bgY, bgWidth, bgHeight);
+
+          // Reset opacity
+          doc.setGState(new doc.GState({ opacity: 1.0 }));
+        } catch (e) {
+          console.error("Error adding background:", e);
+          try { doc.setGState(new doc.GState({ opacity: 1.0 })); } catch (err) { }
+        }
+      }
+
+      // Border lines (Single Border, tighter padding)
+      doc.setDrawColor(88, 188, 206);
+      doc.setLineWidth(0.5);
+      doc.rect(3, 3, width - 6, height - 6);
+      // doc.setLineWidth(0.2);
+      // doc.rect(8, 8, width - 16, height - 16);
+
+      // 🏢 Company Logo (New Logo)
+      if (logoBase64) {
+        try {
+          const logoWidth = 35; // Slightly larger for the boxed logo
+          const logoHeight = 35;
+          doc.addImage(logoBase64, "PNG", (width / 2) - (logoWidth / 2), 15, logoWidth, logoHeight);
+        } catch (e) {
+          doc.setFont("helvetica", "bold");
+          doc.text("APARAITECH", width / 2, 30, { align: "center" });
+        }
+      } else {
+        doc.setFont("helvetica", "bold");
+        doc.text("APARAITECH", width / 2, 30, { align: "center" });
+      }
+
+      // Logo has text in it usually, but if not:
+      // doc.setFont("helvetica", "normal");
+      // doc.setFontSize(8);
+      // doc.text("SOFTWARE COMPANY", width/2, 45, { align: "center" });
+
+
+      // 🏆 CERTIFICATE Title
+      doc.setFont("times", "bold");
+      doc.setFontSize(42);
+      doc.setTextColor(30, 160, 210); // Cyan/Blue
+      doc.text("CERTIFICATE", width / 2, 65, { align: "center" });
+
+      // 🏷️ Domain Name
+      doc.setFont("times", "normal");
+      doc.setFontSize(32);
+      doc.setTextColor(0, 0, 0);
+      doc.text(domainName, width / 2, 85, { align: "center" });
+
+      // 👤 PRESENTED TO
+      doc.setFont("times", "normal");
+      doc.setFontSize(9);
+      doc.setCharSpace(1);
       doc.setTextColor(80, 80, 80);
-      
-      const subTitle =
-        selectedCertificate?.title === "Project Progress Certificate"
-          ? "OF ACHIEVEMENT"
-          : "OF COMPLETION";
-      doc.text(subTitle, 148.5, 62, { align: "center" });
+      doc.text("PRESENTED TO :", width / 2, 100, { align: "center" });
 
-      // Main Content
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(14);
-      doc.setTextColor(100, 100, 100);
-      doc.text("This certificate is proudly presented to", 148.5, 90, {
-        align: "center",
-      });
+      // 🧑 User Name
+      doc.setFont("times", "normal");
+      doc.setFontSize(38);
+      doc.setTextColor(0, 0, 0);
+      doc.setCharSpace(0);
+      doc.text(certificateName, width / 2, 120, { align: "center" });
 
-      // User Name
-      doc.setFont("times", "bolditalic");
-      doc.setFontSize(40);
-      doc.setTextColor(30, 30, 30);
-      doc.text(certificateName, 148.5, 115, { align: "center" });
+      // 📜 Description text
+      doc.setFont("times", "normal");
+      doc.setFontSize(11);
+      doc.setTextColor(40, 40, 40);
+      const descLine = "In recognition of successfully reaching the 75% milestone in the Live Project.";
+      doc.text(descLine, width / 2, 135, { align: "center" });
+
+      // 📅 Footer
+      const date = new Date().toLocaleDateString("en-US", { year: 'numeric', month: 'short', day: 'numeric' }).toUpperCase();
+      const bottomY = 165;
+
+      doc.setFont("times", "normal");
+      doc.setFontSize(11);
+      doc.setTextColor(0, 0, 0);
+      doc.text(date, width / 2, bottomY, { align: "center" });
 
       doc.setLineWidth(0.5);
-      doc.setDrawColor(100, 100, 100);
-      doc.line(80, 120, 217, 120);
+      doc.setDrawColor(80, 80, 80);
+      doc.line((width / 2) - 20, bottomY + 2, (width / 2) + 20, bottomY + 2);
 
-      // Description
+      doc.setFont("times", "normal");
+      doc.setFontSize(10);
+      doc.text("Issued", width / 2, bottomY + 8, { align: "center" });
+
+      // 🆔 Bottom Info
+      const footerY = 190;
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(14);
+      doc.setFontSize(9);
       doc.setTextColor(100, 100, 100);
 
-      const descLine1 =
-        selectedCertificate?.title === "Project Progress Certificate"
-          ? "For successfully reaching the 75% milestone in the Full Stack Development Project"
-          : "For successfully completing the Full Stack Development Project";
+      const idText = `Creditional ID : ${credentialId}`;
+      const linkText = "Certification Verification : lms.aparaitech.org";
 
-      doc.text(descLine1, 148.5, 140, { align: "center" });
-      doc.text(
-        "demonstrating exceptional dedication and hard work.",
-        148.5,
-        150,
-        { align: "center" },
-      );
+      doc.text(idText, (width / 2) - 6, footerY, { align: "right" });
+      doc.setDrawColor(200, 200, 200);
+      doc.line(width / 2, footerY - 4, width / 2, footerY + 4);
+      doc.text(linkText, (width / 2) + 6, footerY, { align: "left" });
 
-      // Signatures
-      const date = new Date().toLocaleDateString();
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(12);
-      doc.setTextColor(50, 50, 50);
-
-      // Date
-      doc.text("Date", 60, 175);
-      doc.text(date, 60, 185);
-      doc.line(40, 187, 100, 187);
-
-      // Signature line
-      doc.text("Program Director", 210, 175);
-      doc.text("Aparaitech LMS", 210, 185);
-      doc.line(190, 187, 250, 187);
-
-      // Save
-      doc.save(`Certificate_${certificateName.replace(/\s+/g, "_")}.pdf`);
+      doc.save(`Progress_Certificate_${certificateName.replace(/\s+/g, "_")}.pdf`);
       setShowModal(false);
     } catch (error) {
-      console.error("Error generating certificate:", error);
+      console.error("Error generating progress certificate:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 🟪 New Completion Certificate Generation (Purple Design)
+  const generateCompletionCertificate = () => {
+    setLoading(true);
+    try {
+      const doc = new jsPDF({
+        orientation: "landscape",
+        unit: "mm",
+        format: "a4",
+      });
+
+      const credentialId = generateCredentialId();
+      const width = doc.internal.pageSize.getWidth();
+      const height = doc.internal.pageSize.getHeight();
+
+      // Background
+      doc.setFillColor(255, 255, 255);
+      doc.rect(0, 0, width, height, "F");
+
+      // 🟣 1. Purple Sidebar (Left)
+      const sidebarWidth = 25; // approx width
+      doc.setFillColor(138, 43, 226); // BlueViolet / Purple
+      doc.rect(10, 10, sidebarWidth, height - 20, "F"); // 10mm margin from top/bottom/left
+
+      // Sidebar Waves (Simulated with yellow/gold lines)
+      doc.setDrawColor(255, 215, 0); // Gold
+      doc.setLineWidth(0.3);
+      // Top waves
+      for (let i = 0; i < 5; i++) {
+        doc.curveTo(10, 15 + (i * 5), 10 + sidebarWidth, 25 + (i * 5), 10, 35 + (i * 5));
+      }
+      // Bottom waves
+      for (let i = 0; i < 5; i++) {
+        doc.curveTo(10, height - 35 - (i * 5), 10 + sidebarWidth, height - 25 - (i * 5), 10, height - 15 - (i * 5));
+      }
+
+      // Main Content Area offset
+      const contentX = 10 + sidebarWidth + 15; // Start content after sidebar
+      const centerX = contentX + ((width - 20 - sidebarWidth - 15) / 2); // Center of content area
+
+      // 🏢 Logo (Top Right)
+      try {
+        const logoWidth = 30;
+        const logoHeight = 30; // Assuming square logo box
+        // Draw the container box for logo with shadow effect (gray rect behind)
+        doc.setFillColor(220, 220, 220);
+        doc.roundedRect(width - 50, 15, 35, 25, 3, 3, "F"); // Shadow/Bg
+
+        // White box on top
+        doc.setFillColor(255, 255, 255); // Actually image has gradient/grayish bg, keep gray
+        // doc.roundedRect(width - 50, 15, 35, 25, 3, 3, "F");
+
+        doc.addImage(logoImg, "PNG", width - 47, 12, 28, 28);
+      } catch (e) {
+        // fallback
+      }
+
+      // 🟣 CERTIFICATE Title (Left Aligned in Content Area)
+      // Font: Serif, Purple
+      doc.setFont("times", "normal");
+      doc.setFontSize(45);
+      doc.setTextColor(138, 43, 226); // Purple
+      doc.text("CERTIFICATE", contentX, 50, { align: "left" });
+
+      // OF COMPLETION
+      doc.setFontSize(22);
+      doc.setTextColor(0, 0, 0);
+      doc.text("OF COMPLETION", contentX, 65, { align: "left" });
+
+      // PROUDLY PRESENTED TO
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.setTextColor(50, 50, 50);
+      doc.text("PROUDLY PRESENTED TO", contentX, 85, { align: "left" });
+
+      // 🧑 Name
+      doc.setFont("times", "normal");
+      doc.setFontSize(45);
+      doc.setTextColor(0, 0, 0);
+      doc.text(certificateName, contentX, 105, { align: "left" });
+
+      // 📜 Body Text
+      // "This certificate recognizes the successful completion of a [3-month]..."
+      // We need bold text support. jsPDF 'html' is slow, so we use splitText or manual positioning.
+
+      const startWrapY = 130;
+      doc.setFont("times", "normal");
+      doc.setFontSize(11);
+      doc.setTextColor(30, 30, 30);
+
+      const text1 = `This certificate recognizes the successful completion of a `;
+      const textBold1 = `${duration} real-world live project`;
+      const text2 = ` in the`;
+      const textLine2 = `domain of `;
+      const textBold2 = `[${domainName}]`;
+      const text3 = ` at `;
+      const textBold3 = `Aparaitech Software.`;
+
+      // Line 1
+      let cursorX = contentX;
+      doc.text(text1, cursorX, startWrapY);
+      cursorX += doc.getTextWidth(text1);
+
+      doc.setFont("times", "bold");
+      doc.text(textBold1, cursorX, startWrapY);
+      cursorX += doc.getTextWidth(textBold1);
+
+      doc.setFont("times", "normal");
+      doc.text(text2, cursorX, startWrapY);
+
+      // Line 2
+      cursorX = contentX;
+      const lineHeight = 7;
+      doc.text(textLine2, cursorX, startWrapY + lineHeight);
+      cursorX += doc.getTextWidth(textLine2);
+
+      doc.setFont("times", "bold");
+      doc.text(textBold2, cursorX, startWrapY + lineHeight);
+      cursorX += doc.getTextWidth(textBold2);
+
+      doc.setFont("times", "normal");
+      doc.text(text3, cursorX, startWrapY + lineHeight);
+      cursorX += doc.getTextWidth(text3);
+
+      doc.setFont("times", "bold");
+      doc.text(textBold3, cursorX, startWrapY + lineHeight);
+
+      // Paragraph 2
+      const para2Y = startWrapY + lineHeight * 3;
+      doc.setFont("times", "normal");
+      const p2_1 = "During this period, the candidate gained ";
+      const p2_bold1 = "practical experience ";
+      const p2_2 = "and demonstrated strong";
+
+      cursorX = contentX;
+      doc.text(p2_1, cursorX, para2Y);
+      cursorX += doc.getTextWidth(p2_1);
+
+      doc.setFont("times", "bold");
+      doc.text(p2_bold1, cursorX, para2Y);
+      cursorX += doc.getTextWidth(p2_bold1);
+
+      doc.setFont("times", "normal");
+      doc.text(p2_2, cursorX, para2Y);
+
+      const para2_line2Y = para2Y + lineHeight;
+      const p3_1 = "commitment while working on ";
+      const p3_bold = "industry-oriented projects.";
+
+      cursorX = contentX;
+      doc.text(p3_1, cursorX, para2_line2Y);
+      cursorX += doc.getTextWidth(p3_1);
+      doc.setFont("times", "bold");
+      doc.text(p3_bold, cursorX, para2_line2Y);
+
+
+      // ✍️ Signature (Left Bottom)
+      // "Aparaitech Software" text signature style or image placeholder
+      // For now, text signature simulation
+      const signY = height - 40;
+      // doc.addImage(signImg, ...)
+      doc.setFont("script", "italic"); // Default fallback often monospaced in basic jsPDF, lets stick to cursive simulation via font if loaded, or just italic
+      // Using standard fonts, "ZapfDingbats" is symbol. 'times', 'italic' is best bet.
+      doc.setFont("times", "italic");
+      doc.setFontSize(20);
+      doc.setTextColor(50, 50, 50);
+      // Drawing a rough "signature" line/curve
+      // doc.text("Signature", contentX + 10, signY); 
+
+      // Aparaitech Software text below signature
+      doc.setFont("times", "normal");
+      doc.setFontSize(10);
+      doc.text("Aparaitech Software", contentX, signY + 10);
+      doc.setLineWidth(0.5);
+      doc.line(contentX - 5, signY + 2, contentX + 40, signY + 2);
+
+      // 🆔 Credential Info (Right Bottom)
+      const footerY = height - 20;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(0, 0, 0);
+
+      const dateText = `Date : ${new Date().toLocaleDateString("en-US", { year: 'numeric', month: 'short', day: 'numeric' })}`;
+      doc.text(`Creditional ID :`, width - 50, footerY - 5);
+      doc.text(credentialId, width - 60, footerY);
+
+      doc.text(dateText, width - 60, footerY + 5);
+
+      // Save
+      doc.save(`Completion_Certificate_${certificateName.replace(/\s+/g, "_")}.pdf`);
+      setShowModal(false);
+    } catch (error) {
+      console.error("Error generating completion certificate:", error);
     } finally {
       setLoading(false);
     }
@@ -297,11 +622,10 @@ const Certificates = () => {
                   style={{ left: `${milestone}%` }}
                 >
                   <div
-                    className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 transition-all duration-500 ${
-                      progress >= milestone
-                        ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg scale-110"
-                        : "bg-gray-100 text-gray-400"
-                    }`}
+                    className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 transition-all duration-500 ${progress >= milestone
+                      ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg scale-110"
+                      : "bg-gray-100 text-gray-400"
+                      }`}
                   >
                     {milestone === 0 && <FileText size={20} />}
                     {milestone === 50 && <BadgeCheck size={20} />}
@@ -309,9 +633,8 @@ const Certificates = () => {
                     {milestone === 100 && <Trophy size={20} />}
                   </div>
                   <div
-                    className={`text-sm font-medium transition-colors duration-500 ${
-                      progress >= milestone ? "text-green-600" : "text-gray-500"
-                    }`}
+                    className={`text-sm font-medium transition-colors duration-500 ${progress >= milestone ? "text-green-600" : "text-gray-500"
+                      }`}
                   >
                     {milestone}%
                   </div>
@@ -324,20 +647,19 @@ const Certificates = () => {
               className="absolute top-6 left-0 h-1 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full z-0 transition-all duration-1000"
               style={{ width: `${progress}%` }}
             ></div>
-            
-             <div className="absolute top-6 left-0 right-0 h-1 z-0">
-               {[0, 50, 75, 100].map((milestone) => (
-                  <div
-                    key={milestone}
-                    className={`absolute w-4 h-4 rounded-full border-2 border-white transform -translate-y-1.5 -translate-x-1/2 transition-all duration-500 ${
-                       progress >= milestone
-                        ? "bg-green-500 scale-100"
-                        : "bg-gray-300 scale-75"
+
+            <div className="absolute top-6 left-0 right-0 h-1 z-0">
+              {[0, 50, 75, 100].map((milestone) => (
+                <div
+                  key={milestone}
+                  className={`absolute w-4 h-4 rounded-full border-2 border-white transform -translate-y-1.5 -translate-x-1/2 transition-all duration-500 ${progress >= milestone
+                    ? "bg-green-500 scale-100"
+                    : "bg-gray-300 scale-75"
                     }`}
-                    style={{ left: `${milestone}%` }}
-                  ></div>
-               ))}
-             </div>
+                  style={{ left: `${milestone}%` }}
+                ></div>
+              ))}
+            </div>
           </div>
         </motion.div>
 
@@ -351,10 +673,9 @@ const Certificates = () => {
               transition={{ delay: index * 0.1 }}
               whileHover={{ y: -5, scale: 1.02 }}
               className={`relative overflow-hidden rounded-2xl shadow-lg transition-all duration-300
-                ${
-                  doc.unlocked
-                    ? "bg-white border-2 border-transparent hover:border-cyan-200"
-                    : "bg-gradient-to-br from-gray-50 to-gray-100"
+                ${doc.unlocked
+                  ? "bg-white border-2 border-transparent hover:border-cyan-200"
+                  : "bg-gradient-to-br from-gray-50 to-gray-100"
                 }`}
             >
               {/* Corner Ribbon for Locked */}
@@ -375,11 +696,10 @@ const Certificates = () => {
                 {/* Icon */}
                 <div
                   className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-4 shadow-lg
-                  ${
-                    doc.unlocked
+                  ${doc.unlocked
                       ? `bg-gradient-to-r ${doc.gradient} text-white`
                       : "bg-gradient-to-r from-gray-300 to-gray-400 text-gray-500"
-                  }`}
+                    }`}
                 >
                   {React.cloneElement(doc.icon, { size: 28 })}
                 </div>
@@ -423,11 +743,10 @@ const Certificates = () => {
                         width: `${Math.min(100, (progress / doc.progressRequired) * 100)}%`,
                       }}
                       transition={{ duration: 1 }}
-                      className={`h-2 rounded-full ${
-                        progress >= doc.progressRequired
-                          ? `bg-gradient-to-r ${doc.gradient}`
-                          : "bg-gradient-to-r from-gray-400 to-gray-500"
-                      }`}
+                      className={`h-2 rounded-full ${progress >= doc.progressRequired
+                        ? `bg-gradient-to-r ${doc.gradient}`
+                        : "bg-gradient-to-r from-gray-400 to-gray-500"
+                        }`}
                     ></motion.div>
                   </div>
                 </div>
@@ -466,10 +785,9 @@ const Certificates = () => {
             transition={{ delay: documents.length * 0.1 }}
             whileHover={{ y: -5, scale: 1.02 }}
             className={`relative overflow-hidden rounded-2xl shadow-lg transition-all duration-300
-              ${
-                actionItem.unlocked
-                  ? "bg-gradient-to-br from-cyan-50 to-teal-50 border-2 border-cyan-200"
-                  : "bg-gradient-to-br from-gray-50 to-gray-100"
+              ${actionItem.unlocked
+                ? "bg-gradient-to-br from-cyan-50 to-teal-50 border-2 border-cyan-200"
+                : "bg-gradient-to-br from-gray-50 to-gray-100"
               }`}
           >
             <div className="absolute top-0 right-0 w-24 h-24 overflow-hidden">
@@ -482,11 +800,10 @@ const Certificates = () => {
               {/* Icon */}
               <div
                 className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-4 shadow-lg
-                ${
-                  actionItem.unlocked
+                ${actionItem.unlocked
                     ? `bg-gradient-to-r ${actionItem.gradient} text-white`
                     : "bg-gradient-to-r from-gray-300 to-gray-400 text-gray-500"
-                }`}
+                  }`}
               >
                 {React.cloneElement(actionItem.icon, { size: 28 })}
               </div>
@@ -527,11 +844,10 @@ const Certificates = () => {
                     initial={{ width: 0 }}
                     animate={{ width: `${Math.min(100, progress)}%` }}
                     transition={{ duration: 1 }}
-                    className={`h-2 rounded-full ${
-                      progress >= 100
-                        ? `bg-gradient-to-r ${actionItem.gradient}`
-                        : "bg-gradient-to-r from-gray-400 to-gray-500"
-                    }`}
+                    className={`h-2 rounded-full ${progress >= 100
+                      ? `bg-gradient-to-r ${actionItem.gradient}`
+                      : "bg-gradient-to-r from-gray-400 to-gray-500"
+                      }`}
                   ></motion.div>
                 </div>
               </div>
@@ -541,7 +857,7 @@ const Certificates = () => {
                 {actionItem.unlocked ? (
                   <button
                     onClick={() =>
-                      window.open("https://docs.google.com/forms/d/e/1FAIpQLSfk1OdxBCZHkhcIYWKZsdm2MRQuH08KQefDbBRNXZxKFlxgpw/viewform?usp=publish-editor", "_blank")
+                      window.open("https://forms.gle/HALjpNjeTixLa1q89", "_blank")
                     }
                     className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-cyan-600 to-teal-600 text-white font-medium hover:from-cyan-700 hover:to-teal-700 transition-all shadow-md hover:shadow-lg"
                   >
@@ -675,6 +991,36 @@ const Certificates = () => {
                   />
                 </div>
 
+                {/* 🆕 Domain Name Input */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Domain Name
+                  </label>
+                  <input
+                    type="text"
+                    value={domainName}
+                    onChange={(e) => setDomainName(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition"
+                    placeholder="e.g. MERN Stack Development"
+                  />
+                </div>
+
+                {/* 🆕 Duration Input (Only for Completion Certificate) */}
+                {selectedCertificate?.title === "Project Completion Certificate" && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Project Duration
+                    </label>
+                    <input
+                      type="text"
+                      value={duration}
+                      onChange={(e) => setDuration(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition"
+                      placeholder="e.g. 3-month"
+                    />
+                  </div>
+                )}
+
                 <div className="flex gap-3 pt-2">
                   <button
                     onClick={() => setShowModal(false)}
@@ -684,7 +1030,12 @@ const Certificates = () => {
                   </button>
                   <button
                     onClick={generateCertificate}
-                    disabled={loading || !certificateName.trim()}
+                    disabled={
+                      loading ||
+                      !certificateName.trim() ||
+                      !domainName.trim() ||
+                      (selectedCertificate?.title === "Project Completion Certificate" && !duration.trim())
+                    }
                     className="flex-1 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 font-medium shadow-md transition flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                   >
                     {loading ? (

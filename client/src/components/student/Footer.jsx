@@ -320,13 +320,12 @@ const Footer = () => {
 
               {message && (
                 <div
-                  className={`px-4 py-3 rounded-xl border backdrop-blur-sm transition-all duration-300 ${
-                    status === "success"
+                  className={`px-4 py-3 rounded-xl border backdrop-blur-sm transition-all duration-300 ${status === "success"
                       ? "bg-green-900/20 text-green-300 border-green-800/30"
                       : status === "error"
                         ? "bg-red-900/20 text-red-300 border-red-800/30"
                         : "bg-blue-900/20 text-blue-200 border-blue-800/30"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center gap-2 text-sm">
                     {status === "success" ? (
@@ -450,7 +449,8 @@ const Footer = () => {
           </div>
         </div>
       </div>
-
+      {/* ✅ SAFE SPACE FOR FLOATING BUTTONS (MOBILE + DESKTOP) */}
+      <div className="h-24 sm:h-20 md:h-16"></div>
       {/* Animation Keyframes */}
       <style>{`
         @keyframes gradient-x {

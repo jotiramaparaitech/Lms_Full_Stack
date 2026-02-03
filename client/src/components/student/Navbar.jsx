@@ -58,13 +58,11 @@ const Navbar = () => {
       initial={{ y: -50, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ type: "spring", stiffness: 80, damping: 15 }}
-      className={`${
-        isFixed ? "fixed top-0" : "sticky top-0"
-      } left-0 w-full z-50 transition-all duration-700 backdrop-blur-lg shadow-md ${
-        isCoursesListPage
+      className={`${isFixed ? "fixed top-0" : "sticky top-0"
+        } left-0 w-full z-50 transition-all duration-700 backdrop-blur-lg shadow-md ${isCoursesListPage
           ? "bg-white"
           : "bg-gradient-to-r from-cyan-50 via-cyan-100 to-cyan-50"
-      }`}
+        }`}
     >
       <div className="max-w-[1400px] mx-auto flex items-center justify-between flex-wrap px-4 sm:px-8 md:px-14 lg:px-20 py-2.5">
         {/* Logo */}
@@ -122,14 +120,12 @@ const Navbar = () => {
             <motion.button
               onClick={() => setIsAllProjectsOpen(true)}
               whileHover={{ scale: 1.05 }}
-              className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                isAllProjectsOpen
-                  ? "bg-cyan-600 text-white shadow-md"
-                  : "bg-gradient-to-r from-cyan-500 to-blue-500 text-white hover:from-cyan-600 hover:to-blue-600 shadow-sm hover:shadow-md"
-              }`}
+              className="px-0 py-0 font-medium transition-colors duration-200
+             text-gray-700 hover:text-cyan-700"
             >
               All Project
             </motion.button>
+
 
             {/* Contact Us Link */}
             <Link
@@ -153,13 +149,13 @@ const Navbar = () => {
               )}
 
               {(userRole === "student" || userRole === "admin") && (
-                 <Link
-                   to="/student/dashboard"
-                   className="hover:text-cyan-700 transition-colors duration-200"
-                 >
+                <Link
+                  to="/student/dashboard"
+                  className="hover:text-cyan-700 transition-colors duration-200"
+                >
                   Student Dashboard
-                 </Link>
-               )}
+                </Link>
+              )}
 
             </div>
           )}
@@ -180,8 +176,24 @@ const Navbar = () => {
         </div>
 
         {/* Mobile Dropdown Menu */}
+        {/* Mobile Dropdown Menu */}
         {menuOpen && (
           <div className="md:hidden w-full mt-3 bg-white/90 backdrop-blur-sm rounded-xl shadow-lg p-4 flex flex-col gap-4 text-gray-700 font-medium">
+
+            {/* ✅ MOBILE USER INFO (ADDED) */}
+            {user && (
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-100">
+                <img
+                  src={user.imageUrl}
+                  alt="Profile"
+                  className="w-10 h-10 rounded-full object-cover"
+                />
+                <span className="text-sm font-semibold text-gray-800">
+                  {user.fullName || user.firstName || "User"}
+                </span>
+              </div>
+            )}
+
             <Link
               to="/"
               onClick={() => setMenuOpen(false)}
@@ -189,6 +201,7 @@ const Navbar = () => {
             >
               Home
             </Link>
+
             <Link
               to="/about"
               onClick={() => setMenuOpen(false)}
@@ -196,6 +209,7 @@ const Navbar = () => {
             >
               About Us
             </Link>
+
             <Link
               to="/course-list"
               onClick={() => setMenuOpen(false)}
@@ -204,22 +218,19 @@ const Navbar = () => {
               Projects
             </Link>
 
-            {/* All Project Button - Mobile (available on all pages) */}
+            {/* All Project Button - Mobile */}
             <button
               onClick={() => {
                 setIsAllProjectsOpen(true);
                 setMenuOpen(false);
               }}
-              className={`text-left px-4 py-2 rounded-lg transition-all ${
-                isAllProjectsOpen
-                  ? "bg-cyan-600 text-white"
-                  : "bg-gradient-to-r from-cyan-500 to-blue-500 text-white hover:from-cyan-600 hover:to-blue-600"
-              }`}
+              className="text-left py-1 transition-colors
+             text-gray-700 hover:text-cyan-700"
             >
               All Project
             </button>
 
-            {/* Contact Us Link */}
+
             <Link
               to="/contact"
               onClick={() => setMenuOpen(false)}
@@ -243,32 +254,19 @@ const Navbar = () => {
                 )}
 
                 {(userRole === "student" || userRole === "admin") && (
-                    <Link
-                      to="/student/dashboard"
-                      onClick={() => setMenuOpen(false)}
-                      className="hover:text-cyan-700 transition-colors"
-                    >
-                     Student Dashboard
-                    </Link>
-                  )}
+                  <Link
+                    to="/student/dashboard"
+                    onClick={() => setMenuOpen(false)}
+                    className="hover:text-cyan-700 transition-colors"
+                  >
+                    Student Dashboard
+                  </Link>
+                )}
               </>
-            )}
-
-            {user ? (
-              <UserButton afterSignOutUrl="/" />
-            ) : (
-              <button
-                onClick={() => {
-                  openSignIn();
-                  setMenuOpen(false);
-                }}
-                className="bg-cyan-600 text-white px-4 py-2 rounded-md hover:bg-cyan-700 transition-all"
-              >
-                Sign In
-              </button>
             )}
           </div>
         )}
+
       </div>
     </motion.nav>
   );
