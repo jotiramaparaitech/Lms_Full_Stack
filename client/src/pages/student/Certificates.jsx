@@ -520,7 +520,7 @@ const Certificates = () => {
       doc.rect(margin + 1.5, margin + 1.5, width - (margin * 2 + 3), height - (margin * 2 + 3));
 
       // 🏢 Header
-      const headerY = 20;
+      const headerY = 15;
       const logoSize = 25;
 
       // Logo Box
