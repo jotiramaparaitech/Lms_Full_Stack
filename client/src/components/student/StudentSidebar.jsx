@@ -61,11 +61,7 @@ const StudentSidebar = () => {
     label: "Project Tracker",
     path: "/student/progress"
   },
-  {
-  icon: <CalendarCheck size={20} />,
-  label: "Attendance",
-  path: "/student/attendance"
-  },
+  
 
 
   // ✅ NEW (ONLY leader)
@@ -81,6 +77,13 @@ const StudentSidebar = () => {
 ];
 
   const appItems = [
+    {
+      icon: <CalendarCheck size={20} />,
+      label: "Attendance",
+      path: "/student/attendance",
+      highlight: true, // 👈 ADD THIS
+      blink: true, // 👈 ADD THIS FOR BLINKING EFFECT
+      },
     {
       icon: <CalendarDays size={20} />,
       label: "Calendar",
@@ -368,12 +371,96 @@ const StudentSidebar = () => {
                     Apps
                   </div>
                   <div className="space-y-1">
-                    {appItems.map((item, index) => (
+                    {appItems.map((item, index) => {
+                      // Special styling for Attendance tab
+                      if (item.label === "Attendance") {
+                        return (
+                          <NavLink
+                            key={index}
+                            to={item.path}
+                            className={({ isActive }) => `
+                              flex items-center gap-3 px-3 py-2 rounded-lg 
+                              transition-all duration-200
+                              animate-pulse
+                              ${isActive 
+                                ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg' 
+                                : 'bg-gradient-to-r from-green-400 to-emerald-500 text-white shadow-md hover:shadow-lg hover:from-green-500 hover:to-emerald-600'
+                              }
+                            `}
+                            onClick={handleMenuItemClick}
+                          >
+                            {({ isActive }) => (
+                              <>
+                                <span className="text-white">
+                                  {item.icon}
+                                </span>
+                                <span className="text-sm font-bold">{item.label}</span>
+                              </>
+                            )}
+                          </NavLink>
+                        );
+                      }
+                      
+                      // Regular styling for other tabs
+                      return (
+                        <NavLink
+                          key={index}
+                          to={item.path}
+                          className={({ isActive }) => `
+                            flex items-center gap-3 px-3 py-2 rounded-lg 
+                            transition-all duration-200
+                            ${isActive 
+                              ? 'bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700' 
+                              : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                            }
+                          `}
+                          onClick={handleMenuItemClick}
+                        >
+                          {({ isActive }) => (
+                            <>
+                              <span className={isActive ? 'text-blue-600' : 'text-gray-500'}>
+                                {item.icon}
+                              </span>
+                              <span className="text-sm font-medium">{item.label}</span>
+                            </>
+                          )}
+                        </NavLink>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-2">
+                  {appItems.map((item, index) => {
+                    // Special styling for Attendance tab in collapsed mode
+                    if (item.label === "Attendance") {
+                      return (
+                        <NavLink
+                          key={index}
+                          to={item.path}
+                          className={({ isActive }) => `
+                            flex items-center justify-center p-2 rounded-lg 
+                            transition-all duration-200 animate-pulse
+                            ${isActive 
+                              ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg' 
+                              : 'bg-gradient-to-r from-green-400 to-emerald-500 text-white shadow-md hover:shadow-lg hover:from-green-500 hover:to-emerald-600'
+                            }
+                          `}
+                          onClick={handleMenuItemClick}
+                          title={item.label}
+                        >
+                          {item.icon}
+                        </NavLink>
+                      );
+                    }
+                    
+                    // Regular styling for other tabs in collapsed mode
+                    return (
                       <NavLink
                         key={index}
                         to={item.path}
                         className={({ isActive }) => `
-                          flex items-center gap-3 px-3 py-2 rounded-lg 
+                          flex items-center justify-center p-2 rounded-lg 
                           transition-all duration-200
                           ${isActive 
                             ? 'bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700' 
@@ -381,39 +468,12 @@ const StudentSidebar = () => {
                           }
                         `}
                         onClick={handleMenuItemClick}
+                        title={item.label}
                       >
-                        {({ isActive }) => (
-                          <>
-                            <span className={isActive ? 'text-blue-600' : 'text-gray-500'}>
-                              {item.icon}
-                            </span>
-                            <span className="text-sm font-medium">{item.label}</span>
-                          </>
-                        )}
+                        {item.icon}
                       </NavLink>
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <div className="space-y-2">
-                  {appItems.map((item, index) => (
-                    <NavLink
-                      key={index}
-                      to={item.path}
-                      className={({ isActive }) => `
-                        flex items-center justify-center p-2 rounded-lg 
-                        transition-all duration-200
-                        ${isActive 
-                          ? 'bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700' 
-                          : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                        }
-                      `}
-                      onClick={handleMenuItemClick}
-                      title={item.label}
-                    >
-                      {item.icon}
-                    </NavLink>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -602,24 +662,49 @@ const StudentSidebar = () => {
                   Apps
                 </div>
                 <div className="space-y-1">
-                  {appItems.map((item, index) => (
-                    <NavLink
-                      key={index}
-                      to={item.path}
-                      className={({ isActive }) => `
-                        flex items-center gap-3 px-3 py-2 rounded-lg 
-                        transition-all duration-200
-                        ${isActive 
-                          ? 'bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700' 
-                          : 'text-gray-600 hover:bg-gray-100'
-                        }
-                      `}
-                      onClick={handleMenuItemClick}
-                    >
-                      {item.icon}
-                      <span className="text-sm font-medium">{item.label}</span>
-                    </NavLink>
-                  ))}
+                  {appItems.map((item, index) => {
+                    // Special styling for Attendance tab in mobile
+                    if (item.label === "Attendance") {
+                      return (
+                        <NavLink
+                          key={index}
+                          to={item.path}
+                          className={({ isActive }) => `
+                            flex items-center gap-3 px-3 py-2 rounded-lg 
+                            transition-all duration-200 animate-pulse
+                            ${isActive 
+                              ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg' 
+                              : 'bg-gradient-to-r from-green-400 to-emerald-500 text-white shadow-md hover:shadow-lg hover:from-green-500 hover:to-emerald-600'
+                            }
+                          `}
+                          onClick={handleMenuItemClick}
+                        >
+                          {item.icon}
+                          <span className="text-sm font-bold">{item.label}</span>
+                        </NavLink>
+                      );
+                    }
+                    
+                    // Regular styling for other tabs in mobile
+                    return (
+                      <NavLink
+                        key={index}
+                        to={item.path}
+                        className={({ isActive }) => `
+                          flex items-center gap-3 px-3 py-2 rounded-lg 
+                          transition-all duration-200
+                          ${isActive 
+                            ? 'bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700' 
+                            : 'text-gray-600 hover:bg-gray-100'
+                          }
+                        `}
+                        onClick={handleMenuItemClick}
+                      >
+                        {item.icon}
+                        <span className="text-sm font-medium">{item.label}</span>
+                      </NavLink>
+                    );
+                  })}
                 </div>
               </div>
 
