@@ -17,8 +17,65 @@ import { FaXTwitter } from "react-icons/fa6";
 const Footer = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
-  const [status, setStatus] = useState("idle"); // idle | loading | success | error
+  const [status, setStatus] = useState("idle");
   const [message, setMessage] = useState("");
+
+  // State for managing email display
+  const [currentEmail, setCurrentEmail] = useState("info@aparaitechsoftware.org");
+  const emails = [
+    "info@aparaitechsoftware.org",
+    "support@aparaitechsoftware.org",
+    "career@aparaitechsoftware.org",
+    "contact@aparaitechsoftware.org"
+  ];
+
+  // Function to handle email click
+  const handleEmailClick = () => {
+    const currentIndex = emails.indexOf(currentEmail);
+    const nextIndex = (currentIndex + 1) % emails.length;
+    setCurrentEmail(emails[nextIndex]);
+  };
+
+  // Function to open location in Google Maps
+  const openLocationInMap = (address, locationName) => {
+    // Encode the address for URL
+    const encodedAddress = encodeURIComponent(address);
+
+    // Google Maps URL
+    const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
+
+    // Try to use device's default maps app on mobile
+    if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+      // For iOS devices
+      if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+        window.open(`maps://maps.google.com/maps?q=${encodedAddress}`, '_blank');
+      }
+      // For Android devices
+      else if (/Android/i.test(navigator.userAgent)) {
+        window.open(`geo:0,0?q=${encodedAddress}`, '_blank');
+      } else {
+        window.open(googleMapsUrl, '_blank');
+      }
+    }
+    // For desktop, open Google Maps in new tab
+    else {
+      window.open(googleMapsUrl, '_blank');
+    }
+  };
+
+  // Address data
+  const addresses = [
+    {
+      name: "Branch Address",
+      address: "360, Neeladri Rd, Karuna Nagar, Electronic City Phase I, Electronic City, Bengaluru, Karnataka 560100",
+      coordinates: "12.8443,77.6609" // Approximate coordinates for Electronic City, Bangalore
+    },
+    {
+      name: "New Branch",
+      address: "Mukti Complex, Near Prashaskiya Bhawan, Baramati",
+      coordinates: "18.1510,74.5775" // Approximate coordinates for Baramati
+    }
+  ];
 
   const handleScroll = (targetId) => {
     const target = document.getElementById(targetId);
@@ -88,8 +145,6 @@ const Footer = () => {
     }
   };
 
-
-
   return (
     <footer
       id="contact-section"
@@ -110,7 +165,6 @@ const Footer = () => {
             <div className="overflow-hidden rounded-2xl shadow-2xl bg-gradient-to-br from-blue-900/30 via-gray-900/50 to-purple-900/30 border border-white/15 p-3 backdrop-blur-sm">
               <div className="relative">
                 <img
-                  // src={logo}
                   src={assets.logof}
                   alt="Aparaitech Logo"
                   className="h-20 w-20 sm:h-24 sm:w-24 md:h-28 md:w-28 rounded-xl transition-all duration-500 group-hover:scale-[1.04] group-hover:brightness-110 group-hover:shadow-2xl object-cover"
@@ -132,21 +186,54 @@ const Footer = () => {
                 </span>
               </div>
 
-              <div className="flex items-center justify-center md:justify-start gap-2">
-                <FaEnvelope className="text-blue-400 flex-shrink-0" />
-                <span className="text-sm sm:text-base">
-                  <strong>Email:</strong> info@aparaitechsoftware.org
+              <div
+                className="flex items-center justify-center md:justify-start gap-2 cursor-pointer group/email"
+                onClick={(e) => {
+                  e.preventDefault();
+                  // First click: Open email client
+                  window.location.href = `mailto:${currentEmail}`;
+                  // Then cycle to next email for next click
+                  setTimeout(() => {
+                    const currentIndex = emails.indexOf(currentEmail);
+                    const nextIndex = (currentIndex + 1) % emails.length;
+                    setCurrentEmail(emails[nextIndex]);
+                  }, 300);
+                }}
+                title={`Click to email: ${currentEmail}`}
+              >
+                <FaEnvelope className="text-blue-400 flex-shrink-0 group-hover/email:text-blue-300 transition-colors" />
+                <span className="text-sm sm:text-base group-hover/email:text-blue-300 transition-all duration-300">
+                  <strong>Email:</strong>{" "}
+                  <span className="relative">
+                    {currentEmail}
+                    {/* Underline effect on hover */}
+                    <span className="absolute left-0 bottom-0 w-0 h-[1px] bg-blue-400 group-hover/email:w-full transition-all duration-300"></span>
+                    {/* Tooltip */}
+                    <span className="absolute left-0 -top-8 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/email:opacity-100 transition-opacity duration-300 whitespace-nowrap pointer-events-none">
+                      Click to email
+                    </span>
+                  </span>
                 </span>
               </div>
 
               <div className="space-y-4 text-xs sm:text-sm md:text-base text-center md:text-left">
                 {/* Branch Address */}
                 <div>
-                  <div className="flex justify-center md:justify-start items-center gap-2">
-                    <FaMapMarkerAlt className="text-blue-400 flex-shrink-0" />
-                    <span className="font-medium">Branch Address:</span>
+                  <div
+                    className="flex justify-center md:justify-start items-center gap-2 cursor-pointer group/address"
+                    onClick={() => openLocationInMap(addresses[0].address, addresses[0].name)}
+                    title="Click to open in Google Maps"
+                  >
+                    <FaMapMarkerAlt className="text-blue-400 flex-shrink-0 group-hover/address:text-blue-300 transition-colors" />
+                    <span className="font-medium group-hover/address:text-blue-300 transition-colors">
+                      Branch Address:
+                    </span>
                   </div>
-                  <div className="mt-1 md:ml-6">
+                  <div
+                    className="mt-1 md:ml-6 cursor-pointer hover:text-blue-300 transition-colors"
+                    onClick={() => openLocationInMap(addresses[0].address, addresses[0].name)}
+                    title="Click to open in Google Maps"
+                  >
                     360, Neeladri Rd, Karuna Nagar, Electronic City Phase I,
                     <br />
                     Electronic City, Bengaluru, Karnataka 560100
@@ -155,11 +242,21 @@ const Footer = () => {
 
                 {/* New Branch */}
                 <div>
-                  <div className="flex justify-center md:justify-start items-center gap-2">
-                    <FaMapMarkerAlt className="text-blue-400 flex-shrink-0" />
-                    <span className="font-medium">New Branch:</span>
+                  <div
+                    className="flex justify-center md:justify-start items-center gap-2 cursor-pointer group/address"
+                    onClick={() => openLocationInMap(addresses[1].address, addresses[1].name)}
+                    title="Click to open in Google Maps"
+                  >
+                    <FaMapMarkerAlt className="text-blue-400 flex-shrink-0 group-hover/address:text-blue-300 transition-colors" />
+                    <span className="font-medium group-hover/address:text-blue-300 transition-colors">
+                      New Branch:
+                    </span>
                   </div>
-                  <div className="mt-1 md:ml-6">
+                  <div
+                    className="mt-1 md:ml-6 cursor-pointer hover:text-blue-300 transition-colors"
+                    onClick={() => openLocationInMap(addresses[1].address, addresses[1].name)}
+                    title="Click to open in Google Maps"
+                  >
                     Mukti Complex, Near Prashaskiya Bhawan, Baramati
                   </div>
                 </div>
@@ -321,10 +418,10 @@ const Footer = () => {
               {message && (
                 <div
                   className={`px-4 py-3 rounded-xl border backdrop-blur-sm transition-all duration-300 ${status === "success"
-                      ? "bg-green-900/20 text-green-300 border-green-800/30"
-                      : status === "error"
-                        ? "bg-red-900/20 text-red-300 border-red-800/30"
-                        : "bg-blue-900/20 text-blue-200 border-blue-800/30"
+                    ? "bg-green-900/20 text-green-300 border-green-800/30"
+                    : status === "error"
+                      ? "bg-red-900/20 text-red-300 border-red-800/30"
+                      : "bg-blue-900/20 text-blue-200 border-blue-800/30"
                     }`}
                 >
                   <div className="flex items-center gap-2 text-sm">
