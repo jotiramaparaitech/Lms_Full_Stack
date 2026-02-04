@@ -292,6 +292,24 @@ ${formData.message}
                     Come say hello at our office
                   </p>
                   <p className="text-gray-700 font-medium text-sm mt-1">
+                    360, Neeladri Rd, Karuna Nagar, Electronic City Phase I,
+                    Electronic City, Bengaluru, Karnataka 560100
+                  </p>
+                </div>
+              </motion.div>
+              <motion.div
+                whileHover={{ scale: 1.05, y: -5 }}
+                className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 shadow-xl border border-white/20 flex items-start gap-4 hover:shadow-2xl transition-all duration-300"
+              >
+                <div className="bg-gradient-to-br from-purple-500 to-pink-600 p-4 rounded-xl shadow-lg">
+                  <MapPin className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-800 mb-1">Visit Us</h3>
+                  <p className="text-gray-600 text-sm">
+                    Come say hello at our office
+                  </p>
+                  <p className="text-gray-700 font-medium text-sm mt-1">
                     New Branch Baramati Mukti Complex Near Prahashkiya bhawan
                   </p>
                 </div>
