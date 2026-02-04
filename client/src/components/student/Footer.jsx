@@ -190,22 +190,15 @@ const Footer = () => {
                 className="flex items-center justify-center md:justify-start gap-2 cursor-pointer group/email"
                 onClick={(e) => {
                   e.preventDefault();
-                  // First click: Open email client
-                  window.location.href = `mailto:${currentEmail}`;
-                  // Then cycle to next email for next click
-                  setTimeout(() => {
-                    const currentIndex = emails.indexOf(currentEmail);
-                    const nextIndex = (currentIndex + 1) % emails.length;
-                    setCurrentEmail(emails[nextIndex]);
-                  }, 300);
+                  window.location.href = 'mailto:info@aparaitechsoftware.org';
                 }}
-                title={`Click to email: ${currentEmail}`}
+                title="Click to email us"
               >
                 <FaEnvelope className="text-blue-400 flex-shrink-0 group-hover/email:text-blue-300 transition-colors" />
                 <span className="text-sm sm:text-base group-hover/email:text-blue-300 transition-all duration-300">
                   <strong>Email:</strong>{" "}
                   <span className="relative">
-                    {currentEmail}
+                    info@aparaitechsoftware.org
                     {/* Underline effect on hover */}
                     <span className="absolute left-0 bottom-0 w-0 h-[1px] bg-blue-400 group-hover/email:w-full transition-all duration-300"></span>
                     {/* Tooltip */}
