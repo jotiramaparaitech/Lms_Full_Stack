@@ -188,7 +188,7 @@ const AddCourse = () => {
       );
 
       if (data.success) {
-        toast.success(data.message || "Course added successfully!");
+        toast.success(data.message || "Project added successfully!");
         setCourseTitle("");
         setCoursePrice(0);
         setDiscount(0);
