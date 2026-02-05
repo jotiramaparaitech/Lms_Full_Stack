@@ -573,7 +573,7 @@ export const assignCourse = async (req, res) => {
     if (course.enrolledStudents.includes(studentId))
       return res.json({
         success: false,
-        message: "Student already enrolled in this course",
+        message: "Student already enrolled in this project",
       });
 
     // ✅ Add student to course enrollment
