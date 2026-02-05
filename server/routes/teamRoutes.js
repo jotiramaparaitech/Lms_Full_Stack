@@ -12,9 +12,10 @@ import {
   updateStudentProgress,
   getMyTeamProgress,
   updateTeamName,
-   updateTeamDetails,
-   editMessage,
-   deleteMessageById
+  updateTeamDetails,
+  editMessage,
+  deleteMessageById,
+  getTeamFiles 
 } from "../controllers/teamController.js";
 
 import { requireAuth } from "@clerk/express";
@@ -26,11 +27,11 @@ const teamRouter = express.Router();
 // ================= TEAM LIST =================
 teamRouter.get("/list", requireAuth(), getTeams);
 
-// ================= TEAM CREATE (✅ FIXED) =================
+// ================= TEAM CREATE =================
 teamRouter.post(
   "/create",
   requireAuth(),
-  upload.single("logo"), // MUST be before controller
+  upload.single("logo"),
   createTeam
 );
 
@@ -42,10 +43,13 @@ teamRouter.post("/remove-member", requireAuth(), removeMember);
 teamRouter.post("/join-request", requireAuth(), joinTeamRequest);
 teamRouter.put("/update", requireAuth(), upload.single("logo"), updateTeamDetails);
 
-
 // ================= MESSAGING =================
 teamRouter.post("/message/send", requireAuth(), sendMessage);
 teamRouter.get("/messages/:teamId", requireAuth(), getMessages);
+
+// Get team files endpoint
+teamRouter.get("/files/:teamId", requireAuth(), getTeamFiles);
+
 teamRouter.post(
   "/message/upload",
   requireAuth(),
@@ -58,10 +62,7 @@ teamRouter.put(
   upload.single("file"),
   editMessage
 );
-
 teamRouter.delete("/message/delete/:messageId", requireAuth(), deleteMessageById);
-
-
 
 // ================= STUDENT =================
 teamRouter.get("/student-info", requireAuth(), getStudentInfo);

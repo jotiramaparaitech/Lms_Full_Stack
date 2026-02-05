@@ -17,12 +17,15 @@ const AssignCourse = () => {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
   const dropdownRef = useRef(null);
 
-  // ✅ Filter students whose names START WITH search term (case-insensitive)
-  const filteredStudents = students.filter((student) =>
-    student.name.toLowerCase().startsWith(searchTerm.toLowerCase())
-  );
+  // ✅ Filter students based on search term (matches anywhere in name, case-insensitive)
+  const filteredStudents = searchTerm.trim()
+    ? students.filter((student) =>
+        student.name.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : students; // Show all students when search is empty
 
   // ✅ Close dropdown when clicking outside
   useEffect(() => {
@@ -69,14 +72,18 @@ const AssignCourse = () => {
     const value = e.target.value;
     setSearchTerm(value);
     
-    // Only clear selected student if search term doesn't match
-    if (!selectedStudent || !value.startsWith(searchTerm)) {
-      setSelectedStudent("");
+    // Only clear selected student if search term doesn't match selected student
+    if (selectedStudent) {
+      const selectedStudentObj = students.find(s => s._id === selectedStudent);
+      if (selectedStudentObj && !selectedStudentObj.name.toLowerCase().includes(value.toLowerCase())) {
+        setSelectedStudent("");
+      }
     }
     
-    if (value.trim() === "") {
-      setShowDropdown(false);
-    } else {
+    // Show dropdown when typing
+    if (value.trim() === "" && isFocused) {
+      setShowDropdown(true); // Show all students when input is focused but empty
+    } else if (value.trim() !== "") {
       setShowDropdown(true);
     }
   };
@@ -86,13 +93,22 @@ const AssignCourse = () => {
     setSelectedStudent(studentId);
     setSearchTerm(studentName); // Show the selected name in search box
     setShowDropdown(false);
+    setIsFocused(false);
   };
 
-  // ✅ Clear search
+  // ✅ Clear search and selection
   const handleClearSearch = () => {
     setSearchTerm("");
     setSelectedStudent("");
     setShowDropdown(false);
+  };
+
+  // ✅ Handle input focus
+  const handleInputFocus = () => {
+    setIsFocused(true);
+    if (students.length > 0) {
+      setShowDropdown(true); // Show dropdown when input is focused
+    }
   };
 
   // ✅ Assign course/team to student
@@ -157,6 +173,7 @@ const AssignCourse = () => {
         setSelectedCourse("");
         setSelectedTeam("");
         setSearchTerm("");
+        setShowDropdown(false);
       }
 
     } catch (error) {
@@ -195,15 +212,12 @@ const AssignCourse = () => {
           <div className="relative">
             <input
               type="text"
-              placeholder="Type student name (starts with)..."
+              placeholder="Search students..."
               className="w-full border border-gray-300 rounded-lg p-3 pl-10 pr-10 text-gray-700 focus:ring-2 focus:ring-blue-400 focus:outline-none"
               value={searchTerm}
               onChange={handleSearchChange}
-              onFocus={() => {
-                if (searchTerm.trim() && filteredStudents.length > 0) {
-                  setShowDropdown(true);
-                }
-              }}
+              onFocus={handleInputFocus}
+              onBlur={() => setTimeout(() => setIsFocused(false), 200)}
             />
             {/* Search Icon */}
             <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
@@ -230,14 +244,22 @@ const AssignCourse = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.2 }}
             >
-              <div className="p-2 text-xs text-gray-500 bg-gray-50 border-b">
-                Showing students starting with "{searchTerm}"
+              {/* Dropdown header */}
+              <div className="p-2 text-xs text-gray-500 bg-gray-50 border-b flex justify-between items-center">
+                <span>
+                  {searchTerm.trim() 
+                    ? `Found ${filteredStudents.length} student(s) matching "${searchTerm}"`
+                    : `Showing all ${filteredStudents.length} students`
+                  }
+                </span>
               </div>
+              
+              {/* Students list */}
               {filteredStudents.map((student) => (
                 <div
                   key={student._id}
                   className={`p-3 cursor-pointer hover:bg-blue-50 transition-colors ${
-                    selectedStudent === student._id ? "bg-blue-100" : ""
+                    selectedStudent === student._id ? "bg-blue-100 border-l-4 border-blue-500" : ""
                   }`}
                   onClick={() => handleSelectStudent(student._id, student.name)}
                 >
@@ -253,7 +275,14 @@ const AssignCourse = () => {
           {/* No Results Message */}
           {showDropdown && searchTerm.trim() && filteredStudents.length === 0 && (
             <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-4 text-center text-gray-500">
-              No students found starting with "{searchTerm}"
+              No students found matching "{searchTerm}"
+            </div>
+          )}
+
+          {/* No Students Message */}
+          {showDropdown && !searchTerm.trim() && filteredStudents.length === 0 && (
+            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-4 text-center text-gray-500">
+              No students available
             </div>
           )}
 
