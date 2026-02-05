@@ -39,11 +39,11 @@ await connectCloudinary();
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
   : [
-      "http://localhost:5173",
-      "https://www.aparaitech.org",
-      "https://aparaitech.org",
-      "https://lms.aparaitech.org",
-    ];
+    "http://localhost:5173",
+    "https://www.aparaitech.org",
+    "https://aparaitech.org",
+    "https://lms.aparaitech.org",
+  ];
 
 app.use(
   cors({
@@ -78,7 +78,15 @@ app.use(clerkMiddleware());
 
 // ------------------ ROUTES ------------------
 app.get("/", (req, res) => res.send("API Working ✅"));
-app.post("/clerk", express.json(), clerkWebhooks);
+app.post(
+  "/clerk",
+  express.json({
+    verify: (req, res, buf) => {
+      req.rawBody = buf.toString();
+    },
+  }),
+  clerkWebhooks
+);
 
 app.use("/api/educator", express.json(), requireAuth(), educatorRouter);
 app.use("/api/course", express.json(), courseRouter);
