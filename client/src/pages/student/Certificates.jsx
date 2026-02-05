@@ -519,14 +519,24 @@ const Certificates = () => {
       doc.setLineWidth(0.3);
       doc.rect(margin + 1.5, margin + 1.5, width - (margin * 2 + 3), height - (margin * 2 + 3));
 
-      // 🏢 Header
-      const headerY = 20;
-      const logoSize = 25;
+        // 🏢 Header
+        const headerY = 15;
+        
+        // Logo dimensions (fixed aspect look)
+        const logoWidth = 24;   // keep width slightly bigger
+        const logoHeight = 18;  // reduced height to avoid stretched look
+        
+        if (logoBase64) {
+          doc.addImage(
+            logoBase64,
+            "PNG",
+            15,
+            headerY + 2, // slight vertical alignment tweak
+            logoWidth,
+            logoHeight
+          );
+        }
 
-      // Logo Box
-      if (logoBase64) {
-        doc.addImage(logoBase64, "PNG", 15, headerY, logoSize, logoSize);
-      }
 
       // Company Name & Info (Center-Left)
       const headerTextX = 45;

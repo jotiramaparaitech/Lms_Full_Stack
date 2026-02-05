@@ -6,10 +6,11 @@ import User from "../models/User.js";
  * 🔹 DEPLOYMENT-SAFE IST TIME FUNCTION
  */
 const getISTDate = () => {
-  const now = new Date();
-  const IST_OFFSET = 5.5 * 60 * 60 * 1000; // +5:30
-  return new Date(now.getTime() + IST_OFFSET);
+  return new Date(
+    new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
+  );
 };
+
 
 /**
  * @desc    Student marks attendance (LOGIN / LOGOUT)
@@ -73,10 +74,10 @@ export const markAttendance = async (req, res) => {
     const currentMinutes = hours * 60 + minutes;
 
     // ✅ FIXED TIME WINDOWS
-    const LOGIN_START = 9 * 60 + 30;   // 09:30
-    const LOGIN_END = 17 * 60 + 30;    // 10:30
-    const LOGOUT_START = 18 * 60;      // 18:00
-    const LOGOUT_END = 19 * 60;        // 19:00
+    const LOGIN_START = 9 * 60 + 30;   
+    const LOGIN_END = 10 * 60 + 30;    
+    const LOGOUT_START = 18 * 60;      
+    const LOGOUT_END = 19 * 60;        
 
     if (
       (session === "LOGIN" &&
@@ -91,7 +92,8 @@ export const markAttendance = async (req, res) => {
     }
 
     // ✅ Attendance date
-    const today = istNow.toISOString().split("T")[0];
+    const today = istNow.toLocaleDateString("en-CA"); // YYYY-MM-DD
+
 
     // ✅ Save attendance
     const attendance = await Attendance.create({
@@ -142,7 +144,8 @@ export const getAttendanceHistory = async (req, res) => {
     }
 
     const istNow = getISTDate();
-    const todayStr = istNow.toISOString().split("T")[0];
+    const todayStr = istNow.toLocaleDateString("en-CA"); // YYYY-MM-DD
+
 
     const allRecords = await Attendance.find({ studentId, courseId })
       .sort({ createdAt: -1 });

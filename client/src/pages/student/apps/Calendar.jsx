@@ -1,4 +1,4 @@
-import React from "react"; // Added React import
+import React from "react";
 import axios from "axios";
 import { useContext } from "react";
 import { AppContext } from "../../../context/AppContext";
@@ -59,7 +59,7 @@ const Calendar = () => {
     },
     {
       id: "class",
-      name: "Online Class",
+      name: "Online Meeting",
       color: "bg-indigo-500",
       icon: <BookOpen size={16} />,
       description: "Live online class session",
@@ -87,17 +87,10 @@ const Calendar = () => {
     },
     {
       id: "mentor-session",
-      name: "Mentor Session",
+      name: "Team Leader Session",
       color: "bg-cyan-500",
       icon: <GraduationCap size={16} />,
       description: "1:1 mentor guidance",
-    },
-    {
-      id: "workshop",
-      name: "Workshop",
-      color: "bg-orange-500",
-      icon: <Briefcase size={16} />,
-      description: "Skill development workshop",
     },
     {
       id: "social",
@@ -621,16 +614,6 @@ const Calendar = () => {
               mobileMenuOpen ? "flex" : "hidden md:flex"
             }`}
           >
-            <div className="flex flex-wrap gap-2 mb-2 md:mb-0">
-              <button className="px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2">
-                <Filter size={14} />
-                <span>Filter</span>
-              </button>
-              <button className="px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2">
-                <Share2 size={14} />
-                <span>Share</span>
-              </button>
-            </div>
 
             {/* ✅ Only Leader can add */}
             {isLeader && (
@@ -648,10 +631,6 @@ const Calendar = () => {
             )}
           </div>
         </div>
-
-        {/* -------------- UI SAME BELOW -------------- */}
-        {/* Your UI remains exactly same (no changes below) */}
-        {/* -------------- UI SAME BELOW -------------- */}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Side - Calendar */}
@@ -682,39 +661,6 @@ const Calendar = () => {
                   </div>
 
                   <div className="flex flex-col sm:flex-row items-center gap-3">
-                    <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg w-full sm:w-auto">
-                      <button
-                        onClick={() => setViewMode("month")}
-                        className={`px-3 py-1 text-sm rounded ${
-                          viewMode === "month"
-                            ? "bg-white shadow"
-                            : "hover:bg-gray-200"
-                        }`}
-                      >
-                        Month
-                      </button>
-                      <button
-                        onClick={() => setViewMode("week")}
-                        className={`px-3 py-1 text-sm rounded ${
-                          viewMode === "week"
-                            ? "bg-white shadow"
-                            : "hover:bg-gray-200"
-                        }`}
-                      >
-                        Week
-                      </button>
-                      <button
-                        onClick={() => setViewMode("day")}
-                        className={`px-3 py-1 text-sm rounded ${
-                          viewMode === "day"
-                            ? "bg-white shadow"
-                            : "hover:bg-gray-200"
-                        }`}
-                      >
-                        Day
-                      </button>
-                    </div>
-
                     <div className="text-sm text-gray-600 text-center sm:text-left">
                       Today: {formatDateMobile(new Date())}
                     </div>
@@ -1169,29 +1115,54 @@ const Calendar = () => {
               </div>
 
               <div className="space-y-4 md:space-y-6">
-                {/* Event Type Selection */}
+                {/* Event Type Selection - FIXED GRID */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Event Type
                   </label>
-                  <div className="grid grid-cols-4 sm:grid-cols-8 gap-1 md:gap-2">
-                    {eventTypes.map((type) => (
+                  <div className="grid grid-cols-4 gap-2">
+                    {eventTypes.slice(0, 4).map((type) => (
                       <button
                         key={type.id}
                         type="button"
                         onClick={() =>
                           setEventForm((prev) => ({ ...prev, type: type.id }))
                         }
-                        className={`p-2 md:p-3 border rounded-lg flex flex-col items-center justify-center gap-1 md:gap-2 ${
+                        className={`p-3 border rounded-lg flex flex-col items-center justify-center gap-2 h-full min-h-[80px] ${
                           eventForm.type === type.id
                             ? "border-cyan-500 bg-cyan-50"
                             : "border-gray-200 hover:border-gray-300"
                         }`}
                       >
                         <div
-                          className={`p-1.5 md:p-2 rounded-lg ${type.color} text-white`}
+                          className={`p-2 rounded-lg ${type.color} text-white`}
                         >
-                          {React.cloneElement(type.icon, { size: 14 })}
+                          {React.cloneElement(type.icon, { size: 16 })}
+                        </div>
+                        <span className="text-xs font-medium text-center">
+                          {type.name}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 mt-2">
+                    {eventTypes.slice(4, 7).map((type) => (
+                      <button
+                        key={type.id}
+                        type="button"
+                        onClick={() =>
+                          setEventForm((prev) => ({ ...prev, type: type.id }))
+                        }
+                        className={`p-3 border rounded-lg flex flex-col items-center justify-center gap-2 h-full min-h-[80px] ${
+                          eventForm.type === type.id
+                            ? "border-cyan-500 bg-cyan-50"
+                            : "border-gray-200 hover:border-gray-300"
+                        }`}
+                      >
+                        <div
+                          className={`p-2 rounded-lg ${type.color} text-white`}
+                        >
+                          {React.cloneElement(type.icon, { size: 16 })}
                         </div>
                         <span className="text-xs font-medium text-center">
                           {type.name}
