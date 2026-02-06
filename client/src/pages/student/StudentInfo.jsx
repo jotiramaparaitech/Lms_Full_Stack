@@ -28,7 +28,12 @@ const StudentInfo = () => {
         toast.error(res.data.message || "Failed to load student info");
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to load student info");
+      if (error.response && error.response.status === 404) {
+        setStudents([]); // Clear students
+        toast.info("You are a Team Leader but no team is assigned yet.");
+      } else {
+        toast.error(error.response?.data?.message || "Failed to load student info");
+      }
     } finally {
       if (!isBackground) setLoading(false);
     }

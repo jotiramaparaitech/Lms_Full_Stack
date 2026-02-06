@@ -88,11 +88,25 @@ export const AppContextProvider = (props) => {
         timeout: 8000,
       });
 
-      setIsTeamLeader(Boolean(res?.data?.isLeader));
+      // ✅ Check if API says leader OR if user profile says leader
+      const apiSaysLeader = Boolean(res?.data?.isLeader);
+      const profileSaysLeader = Boolean(userData?.isTeamLeader);
+
+      setIsTeamLeader(apiSaysLeader || profileSaysLeader);
     } catch (error) {
-      setIsTeamLeader(false);
+      // Only set false if we don't have confirmation from profile
+      if (!userData?.isTeamLeader) {
+        setIsTeamLeader(false);
+      }
     }
   };
+
+  // ✅ Sync isTeamLeader with userData when it loads
+  useEffect(() => {
+    if (userData?.isTeamLeader) {
+      setIsTeamLeader(true);
+    }
+  }, [userData]);
 
 
   // ✅ Fetch all courses (handles errors gracefully)
