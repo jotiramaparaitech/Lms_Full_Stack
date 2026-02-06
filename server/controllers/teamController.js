@@ -749,3 +749,95 @@ export const deleteMessageById = async (req, res) => {
     return res.status(500).json({ success: false, message: err.message });
   }
 };
+
+
+// -----------------------------
+// Get Team Files (Images, PDFs, Documents)
+// -----------------------------
+export const getTeamFiles = async (req, res) => {
+  try {
+    const { teamId } = req.params;
+    const auth = req.auth();
+    const userId = auth?.userId;
+
+    const team = await Team.findById(teamId);
+    if (!team) {
+      return res.status(404).json({ success: false, message: "Team not found" });
+    }
+
+    const isMember = team.members.some((m) => m.userId === userId);
+    if (!isMember) {
+      return res.status(403).json({ 
+        success: false, 
+        message: "Join team to view files" 
+      });
+    }
+
+    // Get all file messages (images and files)
+    const files = await TeamMessage.find({ 
+      teamId,
+      type: { $in: ['image', 'file'] },
+      deleted: { $ne: true }
+    })
+    .sort({ createdAt: -1 })
+    .populate("sender", "name imageUrl")
+    .lean();
+
+    // Enhance file data with metadata
+    const enhancedFiles = files.map(file => {
+      let fileType = 'file';
+      let fileName = file.content || 'Unknown File';
+      let fileSize = 'Unknown';
+      
+      // Extract file name from URL if possible
+      if (file.attachmentUrl) {
+        try {
+          const url = new URL(file.attachmentUrl);
+          const pathParts = url.pathname.split('/');
+          fileName = pathParts[pathParts.length - 1] || fileName;
+        } catch (e) {
+          // If URL parsing fails, keep original name
+        }
+      }
+
+      // Determine file type
+      if (file.type === 'image') {
+        fileType = 'image';
+      } else if (file.attachmentUrl) {
+        const url = file.attachmentUrl.toLowerCase();
+        if (url.includes('.pdf') || url.includes('/pdf/') || url.includes('application/pdf')) {
+          fileType = 'pdf';
+        } else if (url.includes('.doc') || url.includes('.docx') || url.includes('application/msword') || url.includes('application/vnd.openxmlformats')) {
+          fileType = 'document';
+        } else if (url.includes('.xls') || url.includes('.xlsx') || url.includes('application/vnd.ms-excel')) {
+          fileType = 'spreadsheet';
+        } else if (url.includes('.txt') || url.includes('text/plain')) {
+          fileType = 'text';
+        } else if (url.includes('.zip') || url.includes('.rar') || url.includes('application/zip')) {
+          fileType = 'archive';
+        }
+      }
+
+      return {
+        ...file,
+        fileName,
+        fileType,
+        fileSize,
+        downloadUrl: file.attachmentUrl,
+        isPDF: fileType === 'pdf',
+        isImage: fileType === 'image',
+        uploadedAt: file.createdAt,
+        formattedDate: moment(file.createdAt).format('DD MMM YYYY, h:mm A')
+      };
+    });
+
+    res.json({ 
+      success: true, 
+      files: enhancedFiles,
+      count: enhancedFiles.length 
+    });
+  } catch (error) {
+    console.error("❌ getTeamFiles error:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
