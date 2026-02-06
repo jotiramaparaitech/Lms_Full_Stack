@@ -322,26 +322,22 @@ const Teams = () => {
     
     const fileType = getFileType(url, fileName, mimeType);
     
+    // Don't allow viewing PDFs
+    if (fileType === 'pdf') {
+      toast.info("PDF files can only be downloaded");
+      return;
+    }
+    
     try {
-      if (fileType === 'pdf') {
-        // For PDFs, open directly in new tab
-        let viewUrl = url;
-        
-        // Special handling for Cloudinary PDFs
-        if (url.includes('cloudinary.com')) {
-          viewUrl = getViewablePdfUrl(url);
-        }
-        
-        // Open in new tab
-        window.open(viewUrl, '_blank', 'noopener,noreferrer');
-        
-      } else if (fileType === 'image') {
+      if (fileType === 'image') {
         // For images, open in new tab
         window.open(url, '_blank', 'noopener,noreferrer');
-        
+      } else if (fileType === 'text') {
+        // For text files, open in new tab
+        window.open(url, '_blank', 'noopener,noreferrer');
       } else {
         // For other file types that can be viewed in browser
-        const canViewInBrowser = ['text', 'pdf', 'image'].includes(fileType);
+        const canViewInBrowser = ['text', 'image'].includes(fileType);
         
         if (canViewInBrowser) {
           window.open(url, '_blank', 'noopener,noreferrer');
@@ -596,6 +592,11 @@ const Teams = () => {
           msg._id === updatedMessage._id ? { ...updatedMessage, edited: true } : msg
         )
       );
+      setFiles((prev) =>
+        prev.map((file) =>
+          file._id === updatedMessage._id ? { ...updatedMessage, edited: true } : file
+        )
+      );
     });
 
     socketRef.current.on("message-deleted", (deletedMsg) => {
@@ -604,6 +605,13 @@ const Teams = () => {
           msg._id === deletedMsg._id 
             ? { ...msg, deleted: true, content: "[This message was deleted]" }
             : msg
+        )
+      );
+      setFiles((prev) =>
+        prev.map((file) =>
+          file._id === deletedMsg._id 
+            ? { ...file, deleted: true, content: "[This message was deleted]" }
+            : file
         )
       );
     });
@@ -708,9 +716,7 @@ const Teams = () => {
       if (data.success) {
         toast.success("File uploaded successfully!");
         fetchMessages(activeTeam._id);
-        if (activeTab === "files") {
-          fetchTeamFiles(activeTeam._id);
-        }
+        fetchTeamFiles(activeTeam._id); // Always fetch files after upload
       }
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to upload file");
@@ -760,9 +766,7 @@ const Teams = () => {
       if (data.success) {
         toast.success("File updated successfully!");
         fetchMessages(activeTeam._id);
-        if (activeTab === "files") {
-          fetchTeamFiles(activeTeam._id);
-        }
+        fetchTeamFiles(activeTeam._id); // Always fetch files after edit
         
         // Emit socket event for real-time update
         if (socketRef.current) {
@@ -832,8 +836,13 @@ const Teams = () => {
         `${backendUrl}/api/teams/files/${teamId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
+      console.log("Files API Response:", data); // Debug log
       if (data.success) {
-        setFiles(data.files);
+        // Filter to only get file messages (type: 'file' or 'image')
+        const fileMessages = data.files?.filter(file => 
+          (file.type === 'file' || file.type === 'image') && !file.deleted
+        ) || [];
+        setFiles(fileMessages);
       }
     } catch (error) {
       console.error("Failed to fetch files:", error);
@@ -879,9 +888,7 @@ const Teams = () => {
   useEffect(() => {
     if (activeTeam && activeTeam.isMember) {
       fetchMessages(activeTeam._id);
-      if (activeTab === "files") {
-        fetchTeamFiles(activeTeam._id);
-      }
+      fetchTeamFiles(activeTeam._id); // Always fetch files when team is active
     }
   }, [activeTeam]);
 
@@ -969,6 +976,14 @@ const Teams = () => {
             msg._id === messageId 
               ? { ...msg, deleted: true, content: "[This message was deleted]" }
               : msg
+          )
+        );
+        
+        setFiles(prev => 
+          prev.map(file => 
+            file._id === messageId 
+              ? { ...file, deleted: true, content: "[This message was deleted]" }
+              : file
           )
         );
         
@@ -1452,14 +1467,19 @@ const Teams = () => {
                       {/* Show download/view buttons only if file is not deleted */}
                       {!msg.deleted && fileUrl && !isUpdating && (
                         <div className="flex gap-3">
-                          <button
-                            onClick={() => viewFile(fileUrl, fileName, msg.mimeType)}
-                            className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                            title={fileType === 'pdf' ? "Open PDF in browser" : (fileType === 'image' ? "View Image" : "View File")}
-                          >
-                            <Eye size={10} />
-                            {fileType === 'pdf' ? "Open PDF" : "View"}
-                          </button>
+                          {/* For images: show both view and download */}
+                          {fileType === 'image' && (
+                            <button
+                              onClick={() => viewFile(fileUrl, fileName, msg.mimeType)}
+                              className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                              title="View Image"
+                            >
+                              <Eye size={10} />
+                              View
+                            </button>
+                          )}
+                          
+                          {/* For all files (including PDFs and images): show download */}
                           <button
                             onClick={() => downloadFile(fileUrl, fileName, msg.mimeType)}
                             className="text-xs text-gray-600 hover:text-gray-800 flex items-center gap-1"
@@ -1486,7 +1506,8 @@ const Teams = () => {
                             <img 
                               src={fileUrl} 
                               alt={fileName || "Shared image"}
-                              className="w-full rounded-lg max-h-48 object-contain bg-gray-50"
+                              className="w-full rounded-lg max-h-48 object-contain bg-gray-50 cursor-pointer"
+                              onClick={() => viewFile(fileUrl, fileName, msg.mimeType)}
                               onError={(e) => {
                                 e.target.onerror = null;
                                 e.target.src = "https://placehold.co/400x300/e2e8f0/64748b?text=Image+Not+Found";
@@ -1503,12 +1524,12 @@ const Teams = () => {
                                 {fileName}
                               </div>
                               <div className="text-xs text-gray-500">
-                                {fileType === 'pdf' ? "PDF Document - Click 'Open PDF' to view in browser" : "Click to download"}
+                                {fileType === 'pdf' ? "PDF Document - Click 'Download' to save" : "Click to download"}
                               </div>
                               {fileType === 'pdf' && (
                                 <div className="text-xs text-blue-500 mt-1 flex items-center gap-1">
                                   <span className="bg-blue-50 px-2 py-0.5 rounded">PDF</span>
-                                  <span className="text-gray-500">• Opens directly in browser</span>
+                                  <span className="text-gray-500">• Download only</span>
                                 </div>
                               )}
                             </div>
@@ -1991,16 +2012,16 @@ const Teams = () => {
                         </div>
                       )}
 
-                      {/* FILES LIST - UPDATED TO PROPERLY DISPLAY FILES */}
+                      {/* FILES LIST - FIXED TO SHOW FILES PROPERLY */}
                       <div className="flex-1 overflow-y-auto p-4 md:p-6">
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
                           <h3 className="text-lg font-bold text-gray-800">Team Files</h3>
                           <div className="text-sm text-gray-500">
-                            {files?.length || 0} files
+                            {files?.filter(file => !file.deleted).length || 0} files
                           </div>
                         </div>
                         
-                        {!files || files.length === 0 ? (
+                        {!files || files.length === 0 || files.every(file => file.deleted) ? (
                           <div className="text-center py-12 text-gray-400">
                             <FileText size={48} className="mx-auto mb-4 text-gray-300" />
                             <p className="text-lg font-medium">No files shared yet</p>
@@ -2012,72 +2033,72 @@ const Teams = () => {
                           </div>
                         ) : (
                           <div className="grid gap-3">
-                            {files.map((file) => {
-                              // Handle both message and file object formats
-                              const fileUrl = file.attachmentUrl || file.fileUrl;
-                              const fileName = file.fileName || file.content || 'Unnamed File';
-                              const fileType = getFileType(fileUrl, fileName, file.mimeType);
-                              const isImage = fileType === 'image';
-                              const isPDF = fileType === 'pdf';
-                              const isDeleted = file.deleted;
-                              const canEditDelete = canEditDeleteMessage(file);
-                              const isUpdating = updatingMessages[file._id];
-                              const senderName = file.sender?.name || file.userId?.name || 'Unknown user';
-                              const fileDate = file.createdAt || file.uploadedAt;
-                              
-                              return (
-                                <div key={file._id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                                  <div className="flex items-start justify-between">
-                                    <div className="flex items-start gap-3 flex-1">
-                                      <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${getFileTypeColor(fileType)} flex-shrink-0`}>
-                                        {getFileIcon(fileType)}
-                                      </div>
-                                      
-                                      <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 mb-1">
-                                          <h4 className="font-semibold text-gray-800 truncate text-sm">
-                                            {fileName}
-                                          </h4>
-                                          {fileType === 'pdf' && !isDeleted && (
-                                            <span className="px-2 py-0.5 bg-red-100 text-red-600 text-xs font-medium rounded-full">
-                                              PDF
-                                            </span>
-                                          )}
-                                          {fileType === 'image' && !isDeleted && (
-                                            <span className="px-2 py-0.5 bg-green-100 text-green-600 text-xs font-medium rounded-full">
-                                              Image
-                                            </span>
-                                          )}
-                                          {fileType === 'archive' && !isDeleted && (
-                                            <span className="px-2 py-0.5 bg-yellow-100 text-yellow-600 text-xs font-medium rounded-full">
-                                              Archive
-                                            </span>
-                                          )}
+                            {files
+                              .filter(file => !file.deleted)
+                              .map((file) => {
+                                const fileUrl = file.attachmentUrl;
+                                const fileName = file.content || 'Unnamed File';
+                                const fileType = getFileType(fileUrl, fileName, file.mimeType);
+                                const canEditDelete = canEditDeleteMessage(file);
+                                const isUpdating = updatingMessages[file._id];
+                                const senderName = file.sender?.name || 'Unknown user';
+                                const fileDate = file.createdAt;
+                                
+                                return (
+                                  <div key={file._id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                                    <div className="flex items-start justify-between">
+                                      <div className="flex items-start gap-3 flex-1">
+                                        <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${getFileTypeColor(fileType)} flex-shrink-0`}>
+                                          {getFileIcon(fileType)}
                                         </div>
                                         
-                                        <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 mb-2">
-                                          <span className="flex items-center gap-1">
-                                            <Users size={10} />
-                                            {senderName}
-                                          </span>
-                                          <span>•</span>
-                                          <span>{moment(fileDate).format('DD MMM YYYY, h:mm A')}</span>
-                                          {file.edited && !isDeleted && (
-                                            <span className="text-gray-400 italic">(edited)</span>
-                                          )}
-                                        </div>
-                                        
-                                        {!isDeleted && fileUrl && (
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center gap-2 mb-1">
+                                            <h4 className="font-semibold text-gray-800 truncate text-sm">
+                                              {fileName}
+                                            </h4>
+                                            <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                                              fileType === 'pdf' ? 'bg-red-100 text-red-600' :
+                                              fileType === 'image' ? 'bg-green-100 text-green-600' :
+                                              fileType === 'document' ? 'bg-blue-100 text-blue-600' :
+                                              fileType === 'spreadsheet' ? 'bg-green-100 text-green-700' :
+                                              'bg-gray-100 text-gray-600'
+                                            }`}>
+                                              {fileType === 'pdf' ? 'PDF' :
+                                               fileType === 'image' ? 'Image' :
+                                               fileType === 'document' ? 'Doc' :
+                                               fileType === 'spreadsheet' ? 'Excel' :
+                                               fileType === 'archive' ? 'Archive' :
+                                               fileType.toUpperCase()}
+                                            </span>
+                                          </div>
+                                          
+                                          <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 mb-1">
+                                            <span className="flex items-center gap-1">
+                                              <Users size={10} />
+                                              {senderName}
+                                            </span>
+                                            <span>•</span>
+                                            <span>{moment(fileDate).format('DD MMM YYYY, h:mm A')}</span>
+                                            {file.edited && (
+                                              <span className="text-gray-400 italic">(edited)</span>
+                                            )}
+                                          </div>
+                                          
                                           <div className="flex flex-wrap gap-2 mt-2">
-                                            <button
-                                              onClick={() => viewFile(fileUrl, fileName, file.mimeType)}
-                                              className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-600 text-xs font-medium rounded-md hover:bg-blue-100 transition-colors"
-                                              title={fileType === 'pdf' ? "Open PDF in browser" : (fileType === 'image' ? "View Image" : "View File")}
-                                            >
-                                              <Eye size={12} />
-                                              {fileType === 'pdf' ? 'Open PDF' : (fileType === 'image' ? 'View Image' : 'View File')}
-                                            </button>
+                                            {/* For images: show view button */}
+                                            {fileType === 'image' && (
+                                              <button
+                                                onClick={() => viewFile(fileUrl, fileName, file.mimeType)}
+                                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-600 text-xs font-medium rounded-md hover:bg-blue-100 transition-colors"
+                                                title="View Image"
+                                              >
+                                                <Eye size={12} />
+                                                View Image
+                                              </button>
+                                            )}
                                             
+                                            {/* For all files (including PDFs and images): show download button */}
                                             <button
                                               onClick={() => downloadFile(fileUrl, fileName, file.mimeType)}
                                               className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-medium rounded-md hover:bg-gray-200 transition-colors"
@@ -2087,7 +2108,7 @@ const Teams = () => {
                                               Download
                                             </button>
                                             
-                                            {fileUrl && (
+                                            {fileUrl && fileType !== 'pdf' && (
                                               <a
                                                 href={fileUrl}
                                                 target="_blank"
@@ -2100,98 +2121,76 @@ const Teams = () => {
                                               </a>
                                             )}
                                           </div>
-                                        )}
+                                        </div>
                                       </div>
+                                      
+                                      {/* Action menu for edit/delete */}
+                                      {canEditDelete && !isUpdating && (
+                                        <div className="relative">
+                                          <button
+                                            onClick={() => setOpenMessageMenu(openMessageMenu === file._id ? null : file._id)}
+                                            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                                            title="More actions"
+                                          >
+                                            <MoreVertical size={16} />
+                                          </button>
+                                          
+                                          {openMessageMenu === file._id && (
+                                            <div className="absolute right-0 mt-1 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
+                                              <button
+                                                onClick={() => {
+                                                  editFileInputRef.current.click();
+                                                  setEditingMessageId(file._id);
+                                                  setOpenMessageMenu(null);
+                                                }}
+                                                className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 text-gray-700 flex items-center gap-2"
+                                                disabled={editingFile}
+                                              >
+                                                <Edit2 size={14} />
+                                                Edit
+                                              </button>
+                                              <button
+                                                onClick={() => handleDeleteMessage(file._id)}
+                                                className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                                              >
+                                                <Trash2 size={14} />
+                                                Delete
+                                              </button>
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
                                     </div>
                                     
-                                    {/* Action menu for edit/delete */}
-                                    {canEditDelete && !isDeleted && !isUpdating && (
-                                      <div className="relative">
-                                        <button
-                                          onClick={() => setOpenMessageMenu(openMessageMenu === file._id ? null : file._id)}
-                                          className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
-                                          title="More actions"
-                                        >
-                                          <MoreVertical size={16} />
-                                        </button>
-                                        
-                                        {openMessageMenu === file._id && (
-                                          <div className="absolute right-0 mt-1 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
-                                            <button
-                                              onClick={() => {
-                                                editFileInputRef.current.click();
-                                                setEditingMessageId(file._id);
-                                                setOpenMessageMenu(null);
-                                              }}
-                                              className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 text-gray-700 flex items-center gap-2"
-                                              disabled={editingFile}
-                                            >
-                                              <Edit2 size={14} />
-                                              Edit
-                                            </button>
-                                            <button
-                                              onClick={() => handleDeleteMessage(file._id)}
-                                              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                                            >
-                                              <Trash2 size={14} />
-                                              Delete
-                                            </button>
-                                          </div>
-                                        )}
+                                    {/* Image preview for image files */}
+                                    {fileType === 'image' && fileUrl && (
+                                      <div className="mt-4 border border-gray-200 rounded-lg overflow-hidden">
+                                        <img
+                                          src={fileUrl}
+                                          alt={fileName || 'Shared image'}
+                                          className="w-full max-h-64 object-contain bg-gray-50 cursor-pointer"
+                                          onClick={() => viewFile(fileUrl, fileName, file.mimeType)}
+                                          onError={(e) => {
+                                            e.target.onerror = null;
+                                            e.target.src = 'https://placehold.co/600x400/e2e8f0/64748b?text=Image+Not+Found';
+                                          }}
+                                        />
+                                      </div>
+                                    )}
+                                    
+                                    {/* PDF specific info */}
+                                    {fileType === 'pdf' && (
+                                      <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
+                                        <span className="flex items-center gap-1">
+                                          <FileText size={12} />
+                                          <span>PDF Document - Download only</span>
+                                        </span>
+                                        <span className="text-blue-500 font-medium">PDF Ready</span>
                                       </div>
                                     )}
                                   </div>
-                                  
-                                  {/* Image preview for image files */}
-                                  {fileType === 'image' && !isDeleted && fileUrl && (
-                                    <div className="mt-4 border border-gray-200 rounded-lg overflow-hidden">
-                                      <img
-                                        src={fileUrl}
-                                        alt={fileName || 'Shared image'}
-                                        className="w-full max-h-64 object-contain bg-gray-50"
-                                        onError={(e) => {
-                                          e.target.onerror = null;
-                                          e.target.src = 'https://placehold.co/600x400/e2e8f0/64748b?text=Image+Not+Found';
-                                        }}
-                                      />
-                                    </div>
-                                  )}
-                                  
-                                  {/* File info */}
-                                  {!isDeleted && (
-                                    <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
-                                      <span className="flex items-center gap-1">
-                                        <span>File Type:</span>
-                                        <span className="font-medium">{fileType.toUpperCase()}</span>
-                                        {fileType === 'pdf' && (
-                                          <span className="text-blue-500">• Opens directly in browser</span>
-                                        )}
-                                      </span>
-                                      {fileUrl && (
-                                        <a
-                                          href={fileUrl}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="text-blue-500 hover:text-blue-600 hover:underline"
-                                          title={fileType === 'pdf' ? "Open PDF in browser" : "Open direct link"}
-                                        >
-                                          {fileType === 'pdf' ? "View PDF" : "Direct Link"}
-                                        </a>
-                                      )}
-                                    </div>
-                                  )}
-                                  
-                                  {isDeleted && (
-                                    <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                                      <div className="flex items-center justify-center gap-2 text-gray-500">
-                                        <AlertCircle size={14} />
-                                        <p className="text-xs">This file has been deleted</p>
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
+                                );
+                              })}
                           </div>
                         )}
                       </div>
