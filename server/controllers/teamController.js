@@ -443,13 +443,18 @@ export const getStudentInfo = async (req, res) => {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    // Find team where this user is leader
-    const team = await Team.findOne({ leader: leaderId });
+    // Find team where this user is leader OR an admin member
+    const team = await Team.findOne({
+      $or: [
+        { leader: leaderId },
+        { members: { $elemMatch: { userId: leaderId, role: "admin" } } }
+      ]
+    });
 
     if (!team) {
       return res.status(404).json({
         success: false,
-        message: "You are not a team leader or no team found",
+        message: "You are not a team leader/admin or no team found",
       });
     }
 
