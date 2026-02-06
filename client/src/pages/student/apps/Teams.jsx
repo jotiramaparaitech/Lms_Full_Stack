@@ -83,7 +83,421 @@ const Teams = () => {
   // Track which messages are currently being edited
   const [updatingMessages, setUpdatingMessages] = useState({});
 
-  // FIXED: Check if user can send messages (team leader OR admin)
+  // ================= ENHANCED FILE UTILITY FUNCTIONS =================
+  
+  const getFileType = (url, fileName, mimeType) => {
+    if (!url) return 'unknown';
+    
+    const urlLower = url.toLowerCase();
+    const fileNameLower = fileName?.toLowerCase() || '';
+    
+    // First check MIME type if available
+    if (mimeType) {
+      if (mimeType === 'application/pdf') return 'pdf';
+      if (mimeType.startsWith('image/')) return 'image';
+      if (mimeType.includes('msword') || mimeType.includes('document')) return 'document';
+      if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return 'spreadsheet';
+      if (mimeType === 'text/plain') return 'text';
+      if (mimeType.includes('zip') || mimeType.includes('rar')) return 'archive';
+    }
+    
+    // Check for PDF
+    if (urlLower.includes('.pdf') || urlLower.includes('/pdf/') || 
+        urlLower.includes('application/pdf') || fileNameLower.endsWith('.pdf')) {
+      return 'pdf';
+    }
+    
+    // Check for images
+    if (urlLower.includes('.jpg') || urlLower.includes('.jpeg') || 
+        urlLower.includes('.png') || urlLower.includes('.gif') ||
+        urlLower.includes('.webp') || urlLower.includes('.bmp') ||
+        urlLower.includes('.svg') || urlLower.includes('image/')) {
+      return 'image';
+    }
+    
+    // Check for documents
+    if (urlLower.includes('.doc') || urlLower.includes('.docx') ||
+        fileNameLower.endsWith('.doc') || fileNameLower.endsWith('.docx')) {
+      return 'document';
+    }
+    
+    // Check for spreadsheets
+    if (urlLower.includes('.xls') || urlLower.includes('.xlsx') ||
+        fileNameLower.endsWith('.xls') || fileNameLower.endsWith('.xlsx')) {
+      return 'spreadsheet';
+    }
+    
+    // Check for text files
+    if (urlLower.includes('.txt') || fileNameLower.endsWith('.txt')) {
+      return 'text';
+    }
+    
+    // Check for archives
+    if (urlLower.includes('.zip') || urlLower.includes('.rar') ||
+        fileNameLower.endsWith('.zip') || fileNameLower.endsWith('.rar')) {
+      return 'archive';
+    }
+    
+    return 'file';
+  };
+
+  const getFileIcon = (fileType) => {
+    switch (fileType) {
+      case 'pdf':
+        return <FileText className="text-red-500" size={20} />;
+      case 'image':
+        return <ImageIcon className="text-green-500" size={20} />;
+      case 'document':
+        return <FileText className="text-blue-500" size={20} />;
+      case 'spreadsheet':
+        return <FileText className="text-green-600" size={20} />;
+      case 'text':
+        return <FileText className="text-gray-500" size={20} />;
+      case 'archive':
+        return <FileText className="text-yellow-500" size={20} />;
+      default:
+        return <FileText className="text-gray-500" size={20} />;
+    }
+  };
+
+  const getFileTypeColor = (fileType) => {
+    switch (fileType) {
+      case 'pdf':
+        return 'bg-red-50 text-red-600';
+      case 'image':
+        return 'bg-green-50 text-green-600';
+      case 'document':
+        return 'bg-blue-50 text-blue-600';
+      case 'spreadsheet':
+        return 'bg-green-50 text-green-700';
+      case 'text':
+        return 'bg-gray-50 text-gray-600';
+      case 'archive':
+        return 'bg-yellow-50 text-yellow-600';
+      default:
+        return 'bg-gray-50 text-gray-600';
+    }
+  };
+
+  const getFileExtension = (url) => {
+    try {
+      const cleanUrl = url.split('?')[0];
+      const parts = cleanUrl.split('.');
+      if (parts.length > 1) {
+        const ext = parts.pop().toLowerCase();
+        const validExts = ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'doc', 'docx', 'xls', 'xlsx', 'txt', 'zip', 'rar'];
+        if (validExts.includes(ext)) {
+          return ext;
+        }
+      }
+    } catch (e) {
+      console.error("Error getting extension:", e);
+    }
+    return null;
+  };
+
+  // Enhanced Cloudinary URL handler for viewing PDFs
+  const getViewablePdfUrl = (url) => {
+    if (!url || !url.includes('cloudinary.com')) return url;
+    
+    try {
+      const urlObj = new URL(url);
+      const pathname = urlObj.pathname;
+      
+      // Check if it's a PDF
+      const isPDF = pathname.includes('.pdf') || 
+                    pathname.includes('/pdf/') || 
+                    url.includes('application/pdf');
+      
+      if (!isPDF) return url;
+      
+      // For viewing PDFs in browser
+      let newPathname = pathname;
+      if (pathname.includes('/image/upload/')) {
+        newPathname = pathname.replace('/image/upload/', '/raw/upload/');
+      } else if (pathname.includes('/upload/') && !pathname.includes('/raw/upload/')) {
+        newPathname = pathname.replace('/upload/', '/raw/upload/');
+      }
+      
+      urlObj.pathname = newPathname;
+      
+      // Set up search params for viewing
+      const searchParams = new URLSearchParams();
+      
+      // Keep only essential parameters
+      const essentialParams = ['version', 'api_key', 'timestamp', 'signature'];
+      const currentParams = new URLSearchParams(urlObj.search);
+      
+      essentialParams.forEach(param => {
+        if (currentParams.has(param)) {
+          searchParams.set(param, currentParams.get(param));
+        }
+      });
+      
+      // Force PDF format and remove any download flags
+      searchParams.set('format', 'pdf');
+      
+      // Remove any download-related parameters
+      searchParams.delete('fl');
+      searchParams.delete('dl');
+      searchParams.delete('attachment');
+      
+      urlObj.search = searchParams.toString();
+      
+      return urlObj.toString();
+      
+    } catch (error) {
+      console.error("Error fixing PDF URL for viewing:", error);
+      return url;
+    }
+  };
+
+  // Download URL generator
+  const getDownloadablePdfUrl = (url, fileName) => {
+    if (!url || !url.includes('cloudinary.com')) return url;
+    
+    try {
+      const urlObj = new URL(url);
+      const pathname = urlObj.pathname;
+      
+      // Check if it's a PDF
+      const isPDF = pathname.includes('.pdf') || 
+                    pathname.includes('/pdf/') || 
+                    url.includes('application/pdf');
+      
+      if (!isPDF) return url;
+      
+      // For downloading PDFs
+      let newPathname = pathname;
+      if (pathname.includes('/image/upload/')) {
+        newPathname = pathname.replace('/image/upload/', '/raw/upload/');
+      } else if (pathname.includes('/upload/') && !pathname.includes('/raw/upload/')) {
+        newPathname = pathname.replace('/upload/', '/raw/upload/');
+      }
+      
+      urlObj.pathname = newPathname;
+      
+      // Set up search params for download
+      const searchParams = new URLSearchParams();
+      
+      // Keep essential parameters
+      const essentialParams = ['version', 'api_key', 'timestamp', 'signature'];
+      const currentParams = new URLSearchParams(urlObj.search);
+      
+      essentialParams.forEach(param => {
+        if (currentParams.has(param)) {
+          searchParams.set(param, currentParams.get(param));
+        }
+      });
+      
+      // Force PDF format and add download flags
+      searchParams.set('format', 'pdf');
+      searchParams.set('fl', 'attachment'); // Force download
+      
+      // Set filename for download
+      if (fileName) {
+        let finalFileName = fileName;
+        if (!finalFileName.includes('.')) {
+          finalFileName = `${finalFileName}.pdf`;
+        }
+        searchParams.set('dl', finalFileName);
+      }
+      
+      urlObj.search = searchParams.toString();
+      
+      return urlObj.toString();
+      
+    } catch (error) {
+      console.error("Error fixing PDF URL for download:", error);
+      return url;
+    }
+  };
+
+  // SIMPLIFIED: View file function - Opens directly in new tab
+  const viewFile = (url, fileName, mimeType) => {
+    if (!url) {
+      toast.error("File not available");
+      return;
+    }
+    
+    const fileType = getFileType(url, fileName, mimeType);
+    
+    try {
+      if (fileType === 'pdf') {
+        // For PDFs, open directly in new tab
+        let viewUrl = url;
+        
+        // Special handling for Cloudinary PDFs
+        if (url.includes('cloudinary.com')) {
+          viewUrl = getViewablePdfUrl(url);
+        }
+        
+        // Open in new tab
+        window.open(viewUrl, '_blank', 'noopener,noreferrer');
+        
+      } else if (fileType === 'image') {
+        // For images, open in new tab
+        window.open(url, '_blank', 'noopener,noreferrer');
+        
+      } else {
+        // For other file types that can be viewed in browser
+        const canViewInBrowser = ['text', 'pdf', 'image'].includes(fileType);
+        
+        if (canViewInBrowser) {
+          window.open(url, '_blank', 'noopener,noreferrer');
+        } else {
+          toast.info("This file type cannot be viewed in browser. Downloading instead...");
+          setTimeout(() => downloadFile(url, fileName, mimeType), 500);
+        }
+      }
+    } catch (error) {
+      console.error("Error viewing file:", error);
+      toast.error("Failed to open file. Please try downloading instead.");
+      
+      // Fallback: try direct download
+      setTimeout(() => downloadFile(url, fileName, mimeType), 500);
+    }
+  };
+
+  // Enhanced downloadFile function
+  const downloadFile = async (url, fileName, mimeType) => {
+    if (!url) {
+      toast.error("File not available for download");
+      return;
+    }
+    
+    try {
+      const downloadToast = toast.loading("Preparing download...");
+      
+      const fileType = getFileType(url, fileName, mimeType);
+      let downloadUrl = url;
+      
+      // Special handling for Cloudinary PDFs
+      if (fileType === 'pdf' && url.includes('cloudinary.com')) {
+        downloadUrl = getDownloadablePdfUrl(url, fileName);
+      }
+      
+      // Extract file extension
+      let finalFileName = fileName || 'download';
+      if (!finalFileName.includes('.')) {
+        const ext = getFileExtension(url);
+        if (ext) {
+          finalFileName = `${finalFileName}.${ext}`;
+        } else if (fileType === 'pdf') {
+          finalFileName = `${finalFileName}.pdf`;
+        } else if (fileType === 'image') {
+          finalFileName = `${finalFileName}.jpg`;
+        }
+      }
+      
+      // Method 1: Try using fetch and blob for better control
+      try {
+        const response = await fetch(downloadUrl, {
+          method: 'GET',
+          mode: 'cors',
+          cache: 'no-cache'
+        });
+        
+        if (response.ok) {
+          const blob = await response.blob();
+          const blobUrl = window.URL.createObjectURL(blob);
+          
+          const link = document.createElement('a');
+          link.href = blobUrl;
+          link.download = finalFileName;
+          link.style.display = 'none';
+          document.body.appendChild(link);
+          link.click();
+          
+          // Cleanup
+          setTimeout(() => {
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(blobUrl);
+            
+            toast.update(downloadToast, {
+              render: "Download started!",
+              type: "success",
+              isLoading: false,
+              autoClose: 2000
+            });
+          }, 100);
+          
+          return;
+        }
+      } catch (fetchError) {
+        console.warn("Fetch download failed, using direct method:", fetchError);
+      }
+      
+      // Method 2: Direct download link (fallback)
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = finalFileName;
+      link.target = '_blank'; // Open in new tab if download fails
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      setTimeout(() => {
+        document.body.removeChild(link);
+        toast.update(downloadToast, {
+          render: "Download initiated!",
+          type: "success",
+          isLoading: false,
+          autoClose: 2000
+        });
+      }, 100);
+      
+    } catch (error) {
+      console.error("Download error:", error);
+      
+      // Final fallback: open in new tab
+      toast.update(toast.loading(""), {
+        render: "Opening file in new tab...",
+        type: "info",
+        isLoading: false,
+        autoClose: 2000
+      });
+      
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  // Get file URL from message
+  const getFileUrl = (message) => {
+    if (!message || message.deleted) return null;
+    
+    if (message.attachmentUrl && message.attachmentUrl.startsWith('http')) {
+      return message.attachmentUrl;
+    }
+    
+    if (message.type === 'text' && message.content) {
+      return null;
+    }
+    
+    return null;
+  };
+
+  // Get file name from message
+  const getFileName = (message) => {
+    if (!message) return "File";
+    
+    if (message.deleted) return "[Deleted file]";
+    
+    if (message.content && message.type !== 'text') {
+      return message.content;
+    }
+    
+    if (message.attachmentUrl) {
+      const urlParts = message.attachmentUrl.split('/');
+      const fileName = urlParts[urlParts.length - 1].split('?')[0];
+      return decodeURIComponent(fileName);
+    }
+    
+    return "file";
+  };
+
+  // Check if user can send messages (team leader OR admin)
   const canSendMessages = () => {
     if (!activeTeam || !userData) return false;
     
@@ -98,7 +512,7 @@ const Teams = () => {
     return userMembership?.role === "admin";
   };
 
-  // FIXED: Check if user can edit team
+  // Check if user can edit team
   const canEditTeam = () => {
     if (!activeTeam || !userData) return false;
     
@@ -113,7 +527,7 @@ const Teams = () => {
     return userMembership?.role === "admin";
   };
 
-  // FIXED: Check if user can edit/delete a specific message
+  // Check if user can edit/delete a specific message
   const canEditDeleteMessage = (message) => {
     if (!activeTeam || !userData || !message) return false;
     
@@ -225,23 +639,25 @@ const Teams = () => {
     }
 
     // Validate file types
-    const allowedImageTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+    const allowedImageTypes = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"];
     const allowedFileTypes = [
       "application/pdf",
       "application/msword",
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       "application/vnd.ms-excel",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "text/plain"
+      "text/plain",
+      "application/zip",
+      "application/x-rar-compressed"
     ];
 
     if (fileType === "image" && !allowedImageTypes.includes(file.type)) {
-      toast.error("Please select a valid image (JPEG, PNG, GIF, WebP)");
+      toast.error("Please select a valid image (JPEG, PNG, GIF, WebP, SVG)");
       return;
     }
 
     if (fileType === "file" && !allowedFileTypes.includes(file.type) && !allowedImageTypes.includes(file.type)) {
-      toast.error("Please select a valid file (PDF, Word, Excel, Text, or Images)");
+      toast.error("Please select a valid file (PDF, Word, Excel, Text, Images, or Archives)");
       return;
     }
 
@@ -260,7 +676,7 @@ const Teams = () => {
   const uploadFile = async (file, fileType = "file", isFilesTab = false) => {
     if (!activeTeam) return;
     
-    // FIXED: Check if user can send messages
+    // Check if user can send messages
     if (!canSendMessages()) {
       toast.error("Only team leaders or admins can upload files");
       return;
@@ -311,7 +727,7 @@ const Teams = () => {
   const editFileMessage = async (file, messageId) => {
     if (!activeTeam || !messageId) return;
     
-    // FIXED: Check if user can edit messages
+    // Check if user can edit messages
     const targetMessage = messages.find(m => m._id === messageId);
     if (!targetMessage) return;
     
@@ -370,206 +786,6 @@ const Teams = () => {
     }
   };
 
-  const fetchTeamFiles = async (teamId) => {
-    try {
-      const token = await getToken();
-      const { data } = await axios.get(
-        `${backendUrl}/api/teams/files/${teamId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (data.success) {
-        setFiles(data.files);
-      }
-    } catch (error) {
-      console.error("Failed to fetch files:", error);
-    }
-  };
-
-  const getFileUrl = (message) => {
-    if (!message || message.deleted) return null;
-    
-    if (message.attachmentUrl && message.attachmentUrl.startsWith('http')) {
-      return message.attachmentUrl;
-    }
-    
-    if (message.type === 'text' && message.content) {
-      return null;
-    }
-    
-    return null;
-  };
-
-  const getFileName = (message) => {
-    if (!message) return "File";
-    
-    if (message.deleted) return "[Deleted file]";
-    
-    if (message.content && message.type !== 'text') {
-      return message.content;
-    }
-    
-    if (message.attachmentUrl) {
-      const urlParts = message.attachmentUrl.split('/');
-      return urlParts[urlParts.length - 1];
-    }
-    
-    return "file";
-  };
-
-  const downloadFile = async (url, fileName) => {
-    if (!url) {
-      toast.error("File not available for download");
-      return;
-    }
-    
-    try {
-      // Show loading toast
-      const downloadToast = toast.loading("Preparing download...");
-      
-      // Extract file name from URL if not provided
-      let finalFileName = fileName || 'download';
-      
-      // Get file extension from URL
-      const urlParts = url.split('/');
-      const lastPart = urlParts[urlParts.length - 1];
-      const queryIndex = lastPart.indexOf('?');
-      const cleanFileName = queryIndex > -1 ? lastPart.substring(0, queryIndex) : lastPart;
-      
-      // If fileName is generic or not provided, use the one from URL
-      if (!fileName || fileName === 'file' || fileName === 'download') {
-        finalFileName = cleanFileName;
-      }
-      
-      // Ensure file has proper extension
-      if (!finalFileName.includes('.')) {
-        const extension = cleanFileName.includes('.') 
-          ? cleanFileName.split('.').pop().split('?')[0]
-          : getExtensionFromUrl(url);
-        
-        if (extension && extension.length <= 5) {
-          finalFileName = `${finalFileName}.${extension}`;
-        } else {
-          // Try to detect file type from URL
-          if (url.includes('image') || /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(url)) {
-            finalFileName = `${finalFileName}.jpg`;
-          } else if (url.includes('pdf') || /\.pdf(\?|$)/i.test(url)) {
-            finalFileName = `${finalFileName}.pdf`;
-          } else if (url.includes('doc') || /\.(doc|docx)(\?|$)/i.test(url)) {
-            finalFileName = `${finalFileName}.docx`;
-          } else if (url.includes('xls') || /\.(xls|xlsx)(\?|$)/i.test(url)) {
-            finalFileName = `${finalFileName}.xlsx`;
-          } else {
-            finalFileName = `${finalFileName}.file`;
-          }
-        }
-      }
-      
-      // Method 1: Try direct download with fetch (works for most servers)
-      try {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error('Fetch failed');
-        
-        const blob = await response.blob();
-        const blobUrl = window.URL.createObjectURL(blob);
-        
-        const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = finalFileName;
-        link.style.display = 'none';
-        
-        document.body.appendChild(link);
-        link.click();
-        
-        // Cleanup
-        setTimeout(() => {
-          window.URL.revokeObjectURL(blobUrl);
-          document.body.removeChild(link);
-        }, 100);
-        
-        toast.update(downloadToast, {
-          render: "Download started!",
-          type: "success",
-          isLoading: false,
-          autoClose: 2000
-        });
-        return;
-        
-      } catch (fetchError) {
-        
-        // Method 2: Force download by adding download attribute
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = finalFileName;
-        
-        // Add these attributes to force download
-        link.setAttribute('type', 'hidden');
-        link.setAttribute('download', finalFileName);
-        
-        document.body.appendChild(link);
-        
-        // Try multiple click methods
-        link.click();
-        
-        // Also try simulating a click with mouse events
-        const event = new MouseEvent('click', {
-          view: window,
-          bubbles: true,
-          cancelable: true
-        });
-        link.dispatchEvent(event);
-        
-        // Cleanup
-        setTimeout(() => {
-          document.body.removeChild(link);
-        }, 100);
-        
-        toast.update(downloadToast, {
-          render: "Download started!",
-          type: "success",
-          isLoading: false,
-          autoClose: 2000
-        });
-      }
-      
-    } catch (error) {
-      console.error("Download error:", error);
-      
-      // Fallback: Open in new tab with a message
-      toast.warning("Opening file in new tab... Right-click and 'Save As' to download.");
-      window.open(url, '_blank', 'noopener,noreferrer');
-    }
-  };
-
-  // Helper function to get file extension from URL
-  const getExtensionFromUrl = (url) => {
-    try {
-      // Remove query parameters
-      const cleanUrl = url.split('?')[0];
-      const parts = cleanUrl.split('.');
-      if (parts.length > 1) {
-        const ext = parts.pop().toLowerCase();
-        // Common file extensions
-        const validExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 
-                                'pdf', 'doc', 'docx', 'xls', 'xlsx', 'txt', 'zip', 'rar'];
-        if (validExtensions.includes(ext)) {
-          return ext;
-        }
-      }
-    } catch (e) {
-      console.error("Error extracting extension:", e);
-    }
-    return null;
-  };
-
-  const viewFile = (url) => {
-    if (!url) {
-      toast.error("File not available");
-      return;
-    }
-    
-    window.open(url, '_blank', 'noopener,noreferrer');
-  };
-
   // ================= DATA FETCHING =================
   const fetchTeams = async () => {
     try {
@@ -607,6 +823,53 @@ const Teams = () => {
     } catch (error) {
       console.error("Failed to fetch messages:", error);
     }
+  };
+
+  const fetchTeamFiles = async (teamId) => {
+    try {
+      const token = await getToken();
+      const { data } = await axios.get(
+        `${backendUrl}/api/teams/files/${teamId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (data.success) {
+        setFiles(data.files);
+      }
+    } catch (error) {
+      console.error("Failed to fetch files:", error);
+    }
+  };
+
+  // Handle file edit selection
+  const handleEditFileSelect = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("File size should be less than 10MB");
+      return;
+    }
+
+    // Validate file types
+    const allowedImageTypes = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"];
+    const allowedFileTypes = [
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "text/plain",
+      "application/zip",
+      "application/x-rar-compressed"
+    ];
+
+    if (!allowedImageTypes.includes(file.type) && !allowedFileTypes.includes(file.type)) {
+      toast.error("Please select a valid file (PDF, Word, Excel, Text, Images, or Archives)");
+      return;
+    }
+
+    await editFileMessage(file, editingMessageId);
   };
 
   useEffect(() => {
@@ -726,36 +989,6 @@ const Teams = () => {
         toast.error(error.response?.data?.message || "Failed to delete message");
       }
     }
-  };
-
-  // Handle file edit selection
-  const handleEditFileSelect = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    // Validate file size (max 10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("File size should be less than 10MB");
-      return;
-    }
-
-    // Validate file types
-    const allowedImageTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
-    const allowedFileTypes = [
-      "application/pdf",
-      "application/msword",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "application/vnd.ms-excel",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "text/plain"
-    ];
-
-    if (!allowedImageTypes.includes(file.type) && !allowedFileTypes.includes(file.type)) {
-      toast.error("Please select a valid file (PDF, Word, Excel, Text, or Images)");
-      return;
-    }
-
-    await editFileMessage(file, editingMessageId);
   };
 
   // ================= TEAM ACTIONS =================
@@ -1026,7 +1259,7 @@ const Teams = () => {
     return grouped;
   };
 
-  // FIXED: Get user role in team
+  // Get user role in team
   const getUserRoleInTeam = () => {
     if (!activeTeam || !userData) return null;
     
@@ -1047,6 +1280,9 @@ const Teams = () => {
     const isEditing = editingMessageId === msg._id;
     const isUpdating = updatingMessages[msg._id];
     const displayTime = msg.updatedAt && msg.edited ? msg.updatedAt : msg.createdAt;
+    const fileType = getFileType(fileUrl, fileName, msg.mimeType);
+    const isImage = fileType === 'image';
+    const isPDF = fileType === 'pdf';
 
     return (
       <div key={msg._id} className="flex gap-3 group">
@@ -1202,15 +1438,11 @@ const Teams = () => {
                     )}
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        {msg.type === 'image' ? (
-                          <ImageIcon size={14} className={msg.deleted ? "text-gray-400" : "text-green-500"} />
-                        ) : (
-                          <FileText size={14} className={msg.deleted ? "text-gray-400" : "text-blue-500"} />
-                        )}
+                        {getFileIcon(fileType)}
                         <span className={`text-xs font-medium ${
                           msg.deleted ? "text-gray-500" : "text-gray-700"
                         }`}>
-                          {msg.deleted ? 'Deleted File' : (msg.type === 'image' ? 'Image' : 'File')}
+                          {msg.deleted ? 'Deleted File' : (fileType === 'pdf' ? 'PDF Document' : (fileType === 'image' ? 'Image' : 'File'))}
                         </span>
                         {msg.edited && !msg.deleted && (
                           <span className="text-xs text-gray-400 italic">(edited)</span>
@@ -1221,17 +1453,17 @@ const Teams = () => {
                       {!msg.deleted && fileUrl && !isUpdating && (
                         <div className="flex gap-3">
                           <button
-                            onClick={() => viewFile(fileUrl)}
+                            onClick={() => viewFile(fileUrl, fileName, msg.mimeType)}
                             className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                            title={msg.type === 'image' ? "View Image" : "View File"}
+                            title={fileType === 'pdf' ? "Open PDF in browser" : (fileType === 'image' ? "View Image" : "View File")}
                           >
                             <Eye size={10} />
-                            View
+                            {fileType === 'pdf' ? "Open PDF" : "View"}
                           </button>
                           <button
-                            onClick={() => downloadFile(fileUrl, fileName)}
+                            onClick={() => downloadFile(fileUrl, fileName, msg.mimeType)}
                             className="text-xs text-gray-600 hover:text-gray-800 flex items-center gap-1"
-                            title="Download"
+                            title="Download File"
                           >
                             <Download size={10} />
                             Download
@@ -1249,7 +1481,7 @@ const Teams = () => {
                       </div>
                     ) : (
                       <>
-                        {msg.type === 'image' && fileUrl ? (
+                        {fileType === 'image' && fileUrl ? (
                           <div className="relative">
                             <img 
                               src={fileUrl} 
@@ -1261,21 +1493,27 @@ const Teams = () => {
                               }}
                             />
                           </div>
-                        ) : !msg.type === 'image' && fileUrl ? (
+                        ) : (
                           <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                            <div className="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center">
-                              <FileText size={18} className="text-blue-500" />
+                            <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${getFileTypeColor(fileType).split(' ')[0]}`}>
+                              {getFileIcon(fileType)}
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="font-medium text-gray-800 text-sm truncate">
                                 {fileName}
                               </div>
                               <div className="text-xs text-gray-500">
-                                Click to download
+                                {fileType === 'pdf' ? "PDF Document - Click 'Open PDF' to view in browser" : "Click to download"}
                               </div>
+                              {fileType === 'pdf' && (
+                                <div className="text-xs text-blue-500 mt-1 flex items-center gap-1">
+                                  <span className="bg-blue-50 px-2 py-0.5 rounded">PDF</span>
+                                  <span className="text-gray-500">• Opens directly in browser</span>
+                                </div>
+                              )}
                             </div>
                           </div>
-                        ) : null}
+                        )}
                       </>
                     )}
                   </div>
@@ -1429,7 +1667,7 @@ const Teams = () => {
                           {activeTeam.name}
                         </h2>
                         <p className="text-xs text-gray-500 truncate max-w-[200px]">
-                          {/* FIXED: Show user role correctly */}
+                          {/* Show user role correctly */}
                           {getUserRoleInTeam() === "leader" && " • Team Leader"}
                           {getUserRoleInTeam() === "admin" && " • Admin"}
                         </p>
@@ -1598,7 +1836,7 @@ const Teams = () => {
                             ref={editFileInputRef}
                             type="file"
                             className="hidden"
-                            accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+                            accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.rar"
                             onChange={handleEditFileSelect}
                           />
 
@@ -1681,7 +1919,7 @@ const Teams = () => {
                       </div>
                   )}
 
-                  {/* FILES TAB - FIXED VERSION */}
+                  {/* FILES TAB - UPDATED TO SHOW FILES PROPERLY */}
                   {activeTeam.isMember && activeTab === 'files' && (
                     <div className="h-full flex flex-col">
                       {/* Hidden file inputs for Files tab */}
@@ -1696,7 +1934,7 @@ const Teams = () => {
                         type="file"
                         ref={filesTabFileInputRef}
                         className="hidden"
-                        accept=".pdf,.doc,.docx,.txt,.xls,.xlsx,image/*"
+                        accept=".pdf,.doc,.docx,.txt,.xls,.xlsx,image/*,.zip,.rar"
                         onChange={(e) => handleFileSelect(e, "file", true)}
                       />
                       
@@ -1705,11 +1943,11 @@ const Teams = () => {
                         ref={editFileInputRef}
                         type="file"
                         className="hidden"
-                        accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+                        accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.rar"
                         onChange={handleEditFileSelect}
                       />
                       
-                      {/* UPLOAD SECTION (Same as Posts tab) */}
+                      {/* UPLOAD SECTION */}
                       {canSendMessages() && (
                         <div className="p-4 bg-white border-b border-gray-200">
                           <div className="flex gap-3 bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
@@ -1753,16 +1991,16 @@ const Teams = () => {
                         </div>
                       )}
 
-                      {/* FILES LIST - FIXED EDITS */}
+                      {/* FILES LIST - UPDATED TO PROPERLY DISPLAY FILES */}
                       <div className="flex-1 overflow-y-auto p-4 md:p-6">
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
                           <h3 className="text-lg font-bold text-gray-800">Team Files</h3>
                           <div className="text-sm text-gray-500">
-                            {messages.filter(m => (m.type === 'image' || m.type === 'file') && !m.deleted).length} files
+                            {files?.length || 0} files
                           </div>
                         </div>
                         
-                        {messages.filter(m => m.type === 'image' || m.type === 'file').length === 0 ? (
+                        {!files || files.length === 0 ? (
                           <div className="text-center py-12 text-gray-400">
                             <FileText size={48} className="mx-auto mb-4 text-gray-300" />
                             <p className="text-lg font-medium">No files shared yet</p>
@@ -1774,170 +2012,186 @@ const Teams = () => {
                           </div>
                         ) : (
                           <div className="grid gap-3">
-                            {messages
-                              .filter(m => m.type === 'image' || m.type === 'file')
-                              .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) // Sort by date, newest first
-                              .map((file) => {
-                                const fileUrl = getFileUrl(file);
-                                const fileName = getFileName(file);
-                                const fileExtension = fileName?.split('.').pop()?.toUpperCase() || 'FILE';
-                                const canEditDelete = canEditDeleteMessage(file);
-                                const isDeleted = file.deleted;
-                                const isUpdating = updatingMessages[file._id];
-                                const displayTime = file.updatedAt && file.edited ? file.updatedAt : file.createdAt;
-                                
-                                return (
-                                  <div 
-                                    key={file._id} 
-                                    className={`border rounded-lg p-4 hover:shadow-md transition-shadow relative ${
-                                      isDeleted 
-                                        ? "bg-gray-50 border-gray-200" 
-                                        : "bg-white border-gray-200"
-                                    }`}
-                                  >
-                                    {isUpdating && (
-                                      <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10 rounded-lg">
-                                        <div className="flex flex-col items-center gap-2">
-                                          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-                                          <span className="text-sm font-medium text-gray-700">Updating file...</span>
-                                        </div>
-                                      </div>
-                                    )}
-                                    
-                                    <div className="flex items-center justify-between">
-                                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                                          isDeleted 
-                                            ? "bg-gray-100" 
-                                            : file.type === 'image' 
-                                              ? "bg-green-50" 
-                                              : "bg-blue-50"
-                                        }`}>
-                                          {file.type === 'image' ? (
-                                            <ImageIcon size={20} className={isDeleted ? "text-gray-400" : "text-green-500"} />
-                                          ) : (
-                                            <div className="text-center">
-                                              <FileText size={18} className={isDeleted ? "text-gray-400" : "text-blue-500"} />
-                                              {!isDeleted && (
-                                                <span className="text-[8px] text-blue-600 font-bold block -mt-1">{fileExtension}</span>
-                                              )}
-                                            </div>
-                                          )}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                          <div className={`font-medium truncate text-sm ${
-                                            isDeleted ? "text-gray-500 italic" : "text-gray-800"
-                                          }`} title={fileName}>
-                                            {fileName}
-                                          </div>
-                                          <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 mt-1">
-                                            {isDeleted ? (
-                                              <span className="text-red-500">Deleted</span>
-                                            ) : (
-                                              <>
-                                                <span className="flex items-center gap-1">
-                                                  {file.type === 'image' ? 'Image' : 
-                                                  fileName?.endsWith('.pdf') ? 'PDF' :
-                                                  fileName?.endsWith('.doc') || fileName?.endsWith('.docx') ? 'Word' :
-                                                  fileName?.endsWith('.xls') || fileName?.endsWith('.xlsx') ? 'Excel' : 'File'}
-                                                </span>
-                                                <span className="hidden sm:inline">•</span>
-                                                <span className="truncate">Uploaded by {file.sender?.name}</span>
-                                                <span className="hidden sm:inline">•</span>
-                                                <div className="flex items-center gap-1">
-                                                  <span>{formatWhatsAppDate(displayTime)} at {moment(displayTime).format('h:mm A')}</span>
-                                                  {file.edited && (
-                                                    <span className="text-gray-400 italic">(edited)</span>
-                                                  )}
-                                                </div>
-                                              </>
-                                            )}
-                                          </div>
-                                        </div>
+                            {files.map((file) => {
+                              // Handle both message and file object formats
+                              const fileUrl = file.attachmentUrl || file.fileUrl;
+                              const fileName = file.fileName || file.content || 'Unnamed File';
+                              const fileType = getFileType(fileUrl, fileName, file.mimeType);
+                              const isImage = fileType === 'image';
+                              const isPDF = fileType === 'pdf';
+                              const isDeleted = file.deleted;
+                              const canEditDelete = canEditDeleteMessage(file);
+                              const isUpdating = updatingMessages[file._id];
+                              const senderName = file.sender?.name || file.userId?.name || 'Unknown user';
+                              const fileDate = file.createdAt || file.uploadedAt;
+                              
+                              return (
+                                <div key={file._id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex items-start gap-3 flex-1">
+                                      <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${getFileTypeColor(fileType)} flex-shrink-0`}>
+                                        {getFileIcon(fileType)}
                                       </div>
                                       
-                                      {/* ACTIONS COLUMN - FIXED */}
-                                      <div className="flex items-center gap-2 ml-3">
-                                        {/* Edit/Delete Menu (only if not deleted) */}
-                                        {canEditDelete && !isDeleted && !isUpdating && (
-                                          <div className="relative">
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-1">
+                                          <h4 className="font-semibold text-gray-800 truncate text-sm">
+                                            {fileName}
+                                          </h4>
+                                          {fileType === 'pdf' && !isDeleted && (
+                                            <span className="px-2 py-0.5 bg-red-100 text-red-600 text-xs font-medium rounded-full">
+                                              PDF
+                                            </span>
+                                          )}
+                                          {fileType === 'image' && !isDeleted && (
+                                            <span className="px-2 py-0.5 bg-green-100 text-green-600 text-xs font-medium rounded-full">
+                                              Image
+                                            </span>
+                                          )}
+                                          {fileType === 'archive' && !isDeleted && (
+                                            <span className="px-2 py-0.5 bg-yellow-100 text-yellow-600 text-xs font-medium rounded-full">
+                                              Archive
+                                            </span>
+                                          )}
+                                        </div>
+                                        
+                                        <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 mb-2">
+                                          <span className="flex items-center gap-1">
+                                            <Users size={10} />
+                                            {senderName}
+                                          </span>
+                                          <span>•</span>
+                                          <span>{moment(fileDate).format('DD MMM YYYY, h:mm A')}</span>
+                                          {file.edited && !isDeleted && (
+                                            <span className="text-gray-400 italic">(edited)</span>
+                                          )}
+                                        </div>
+                                        
+                                        {!isDeleted && fileUrl && (
+                                          <div className="flex flex-wrap gap-2 mt-2">
                                             <button
-                                              onClick={() => setOpenMessageMenu(openMessageMenu === file._id ? null : file._id)}
-                                              className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors rounded hover:bg-gray-100"
-                                              title="More actions"
-                                              disabled={isUpdating}
+                                              onClick={() => viewFile(fileUrl, fileName, file.mimeType)}
+                                              className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-600 text-xs font-medium rounded-md hover:bg-blue-100 transition-colors"
+                                              title={fileType === 'pdf' ? "Open PDF in browser" : (fileType === 'image' ? "View Image" : "View File")}
                                             >
-                                              <MoreVertical size={16} />
+                                              <Eye size={12} />
+                                              {fileType === 'pdf' ? 'Open PDF' : (fileType === 'image' ? 'View Image' : 'View File')}
                                             </button>
                                             
-                                            {openMessageMenu === file._id && (
-                                              <div className="absolute right-0 mt-1 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
-                                                <button
-                                                  onClick={() => {
-                                                    editFileInputRef.current.click();
-                                                    setEditingMessageId(file._id);
-                                                    setOpenMessageMenu(null);
-                                                  }}
-                                                  className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 text-gray-700 flex items-center gap-2"
-                                                  disabled={editingFile}
-                                                >
-                                                  <Edit2 size={14} />
-                                                  Edit File
-                                                </button>
-                                                <button
-                                                  onClick={() => handleDeleteMessage(file._id)}
-                                                  className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                                                >
-                                                  <Trash2 size={14} />
-                                                  Delete
-                                                </button>
-                                              </div>
+                                            <button
+                                              onClick={() => downloadFile(fileUrl, fileName, file.mimeType)}
+                                              className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-medium rounded-md hover:bg-gray-200 transition-colors"
+                                              title="Download File"
+                                            >
+                                              <Download size={12} />
+                                              Download
+                                            </button>
+                                            
+                                            {fileUrl && (
+                                              <a
+                                                href={fileUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-medium rounded-md hover:bg-gray-200 transition-colors"
+                                                title="Open direct link"
+                                              >
+                                                <ExternalLink size={12} />
+                                                Direct Link
+                                              </a>
                                             )}
                                           </div>
-                                        )}
-                                        
-                                        {/* View Button (only if not deleted and has URL) */}
-                                        {!isDeleted && fileUrl && !isUpdating && (
-                                          <button
-                                            onClick={() => viewFile(fileUrl)}
-                                            className="p-1.5 text-gray-400 hover:text-blue-500 transition-colors rounded hover:bg-gray-100"
-                                            title="View"
-                                            disabled={isDeleted || isUpdating}
-                                          >
-                                            <Eye size={16} />
-                                          </button>
-                                        )}
-                                        
-                                        {/* Download Button (only if not deleted and has URL) */}
-                                        {!isDeleted && fileUrl && !isUpdating && (
-                                          <button
-                                            onClick={(e) => {
-                                              e.preventDefault();
-                                              e.stopPropagation();
-                                              downloadFile(fileUrl, fileName);
-                                            }}
-                                            className="p-1.5 text-gray-400 hover:text-blue-500 transition-colors rounded hover:bg-gray-100"
-                                            title="Download"
-                                            disabled={isDeleted || isUpdating}
-                                          >
-                                            <Download size={16} />
-                                          </button>
                                         )}
                                       </div>
                                     </div>
                                     
-                                    {/* Deleted File Message */}
-                                    {isDeleted && (
-                                      <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                                        <div className="flex items-center justify-center gap-2 text-gray-500">
-                                          <AlertCircle size={14} />
-                                          <p className="text-xs">This file has been deleted</p>
-                                        </div>
+                                    {/* Action menu for edit/delete */}
+                                    {canEditDelete && !isDeleted && !isUpdating && (
+                                      <div className="relative">
+                                        <button
+                                          onClick={() => setOpenMessageMenu(openMessageMenu === file._id ? null : file._id)}
+                                          className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                                          title="More actions"
+                                        >
+                                          <MoreVertical size={16} />
+                                        </button>
+                                        
+                                        {openMessageMenu === file._id && (
+                                          <div className="absolute right-0 mt-1 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
+                                            <button
+                                              onClick={() => {
+                                                editFileInputRef.current.click();
+                                                setEditingMessageId(file._id);
+                                                setOpenMessageMenu(null);
+                                              }}
+                                              className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 text-gray-700 flex items-center gap-2"
+                                              disabled={editingFile}
+                                            >
+                                              <Edit2 size={14} />
+                                              Edit
+                                            </button>
+                                            <button
+                                              onClick={() => handleDeleteMessage(file._id)}
+                                              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                                            >
+                                              <Trash2 size={14} />
+                                              Delete
+                                            </button>
+                                          </div>
+                                        )}
                                       </div>
                                     )}
                                   </div>
-                                );
-                              })}
+                                  
+                                  {/* Image preview for image files */}
+                                  {fileType === 'image' && !isDeleted && fileUrl && (
+                                    <div className="mt-4 border border-gray-200 rounded-lg overflow-hidden">
+                                      <img
+                                        src={fileUrl}
+                                        alt={fileName || 'Shared image'}
+                                        className="w-full max-h-64 object-contain bg-gray-50"
+                                        onError={(e) => {
+                                          e.target.onerror = null;
+                                          e.target.src = 'https://placehold.co/600x400/e2e8f0/64748b?text=Image+Not+Found';
+                                        }}
+                                      />
+                                    </div>
+                                  )}
+                                  
+                                  {/* File info */}
+                                  {!isDeleted && (
+                                    <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
+                                      <span className="flex items-center gap-1">
+                                        <span>File Type:</span>
+                                        <span className="font-medium">{fileType.toUpperCase()}</span>
+                                        {fileType === 'pdf' && (
+                                          <span className="text-blue-500">• Opens directly in browser</span>
+                                        )}
+                                      </span>
+                                      {fileUrl && (
+                                        <a
+                                          href={fileUrl}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="text-blue-500 hover:text-blue-600 hover:underline"
+                                          title={fileType === 'pdf' ? "Open PDF in browser" : "Open direct link"}
+                                        >
+                                          {fileType === 'pdf' ? "View PDF" : "Direct Link"}
+                                        </a>
+                                      )}
+                                    </div>
+                                  )}
+                                  
+                                  {isDeleted && (
+                                    <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                      <div className="flex items-center justify-center gap-2 text-gray-500">
+                                        <AlertCircle size={14} />
+                                        <p className="text-xs">This file has been deleted</p>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
                         )}
                       </div>
