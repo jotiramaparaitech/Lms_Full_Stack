@@ -80,18 +80,9 @@ app.use(clerkMiddleware());
 
 // ------------------ BASE ROUTE ------------------
 app.get("/", (req, res) => res.send("API Working ✅"));
-<<<<<<< HEAD
-=======
-app.post(
-  "/clerk",
-  express.json({
-    verify: (req, res, buf) => {
-      req.rawBody = buf.toString();
-    },
-  }),
-  clerkWebhooks
-);
->>>>>>> 567bd24f29aa35240326800170a1514244fe611f
+
+
+
 
 // ------------------ API ROUTES ------------------
 app.use("/api/educator", express.json(), requireAuth(), educatorRouter);
