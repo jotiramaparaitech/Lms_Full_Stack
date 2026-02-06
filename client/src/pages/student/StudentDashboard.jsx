@@ -125,6 +125,13 @@ const DashboardHome = () => {
 
 
 
+  // ✅ Calculate Study Hours
+  const calculateStudyHours = () => {
+    // Placeholder logic - sum up lecture durations if available in future
+    // For now return 0 to prevent crash and consistent with initial state
+    return 0;
+  };
+
   // Update dashboard statistics (lecture based calculations still allowed)
   const updateStats = (progressArray, courses) => {
     if (!courses || courses.length === 0) {
@@ -276,10 +283,10 @@ const DashboardHome = () => {
       change:
         stats.completedTasks > 0
           ? `${Math.round(
-              (stats.completedTasks /
-                (stats.completedTasks + stats.pendingTasks)) *
-                100
-            ) || 0}% completion rate`
+            (stats.completedTasks /
+              (stats.completedTasks + stats.pendingTasks)) *
+            100
+          ) || 0}% completion rate`
           : "Start learning!",
     },
     // {
@@ -307,13 +314,13 @@ const DashboardHome = () => {
       change:
         stats.certificates > 0 ? "Great progress!" : "Complete projects to earn",
     },
-    
+
   ];
 
   // Calculate dynamic grid classes based on number of visible cards
   const getGridClass = () => {
     const visibleCards = statsCards.length;
-    
+
     // For different numbers of cards, use appropriate grid columns
     if (visibleCards <= 1) {
       return "grid-cols-1";
@@ -569,19 +576,18 @@ const DashboardHome = () => {
                       </h3>
                     </div>
                     <span
-                      className={`text-xs px-3 py-1 rounded-full font-medium ml-2 flex-shrink-0 ${
-                        (teamProgress || 0) === 100
+                      className={`text-xs px-3 py-1 rounded-full font-medium ml-2 flex-shrink-0 ${(teamProgress || 0) === 100
                           ? "bg-green-100 text-green-800"
                           : (teamProgress || 0) > 0
-                          ? "bg-blue-100 text-blue-800"
-                          : "bg-gray-100 text-gray-800"
-                      }`}
+                            ? "bg-blue-100 text-blue-800"
+                            : "bg-gray-100 text-gray-800"
+                        }`}
                     >
                       {(teamProgress || 0) === 100
                         ? "Completed"
                         : (teamProgress || 0) > 0
-                        ? "In Progress"
-                        : "Not Started"}
+                          ? "In Progress"
+                          : "Not Started"}
                     </span>
                   </div>
 

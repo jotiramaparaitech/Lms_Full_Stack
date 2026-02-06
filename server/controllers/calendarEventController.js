@@ -4,18 +4,22 @@ import Team from "../models/Team.js";
 // ✅ Get events for student (only view)
 export const getMyTeamEvents = async (req, res) => {
   try {
-   
+
     const auth = req.auth();
     const userId = auth?.userId;
 
 
-    const team = await Team.findOne({
-      $or: [{ leader: userId }, { "members.userId": userId }],
-    });
+    // 1️⃣ First look for team where I am LEADER
+    let team = await Team.findOne({ leader: userId });
+
+    // 2️⃣ If not leader, look for team where I am MEMBER
+    if (!team) {
+      team = await Team.findOne({ "members.userId": userId });
+    }
 
 
     if (!team) {
-     
+
       return res.json({
         success: true,
         events: [],
@@ -46,7 +50,7 @@ export const getMyTeamEvents = async (req, res) => {
 // ✅ Create event (Leader only)
 export const createEvent = async (req, res) => {
   try {
-    
+
     const auth = req.auth();
     const userId = auth?.userId;
 
@@ -118,11 +122,11 @@ export const updateEvent = async (req, res) => {
     // Check leader
     const team = await Team.findById(event.teamId);
     if (!team || team.leader.toString() !== userId.toString()) {
-  return res.status(403).json({
-    success: false,
-    message: "Only leader can update"
-  });
-}
+      return res.status(403).json({
+        success: false,
+        message: "Only leader can update"
+      });
+    }
 
     const updated = await CalendarEvent.findByIdAndUpdate(id, req.body, {
       new: true,
@@ -149,11 +153,11 @@ export const deleteEvent = async (req, res) => {
 
     const team = await Team.findById(event.teamId);
     if (!team || team.leader.toString() !== userId.toString()) {
-  return res.status(403).json({
-    success: false,
-    message: "Only leader can delete"
-  });
-}
+      return res.status(403).json({
+        success: false,
+        message: "Only leader can delete"
+      });
+    }
 
     await CalendarEvent.findByIdAndDelete(id);
 
