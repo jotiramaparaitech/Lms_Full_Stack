@@ -848,3 +848,44 @@ export const getTeamFiles = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+
+
+// -----------------------------
+// Get ALL Teams (Admin Dashboard)
+// -----------------------------
+export const getAllTeamsForAdmin = async (req, res) => {
+  try {
+    const auth = req.auth();
+    const userId = auth?.userId;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    // 🔥 NO ROLE CHECK (Admin UI already protected)
+    const teams = await Team.find({})
+      .select("_id name leader members createdAt")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return res.json({
+      success: true,
+      teams,
+    });
+  } catch (error) {
+    console.error("❌ getAllTeamsForAdmin error:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+
+
+
+

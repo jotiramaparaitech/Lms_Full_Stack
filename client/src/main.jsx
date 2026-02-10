@@ -10,6 +10,7 @@ const shouldSuppressError = (message) => {
   }
 
   // 2. "Error: <svg> attribute width: Expected length, "auto"."
+  //zxcvbnm
   if (msgStr.includes("svg") && msgStr.includes("attribute") && msgStr.includes("width") && msgStr.includes("expected length") && msgStr.includes("auto")) {
     return true;
   }

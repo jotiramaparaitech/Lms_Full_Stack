@@ -51,7 +51,7 @@ const AssignCourse = () => {
           axios.get(`${backendUrl}/api/educator/courses`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
-          axios.get(`${backendUrl}/api/teams/list`, {
+          axios.get(`${backendUrl}/api/teams/admin/list`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
         ]);
