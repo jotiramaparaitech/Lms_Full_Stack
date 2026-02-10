@@ -1243,21 +1243,22 @@ const Teams = () => {
   };
 
   // Format date like WhatsApp
-  const formatWhatsAppDate = (date) => {
-    const now = moment();
-    const messageDate = moment(date);
-    const diffDays = now.diff(messageDate, 'days');
-    
-    if (diffDays === 0) {
-      return "Today";
-    } else if (diffDays === 1) {
-      return "Yesterday";
-    } else if (diffDays < 7) {
-      return messageDate.format('dddd'); // Monday, Tuesday, etc.
-    } else {
-      return messageDate.format('DD/MM/YYYY'); // 15/02/2024
-    }
-  };
+ const formatWhatsAppDate = (date) => {
+  const now = moment().startOf('day'); // Start of current day
+  const messageDate = moment(date).startOf('day'); // Start of message day
+  
+  const diffDays = now.diff(messageDate, 'days');
+  
+  if (diffDays === 0) {
+    return "Today";
+  } else if (diffDays === 1) {
+    return "Yesterday";
+  } else if (diffDays < 7) {
+    return messageDate.format('dddd'); // Monday, Tuesday, etc.
+  } else {
+    return messageDate.format('DD/MM/YYYY'); // 15/02/2024
+  }
+};
 
   // Group messages by date
   const groupMessagesByDate = () => {

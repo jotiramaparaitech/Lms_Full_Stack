@@ -15,7 +15,8 @@ import {
   updateTeamDetails,
   editMessage,
   deleteMessageById,
-  getTeamFiles 
+  getTeamFiles,
+  getAllTeamsForAdmin
 } from "../controllers/teamController.js";
 
 import { requireAuth } from "@clerk/express";
@@ -25,7 +26,11 @@ import { uploadTeamFile } from "../controllers/teamUploadController.js";
 const teamRouter = express.Router();
 
 // ================= TEAM LIST =================
+// For students / team leaders (own teams only)
 teamRouter.get("/list", requireAuth(), getTeams);
+
+// For admin / educator (ALL teams)
+teamRouter.get("/admin/list", requireAuth(), getAllTeamsForAdmin);
 
 // ================= TEAM CREATE =================
 teamRouter.post(
