@@ -1,6 +1,10 @@
 import logo from "./logo.png";
 import logo1 from "./logo1.png";
 import logof from "./logof.jpeg";
+import logo_progress_certificate from "./logo_progress_certificate.png";
+import bg_progress_certificate from "./bg_progress_certificate.png";
+import Progress_header_line from "./Progress_header_line.jpg";
+import Progress_footer_line from "./Progress_footer_line.jpg";
 import whatsappLogo from "./whatsappLogo.jpg";
 import whatsapplogos from "./whatsapplogos.svg";
 import check_icon from "./check_icon.svg";
@@ -67,6 +71,10 @@ import support from "./support.png";
 
 
 export const assets = {
+  logo_progress_certificate,
+  Progress_header_line,
+  Progress_footer_line,
+  bg_progress_certificate,
   support,
   logo_s,
   enquiryIcon,

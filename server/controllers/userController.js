@@ -29,6 +29,7 @@ export const ensureUserExists = async (userId) => {
           name: fullName || clerkUser.username || "User",
           imageUrl: clerkUser.imageUrl || "",
           role: clerkUser.publicMetadata?.role || "student",
+          isTeamLeader: clerkUser.publicMetadata?.isTeamLeader || false, // ✅ Sync isTeamLeader
         };
 
         try {

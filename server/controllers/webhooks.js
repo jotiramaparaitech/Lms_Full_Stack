@@ -10,7 +10,8 @@ export const clerkWebhooks = async (req, res) => {
   try {
     const whook = new Webhook(process.env.CLERK_WEBHOOK_SECRET);
 
-    await whook.verify(JSON.stringify(req.body), {
+    // Verify using rawBody captured in server.js
+    await whook.verify(req.rawBody, {
       "svix-id": req.headers["svix-id"],
       "svix-timestamp": req.headers["svix-timestamp"],
       "svix-signature": req.headers["svix-signature"],
@@ -24,22 +25,25 @@ export const clerkWebhooks = async (req, res) => {
           const firstName = data.first_name || "";
           const lastName = data.last_name || "";
           const fullName = `${firstName} ${lastName}`.trim();
-          
+
           const userData = {
             _id: data.id,
             email: data.email_addresses[0]?.email_address || "",
             name: fullName || data.username || "User",
             imageUrl: data.image_url || "",
+            name: fullName || data.username || "User",
+            imageUrl: data.image_url || "",
             role: data.public_metadata?.role || "student",
+            isTeamLeader: data.public_metadata?.isTeamLeader || false, // ✅ Sync isTeamLeader
           };
-          
+
           // Use findOneAndUpdate with upsert to avoid duplicate key errors
           await User.findOneAndUpdate(
             { _id: data.id },
             userData,
             { upsert: true, new: true, setDefaultsOnInsert: true }
           );
-          
+
           console.log(`✅ User created via webhook: ${data.id}`);
           return res.json({ success: true, message: "User created successfully" });
         } catch (error) {
@@ -55,12 +59,16 @@ export const clerkWebhooks = async (req, res) => {
 
       case "user.updated": {
         const userData = {
+          _id: data.id,
           email: data.email_addresses[0].email_address,
           name: data.first_name + " " + data.last_name,
+          name: data.first_name + " " + data.last_name,
           imageUrl: data.image_url,
+          isTeamLeader: data.public_metadata?.isTeamLeader || false, // ✅ Sync isTeamLeader
         };
-        await User.findByIdAndUpdate(data.id, userData);
-        return res.json({});
+        await User.findByIdAndUpdate(data.id, userData, { upsert: true, new: true });
+        console.log(`✅ User updated via webhook: ${data.id}`);
+        return res.json({ success: true, message: "User updated" });
       }
 
       case "user.deleted": {
@@ -68,6 +76,7 @@ export const clerkWebhooks = async (req, res) => {
 
         // Delete user from database
         await User.findByIdAndDelete(userId);
+        console.log(`✅ User deleted via webhook: ${userId}`);
 
         // Remove user from all course enrollments
         await Course.updateMany(

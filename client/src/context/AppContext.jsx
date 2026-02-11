@@ -38,60 +38,75 @@ export const AppContextProvider = (props) => {
 
   const [teamProgress, setTeamProgress] = useState(0);
   const [teamProjectName, setTeamProjectName] = useState("");
-
+  const [lorUnlocked, setLorUnlocked] = useState(false);
 
   const fetchMyTeamProgress = async () => {
-  try {
-    if (!user) {
+    try {
+      if (!user) {
+        setTeamProgress(0);
+        setTeamProjectName("");
+        return;
+      }
+
+      const token = await getToken();
+      if (!token) return;
+
+      const res = await axios.get(`${backendUrl}/api/teams/my-progress`, {
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 8000,
+      });
+
+      if (res?.data?.success) {
+        setTeamProgress(Number(res.data.progress || 0));
+        setTeamProjectName(res.data.projectName || "");
+        setLorUnlocked(Boolean(res.data.lorUnlocked));
+      }
+    } catch (error) {
       setTeamProgress(0);
       setTeamProjectName("");
-      return;
+      setLorUnlocked(false);
     }
-
-    const token = await getToken();
-    if (!token) return;
-
-    const res = await axios.get(`${backendUrl}/api/teams/my-progress`, {
-      headers: { Authorization: `Bearer ${token}` },
-      timeout: 8000,
-    });
-
-    if (res?.data?.success) {
-      setTeamProgress(Number(res.data.progress || 0));
-      setTeamProjectName(res.data.projectName || "");
-    }
-  } catch (error) {
-    setTeamProgress(0);
-    setTeamProjectName("");
-  }
-};
-
+  };
 
 
   const fetchTeamLeaderStatus = async () => {
-  try {
-    if (!user) {
-      setIsTeamLeader(false);
-      return;
+    try {
+      if (!user) {
+        setIsTeamLeader(false);
+        return;
+      }
+
+      const token = await getToken();
+      if (!token) {
+        setIsTeamLeader(false);
+        return;
+      }
+
+      // 🔥 Use your existing API which returns isLeader
+      const res = await axios.get(`${backendUrl}/api/calendar-event/my-team-events`, {
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 8000,
+      });
+
+      // ✅ Check if API says leader OR if user profile says leader
+      const apiSaysLeader = Boolean(res?.data?.isLeader);
+      const profileSaysLeader = Boolean(userData?.isTeamLeader);
+
+      setIsTeamLeader(apiSaysLeader || profileSaysLeader);
+    } catch (error) {
+      // Only set false if we don't have confirmation from profile
+      if (!userData?.isTeamLeader) {
+        setIsTeamLeader(false);
+      }
     }
+  };
 
-    const token = await getToken();
-    if (!token) {
-      setIsTeamLeader(false);
-      return;
+  // ✅ Sync isTeamLeader with userData when it loads
+  useEffect(() => {
+    if (userData?.isTeamLeader) {
+      setIsTeamLeader(true);
     }
-
-    // 🔥 Use your existing API which returns isLeader
-    const res = await axios.get(`${backendUrl}/api/calendar-event/my-team-events`, {
-      headers: { Authorization: `Bearer ${token}` },
-      timeout: 8000,
-    });
-
-    setIsTeamLeader(Boolean(res?.data?.isLeader));
-  } catch (error) {
-    setIsTeamLeader(false);
-  }
-};
+  }, [userData]);
 
 
   // ✅ Fetch all courses (handles errors gracefully)
@@ -326,6 +341,8 @@ export const AppContextProvider = (props) => {
     }, 0);
   };
 
+
+
   // ✅ Role-based redirect + data fetch + login success message
   useEffect(() => {
     if (!isLoaded) return;
@@ -340,8 +357,7 @@ export const AppContextProvider = (props) => {
     const hasShownWelcome = sessionStorage.getItem("welcome_shown");
     if (!hasShownWelcome) {
       toast.success(
-        `Welcome ${
-          user.firstName || user.emailAddresses[0]?.emailAddress || "User"
+        `Welcome ${user.firstName || user.emailAddresses[0]?.emailAddress || "User"
         } 🎉`,
       );
       sessionStorage.setItem("welcome_shown", "true");
@@ -356,15 +372,15 @@ export const AppContextProvider = (props) => {
     fetchMyTeamProgress();
 
     // Redirect ONLY if user is on login or root
-if (
-  !roleRedirectedRef.current &&
-  location.pathname === "/login"
-) {
-  if (role === "educator" || role === "admin") {
-    roleRedirectedRef.current = true;
-    navigate("/educator", { replace: true });
-  }
-}
+    if (
+      !roleRedirectedRef.current &&
+      location.pathname === "/login"
+    ) {
+      if (role === "educator" || role === "admin") {
+        roleRedirectedRef.current = true;
+        navigate("/educator", { replace: true });
+      }
+    }
 
   }, [user, isLoaded]);
 
@@ -399,6 +415,7 @@ if (
     teamProgress,
     teamProjectName,
     fetchMyTeamProgress,
+    lorUnlocked,
   };
 
   return (

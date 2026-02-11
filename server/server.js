@@ -3,42 +3,46 @@ import cors from "cors";
 import "dotenv/config";
 import connectDB from "./configs/mongodb.js";
 import connectCloudinary from "./configs/cloudinary.js";
-import userRouter from "./routes/userRoutes.js";
+
 import { clerkMiddleware, requireAuth } from "@clerk/express";
-import { clerkWebhooks } from "./controllers/webhooks.js";
+
+import userRouter from "./routes/userRoutes.js";
 import educatorRouter from "./routes/educatorRoutes.js";
 import courseRouter from "./routes/courseRoute.js";
-import admin from "./configs/firebase.js";
 import razorpayRoute from "./routes/razorpayRoute.js";
-
 import ticketRoutes from "./routes/ticketRoutes.js";
 import assessmentRoutes from "./routes/assessmentRoutes.js";
 import teamRouter from "./routes/teamRoutes.js";
-
 import todoRouter from "./routes/todoRoutes.js";
 import calendarRouter from "./routes/calendarEventRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
+import attendanceRoutes from "./routes/attendanceRoutes.js";
+import subscribeRoutes from "./routes/subscribeRoutes.js";
+import supportRoutes from "./routes/supportRoutes.js";
+import webhookRouter from "./routes/webhookRoutes.js";
+
+import admin from "./configs/firebase.js";
 
 import http from "http";
 import { Server } from "socket.io";
 
-// Initialize Express
+// ------------------ APP INIT ------------------
 const app = express();
 const server = http.createServer(app);
 
-// Connect to database & cloudinary
+// ------------------ DB & CLOUDINARY ------------------
 await connectDB();
 await connectCloudinary();
 
 // ------------------ CORS ------------------
 const allowedOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
+  ? process.env.ALLOWED_ORIGINS.split(",").map(o => o.trim())
   : [
-      "http://localhost:5173",
-      "https://www.aparaitech.org",
-      "https://aparaitech.org",
-      "https://lms.aparaitech.org",
-    ];
+    "http://localhost:5173",
+    "https://www.aparaitech.org",
+    "https://aparaitech.org",
+    "https://lms.aparaitech.org",
+  ];
 
 app.use(
   cors({
@@ -54,7 +58,7 @@ app.use(
   })
 );
 
-// Preflight
+// ------------------ PREFLIGHT ------------------
 app.options("*", (req, res) => {
   res.header("Access-Control-Allow-Origin", req.headers.origin);
   res.header(
@@ -68,13 +72,19 @@ app.options("*", (req, res) => {
   res.sendStatus(200);
 });
 
-// Clerk middleware
+
+
+app.use("/api/webhooks", webhookRouter);
+
 app.use(clerkMiddleware());
 
-// ------------------ ROUTES ------------------
+// ------------------ BASE ROUTE ------------------
 app.get("/", (req, res) => res.send("API Working ✅"));
-app.post("/clerk", express.json(), clerkWebhooks);
 
+
+
+
+// ------------------ API ROUTES ------------------
 app.use("/api/educator", express.json(), requireAuth(), educatorRouter);
 app.use("/api/course", express.json(), courseRouter);
 app.use("/api/razorpay", express.json(), razorpayRoute);
@@ -85,6 +95,10 @@ app.use("/api/todo", express.json(), requireAuth(), todoRouter);
 app.use("/api/user", express.json(), requireAuth(), userRouter);
 app.use("/api/calendar-event", express.json(), calendarRouter);
 app.use("/api/notifications", express.json(), notificationRoutes);
+app.use("/api/attendance", express.json(), requireAuth(), attendanceRoutes);
+
+app.use("/api", subscribeRoutes);
+app.use("/api", supportRoutes);
 
 // ------------------ SOCKET.IO ------------------
 const io = new Server(server, {
@@ -94,7 +108,6 @@ const io = new Server(server, {
   },
 });
 
-// 🔥 THIS WAS MISSING (CRITICAL)
 app.set("io", io);
 
 io.on("connection", (socket) => {
@@ -109,7 +122,7 @@ io.on("connection", (socket) => {
   });
 });
 
-// Start server
+// ------------------ SERVER START ------------------
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () =>
   console.log(`🚀 Server running with Socket.IO on port ${PORT}`)

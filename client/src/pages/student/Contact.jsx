@@ -3,8 +3,8 @@ import { motion } from "framer-motion";
 import { assets } from "../../assets/assets";
 import Footer from "../../components/student/Footer";
 import { toast } from "react-toastify";
-import emailjs from "@emailjs/browser";
 import { Mail, Phone, MapPin, Send, MessageSquare } from "lucide-react";
+import axios from "axios";
 
 const Contact = () => {
   const [formData, setFormData] = useState({
@@ -33,24 +33,24 @@ const Contact = () => {
 
     setIsSubmitting(true);
 
-    const templateParams = {
-      from_name: formData.name,
-      from_email: formData.email,
-      phone: formData.phone || "Not provided",
-      subject: formData.subject || "General Inquiry",
-      message: formData.message,
-      to_email: "info@aparaitechsoftware.org",
-    };
-
     try {
-      await emailjs.send(
-        "service_wdj15jn",
-        "template_xtmll8h",
-        templateParams,
-        "gpm7Cf-quPRpX09xI",
+      await axios.post(
+        `${import.meta.env.VITE_BACKEND_URL}/api/support`,
+        {
+          name: formData.name,
+          email: formData.email,
+          message: `
+Subject: ${formData.subject || "General Inquiry"}
+Phone: ${formData.phone || "Not provided"}
+
+Message:
+${formData.message}
+        `,
+        }
       );
 
       toast.success("Message sent successfully! We'll get back to you soon.");
+
       setFormData({
         name: "",
         email: "",
@@ -59,12 +59,13 @@ const Contact = () => {
         message: "",
       });
     } catch (error) {
+      console.error("Contact error:", error);
       toast.error("Failed to send message. Please try again.");
-      console.error("EmailJS error:", error);
     } finally {
       setIsSubmitting(false);
     }
   };
+
 
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-cyan-50 via-blue-50 to-purple-50">
@@ -278,6 +279,24 @@ const Contact = () => {
               </motion.div>
 
               {/* Location Card */}
+              <motion.div
+                whileHover={{ scale: 1.05, y: -5 }}
+                className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 shadow-xl border border-white/20 flex items-start gap-4 hover:shadow-2xl transition-all duration-300"
+              >
+                <div className="bg-gradient-to-br from-purple-500 to-pink-600 p-4 rounded-xl shadow-lg">
+                  <MapPin className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-800 mb-1">Visit Us</h3>
+                  <p className="text-gray-600 text-sm">
+                    Come say hello at our office
+                  </p>
+                  <p className="text-gray-700 font-medium text-sm mt-1">
+                    360, Neeladri Rd, Karuna Nagar, Electronic City Phase I,
+                    Electronic City, Bengaluru, Karnataka 560100
+                  </p>
+                </div>
+              </motion.div>
               <motion.div
                 whileHover={{ scale: 1.05, y: -5 }}
                 className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 shadow-xl border border-white/20 flex items-start gap-4 hover:shadow-2xl transition-all duration-300"

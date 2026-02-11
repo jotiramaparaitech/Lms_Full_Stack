@@ -108,7 +108,7 @@ export const addCourse = async (req, res) => {
     if (pdfResources.length > 0) newCourse.pdfResources = pdfResources;
     await newCourse.save();
 
-    res.json({ success: true, message: "Course added", course: newCourse });
+    res.json({ success: true, message: "Project added", course: newCourse });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -573,7 +573,7 @@ export const assignCourse = async (req, res) => {
     if (course.enrolledStudents.includes(studentId))
       return res.json({
         success: false,
-        message: "Student already enrolled in this course",
+        message: "Student already enrolled in this project",
       });
 
     // ✅ Add student to course enrollment

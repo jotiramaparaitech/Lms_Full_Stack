@@ -1,13 +1,16 @@
 import Team from "../models/Team.js";
 import TeamMessage from "../models/TeamMessage.js";
 import User from "../models/User.js";
+import { v2 as cloudinary } from "cloudinary";
+import moment from 'moment';
+
 
 // -----------------------------
 // Create Team
 // -----------------------------
 export const createTeam = async (req, res) => {
   try {
-    const { name, description, banner } = req.body;
+    const { name, description } = req.body;
     const auth = req.auth();
     const userId = auth?.userId;
 
@@ -23,18 +26,26 @@ export const createTeam = async (req, res) => {
       });
     }
 
+    // 🔹 UPLOAD LOGO (if provided)
+    let logoUrl = "";
+    if (req.file) {
+      const uploadResult = await cloudinary.uploader.upload(
+        `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`,
+        {
+          folder: "team-logos",
+          resource_type: "image",
+        }
+      );
+      logoUrl = uploadResult.secure_url;
+    }
+
     const newTeam = await Team.create({
       name,
       description,
-      banner,
+      logo: logoUrl, // ✅ SAVE LOGO
       leader: userId,
       members: [{ userId, role: "admin" }],
-      channels: [
-         { name: "General", createdBy: userId }
-       ],
-
-      // ✅ Project domain could be stored here if we add schema validation,
-      // but it's implicitly derived from the Leader's assignedProject for now.
+      channels: [{ name: "General", createdBy: userId }],
     });
 
     res.json({
@@ -43,6 +54,76 @@ export const createTeam = async (req, res) => {
       message: "Team created successfully",
     });
   } catch (error) {
+    console.error("❌ createTeam error:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// -----------------------------
+// Update Team Details (Leader/Admin) - FIXED VERSION
+// -----------------------------
+export const updateTeamDetails = async (req, res) => {
+  try {
+    const auth = req.auth();
+    const userId = auth?.userId;
+    const { teamId, name } = req.body;
+
+    if (!teamId) {
+      return res.status(400).json({ success: false, message: "teamId required" });
+    }
+
+    const team = await Team.findById(teamId);
+    if (!team) {
+      return res.status(404).json({ success: false, message: "Team not found" });
+    }
+
+    // ✅ Permission check
+    const isLeader = team.leader === userId;
+    const isAdmin = team.members.some(
+      (m) => m.userId === userId && m.role === "admin"
+    );
+
+    if (!isLeader && !isAdmin) {
+      return res.status(403).json({ success: false, message: "Permission denied" });
+    }
+
+    // ✅ Update name (optional)
+    if (name && name.trim()) {
+      team.name = name.trim();
+    }
+
+    // ✅ FIXED: Update logo (optional) - Save to team.logo instead of team.banner
+    if (req.file) {
+      const uploadResult = await cloudinary.uploader.upload(
+        `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`,
+        {
+          folder: "team-logos",
+          resource_type: "image"
+        }
+      );
+
+      // FIXED: Save to logo field, not banner
+      team.logo = uploadResult.secure_url;
+      console.log("✅ Logo updated:", uploadResult.secure_url);
+    }
+
+    await team.save();
+
+    return res.json({
+      success: true,
+      message: "Team updated successfully",
+      team: {
+        _id: team._id,
+        name: team.name,
+        logo: team.logo, // ✅ Make sure logo is included in response
+        description: team.description,
+        leader: team.leader,
+        members: team.members,
+        banner: team.banner
+      }
+    });
+  } catch (error) {
+    console.error("❌ updateTeamDetails error:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -169,7 +250,7 @@ export const manageRequest = async (req, res) => {
 };
 
 // -----------------------------
-// Send Message
+// Send Message (Leader/Admin Only)
 // -----------------------------
 export const sendMessage = async (req, res) => {
   try {
@@ -177,18 +258,37 @@ export const sendMessage = async (req, res) => {
     const auth = req.auth();
     const userId = auth?.userId;
 
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
     const team = await Team.findById(teamId);
     if (!team) {
-      return res.status(404).json({ success: false, message: "Team not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Team not found",
+      });
     }
 
-    const isMember = team.members.some((m) => m.userId === userId);
-    if (!isMember) {
-      return res.status(403).json({ success: false, message: "Not a member" });
+    // ✅ ROLE CHECK (IMPORTANT)
+    const member = team.members.find(
+      (m) => m.userId.toString() === userId
+    );
+
+    const isLeader = team.leader.toString() === userId;
+    const isAdmin = member?.role === "admin";
+
+    if (!isLeader && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: "Only Team Leader or Admin can send messages",
+      });
     }
 
-    // 1️⃣ Create message
-    let message = await TeamMessage.create({
+    const message = await TeamMessage.create({
       teamId,
       sender: userId,
       content,
@@ -197,19 +297,23 @@ export const sendMessage = async (req, res) => {
       linkData,
     });
 
-    // 2️⃣ POPULATE sender BEFORE emitting
-    message = await message.populate("sender", "name imageUrl");
+    await message.populate("sender", "name imageUrl");
 
-    // 3️⃣ Emit populated message
-    req.app.get("io").to(teamId).emit("receive-message", message);
+    // 🔔 Emit via socket if available
+    req.app.get("io")?.to(teamId).emit("receive-message", message);
 
-    // 4️⃣ Send response
-    res.json({ success: true, message });
+    return res.json({
+      success: true,
+      message,
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error("❌ sendMessage error:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
-
 
 // -----------------------------
 // Get Messages
@@ -243,7 +347,7 @@ export const getMessages = async (req, res) => {
 };
 
 // -----------------------------
-// Delete Team
+// Delete Team (Leader Only)
 // -----------------------------
 export const deleteTeam = async (req, res) => {
   try {
@@ -251,25 +355,45 @@ export const deleteTeam = async (req, res) => {
     const auth = req.auth();
     const userId = auth?.userId;
 
-    const team = await Team.findById(teamId);
-    if (!team)
-      return res
-        .status(404)
-        .json({ success: false, message: "Team not found" });
-
-    if (team.leader !== userId) {
-      return res.status(403).json({
+    if (!userId) {
+      return res.status(401).json({
         success: false,
-        message: "Only the Team Leader can delete the team",
+        message: "Unauthorized",
       });
     }
 
+    const team = await Team.findById(teamId);
+    if (!team) {
+      return res.status(404).json({
+        success: false,
+        message: "Team not found",
+      });
+    }
+
+    // ✅ CRITICAL FIX (ObjectId vs string)
+    if (team.leader.toString() !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: "Only the Team Leader can delete this team",
+      });
+    }
+
+    // Delete all messages of this team
     await TeamMessage.deleteMany({ teamId });
+
+    // Delete team
     await team.deleteOne();
 
-    res.json({ success: true, message: "Team deleted successfully" });
+    return res.json({
+      success: true,
+      message: "Team deleted successfully",
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error("❌ deleteTeam error:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 
@@ -321,13 +445,18 @@ export const getStudentInfo = async (req, res) => {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    // Find team where this user is leader
-    const team = await Team.findOne({ leader: leaderId });
+    // Find team where this user is leader OR an admin member
+    const team = await Team.findOne({
+      $or: [
+        { leader: leaderId },
+        { members: { $elemMatch: { userId: leaderId, role: "admin" } } }
+      ]
+    });
 
     if (!team) {
       return res.status(404).json({
         success: false,
-        message: "You are not a team leader or no team found",
+        message: "You are not a team leader/admin or no team found",
       });
     }
 
@@ -362,6 +491,7 @@ export const getStudentInfo = async (req, res) => {
           imageUrl: user?.imageUrl || "",
           role: m.role,
           progress: m.progress ?? 0,
+          lorUnlocked: m.lorUnlocked ?? false,
 
           // ✅ AUTO PROJECT FETCH FROM ENROLLED COURSES
           projects: (user?.enrolledCourses || [])
@@ -392,7 +522,7 @@ export const updateStudentProgress = async (req, res) => {
     const auth = req.auth();
     const leaderId = auth?.userId;
 
-    const { studentId, progress, projectName } = req.body;
+    const { studentId, progress, projectName, lorUnlocked } = req.body;
 
     if (!leaderId) {
       return res.status(401).json({ success: false, message: "Unauthorized" });
@@ -437,6 +567,10 @@ export const updateStudentProgress = async (req, res) => {
 
     if (projectName !== undefined) {
       team.members[memberIndex].projectName = projectName;
+    }
+
+    if (lorUnlocked !== undefined) {
+      team.members[memberIndex].lorUnlocked = lorUnlocked;
     }
 
     await team.save();
@@ -485,6 +619,7 @@ export const getMyTeamProgress = async (req, res) => {
       teamId: team._id,
       progress: member?.progress ?? 0,
       projectName: member?.projectName ?? "",
+      lorUnlocked: member?.lorUnlocked ?? false,
       isLeader,
     });
   } catch (error) {
@@ -492,3 +627,265 @@ export const getMyTeamProgress = async (req, res) => {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// -----------------------------
+// Old Update Team Name (Optional - you can remove this if using updateTeamDetails)
+// -----------------------------
+export const updateTeamName = async (req, res) => {
+  try {
+    const { teamId, name } = req.body;
+    const auth = req.auth();
+    const userId = auth?.userId;
+
+    if (!name || !teamId) {
+      return res.status(400).json({
+        success: false,
+        message: "Team name is required",
+      });
+    }
+
+    const team = await Team.findById(teamId);
+    if (!team) {
+      return res.status(404).json({
+        success: false,
+        message: "Team not found",
+      });
+    }
+
+    const isLeader = team.leader === userId;
+    const isAdmin = team.members.some(
+      (m) => m.userId === userId && m.role === "admin"
+    );
+
+    if (!isLeader && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: "Permission denied",
+      });
+    }
+
+    team.name = name;
+    await team.save();
+
+    res.json({
+      success: true,
+      message: "Team name updated successfully",
+      team,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+
+// -----------------------------
+// Edit Message (Text / Image / File) - Sender Only
+// -----------------------------
+export const editMessage = async (req, res) => {
+  try {
+    const { messageId, content } = req.body;
+    const userId = req.auth()?.userId;
+
+    const message = await TeamMessage.findById(messageId);
+    if (!message) {
+      return res.status(404).json({ success: false, message: "Message not found" });
+    }
+
+    if (message.sender.toString() !== userId) {
+      return res.status(403).json({ success: false, message: "Not allowed" });
+    }
+
+    // 📝 TEXT MESSAGE EDIT
+    if (message.type === "text") {
+      message.content = content;
+    }
+
+    // 📎 FILE / IMAGE EDIT
+    if (req.file) {
+      const uploadResult = await cloudinary.uploader.upload(
+        `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`,
+        {
+          folder: "team-messages",
+          resource_type: "auto",
+        }
+      );
+
+      message.attachmentUrl = uploadResult.secure_url;
+      message.content = req.file.originalname;
+    }
+
+    message.edited = true;
+    await message.save();
+
+    await message.populate("sender", "name imageUrl");
+
+    return res.json({ success: true, message });
+  } catch (err) {
+    console.error("❌ editMessage error:", err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+
+// -----------------------------
+// Delete Message (Sender Only)
+// -----------------------------
+export const deleteMessageById = async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const userId = req.auth()?.userId;
+
+    const message = await TeamMessage.findById(messageId);
+    if (!message) {
+      return res.status(404).json({ success: false, message: "Message not found" });
+    }
+
+    if (message.sender.toString() !== userId) {
+      return res.status(403).json({ success: false, message: "Not allowed" });
+    }
+
+    message.deleted = true;
+    message.content = "This message was deleted";
+    await message.save();
+
+    return res.json({ success: true });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+
+// -----------------------------
+// Get Team Files (Images, PDFs, Documents)
+// -----------------------------
+export const getTeamFiles = async (req, res) => {
+  try {
+    const { teamId } = req.params;
+    const auth = req.auth();
+    const userId = auth?.userId;
+
+    const team = await Team.findById(teamId);
+    if (!team) {
+      return res.status(404).json({ success: false, message: "Team not found" });
+    }
+
+    const isMember = team.members.some((m) => m.userId === userId);
+    if (!isMember) {
+      return res.status(403).json({ 
+        success: false, 
+        message: "Join team to view files" 
+      });
+    }
+
+    // Get all file messages (images and files)
+    const files = await TeamMessage.find({ 
+      teamId,
+      type: { $in: ['image', 'file'] },
+      deleted: { $ne: true }
+    })
+    .sort({ createdAt: -1 })
+    .populate("sender", "name imageUrl")
+    .lean();
+
+    // Enhance file data with metadata
+    const enhancedFiles = files.map(file => {
+      let fileType = 'file';
+      let fileName = file.content || 'Unknown File';
+      let fileSize = 'Unknown';
+      
+      // Extract file name from URL if possible
+      if (file.attachmentUrl) {
+        try {
+          const url = new URL(file.attachmentUrl);
+          const pathParts = url.pathname.split('/');
+          fileName = pathParts[pathParts.length - 1] || fileName;
+        } catch (e) {
+          // If URL parsing fails, keep original name
+        }
+      }
+
+      // Determine file type
+      if (file.type === 'image') {
+        fileType = 'image';
+      } else if (file.attachmentUrl) {
+        const url = file.attachmentUrl.toLowerCase();
+        if (url.includes('.pdf') || url.includes('/pdf/') || url.includes('application/pdf')) {
+          fileType = 'pdf';
+        } else if (url.includes('.doc') || url.includes('.docx') || url.includes('application/msword') || url.includes('application/vnd.openxmlformats')) {
+          fileType = 'document';
+        } else if (url.includes('.xls') || url.includes('.xlsx') || url.includes('application/vnd.ms-excel')) {
+          fileType = 'spreadsheet';
+        } else if (url.includes('.txt') || url.includes('text/plain')) {
+          fileType = 'text';
+        } else if (url.includes('.zip') || url.includes('.rar') || url.includes('application/zip')) {
+          fileType = 'archive';
+        }
+      }
+
+      return {
+        ...file,
+        fileName,
+        fileType,
+        fileSize,
+        downloadUrl: file.attachmentUrl,
+        isPDF: fileType === 'pdf',
+        isImage: fileType === 'image',
+        uploadedAt: file.createdAt,
+        formattedDate: moment(file.createdAt).format('DD MMM YYYY, h:mm A')
+      };
+    });
+
+    res.json({ 
+      success: true, 
+      files: enhancedFiles,
+      count: enhancedFiles.length 
+    });
+  } catch (error) {
+    console.error("❌ getTeamFiles error:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
+
+// -----------------------------
+// Get ALL Teams (Admin Dashboard)
+// -----------------------------
+export const getAllTeamsForAdmin = async (req, res) => {
+  try {
+    const auth = req.auth();
+    const userId = auth?.userId;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    // 🔥 NO ROLE CHECK (Admin UI already protected)
+    const teams = await Team.find({})
+      .select("_id name leader members createdAt")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return res.json({
+      success: true,
+      teams,
+    });
+  } catch (error) {
+    console.error("❌ getAllTeamsForAdmin error:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+
+
+
+
