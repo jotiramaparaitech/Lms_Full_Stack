@@ -5,7 +5,7 @@ import { AppContext } from "../../context/AppContext";
 import { useClerk, UserButton, useUser } from "@clerk/clerk-react";
 import { toast } from "react-toastify";
 import { motion } from "framer-motion";
-import { Menu, X } from "lucide-react";
+import { Menu, X, LogOut } from "lucide-react"; // Added LogOut icon for better UI
 
 // Context for AllProjects state
 export const AllProjectsContext = createContext();
@@ -15,7 +15,8 @@ const Navbar = () => {
   const isCoursesListPage = location.pathname.includes("/course-list");
 
   const { navigate } = useContext(AppContext);
-  const { openSignIn } = useClerk();
+  // 1. Destructured signOut here
+  const { openSignIn, signOut } = useClerk();
   const { user } = useUser();
   const { isAllProjectsOpen, setIsAllProjectsOpen } =
     useContext(AllProjectsContext);
@@ -199,7 +200,7 @@ const Navbar = () => {
         {/* Mobile Dropdown Menu */}
         {menuOpen && (
           <div className="md:hidden w-full mt-3 bg-white/90 backdrop-blur-sm rounded-xl shadow-lg p-4 flex flex-col gap-2 text-gray-700 font-medium">
-            {/* ✅ MOBILE USER INFO (ADDED) */}
+            {/* ✅ MOBILE USER INFO */}
             {user && (
               <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-100 mb-2">
                 <img
@@ -237,7 +238,7 @@ const Navbar = () => {
               Projects
             </Link>
 
-            {/* All Project Button - Mobile (PLAIN TEXT without box styling) */}
+            {/* All Project Button - Mobile */}
             <button
               onClick={() => {
                 setIsAllProjectsOpen(true);
@@ -287,6 +288,18 @@ const Navbar = () => {
                     Student Dashboard
                   </Link>
                 )}
+
+                {/* 2. ADDED SIGNOUT BUTTON HERE FOR MOBILE */}
+                <button
+                  onClick={() => {
+                    signOut();
+                    setMenuOpen(false);
+                  }}
+                  className="flex items-center gap-2 px-4 py-3 text-left text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
+                >
+                  <LogOut className="w-5 h-5" />
+                  Sign Out
+                </button>
               </>
             )}
 

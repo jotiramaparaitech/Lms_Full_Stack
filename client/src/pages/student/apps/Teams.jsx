@@ -809,8 +809,6 @@ const Teams = () => {
       }
     } catch (error) {
       toast.error("Failed to load teams");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -1137,6 +1135,7 @@ const Teams = () => {
     }
   };
 
+  // ✅ UPDATED HANDLE SEND MESSAGE FOR QUILL
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!messageInput.trim() || !canSendMessages()) return;
@@ -1171,7 +1170,7 @@ const Teams = () => {
           teamId: activeTeam._id,
           content: `Started a ${type} meeting`,
           type: "call_link",
-          linkData: { title: `${type} Meeting`, url: link }
+          linkData: { title: `${type} Meeting`, url: link },
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
