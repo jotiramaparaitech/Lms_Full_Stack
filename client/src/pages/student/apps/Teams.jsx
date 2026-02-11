@@ -746,29 +746,30 @@ const Teams = () => {
     }
   };
 
-  // ================= DATA FETCHING =================
-  const fetchTeams = async () => {
-    try {
-      const token = await getToken();
-      const { data } = await axios.get(`${backendUrl}/api/teams/list`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (data.success) {
-        setTeams(data.teams);
-        if (activeTeam) {
-          const updated = data.teams.find(t => t._id === activeTeam._id);
-          if (updated) {
-            setActiveTeam(updated);
-            setLogoPreview(updated.logo || null);
-          }
+// ================= DATA FETCHING =================
+const fetchTeams = async () => {
+  try {
+    const token = await getToken();
+    const { data } = await axios.get(`${backendUrl}/api/teams/list`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (data.success) {
+      setTeams(data.teams);
+      if (activeTeam) {
+        const updated = data.teams.find(t => t._id === activeTeam._id);
+        if (updated) {
+          setActiveTeam(updated);
+          setLogoPreview(updated.logo || null);
         }
       }
-    } catch (error) {
-      toast.error("Failed to load teams");
-    } finally {
-      setLoading(false);
     }
-  };
+  } catch (error) {
+    console.error("Failed to load teams:", error);
+    toast.error("Failed to load teams");
+  } finally {
+    setLoading(false); 
+  }
+};
 
   const fetchMessages = async (teamId) => {
     try {
@@ -1081,34 +1082,32 @@ const Teams = () => {
     }
   };
 
+  // ================= FIXED handleSendRichMessage FUNCTION =================
   const handleSendRichMessage = async () => {
-  if (!quillContent || quillContent === '<p><br></p>' || !canSendMessages()) return;
+    if (!quillContent || quillContent === '<p><br></p>' || !canSendMessages()) return;
 
-  try {
-    const token = await getToken();
-    const response = await axios.post(
-      `${backendUrl}/api/teams/message/send`,
-      { 
-        teamId: activeTeam._id, 
-        content: quillContent, 
-        type: "rich_text" 
-      },
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    
-    if (response.data.success) {
-      setQuillContent('');
+    try {
+      const token = await getToken();
+      const response = await axios.post(
+        `${backendUrl}/api/teams/message/send`,
+        { 
+          teamId: activeTeam._id, 
+          content: quillContent, 
+          type: "rich_text" 
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
       
-      // Fetch messages to show the new one
-      fetchMessages(activeTeam._id);
-      
-      toast.success("Message sent successfully!");
+      if (response.data.success) {
+        setQuillContent('');
+        fetchMessages(activeTeam._id);
+        toast.success("Message sent successfully!");
+      }
+    } catch (error) {
+      console.error("Send message error:", error);
+      toast.error(error.response?.data?.message || "Failed to send message");
     }
-  } catch (error) {
-    console.error("Send message error:", error);
-    toast.error(error.response?.data?.message || "Failed to send message");
-  }
-};
+  };
 
   const postMeetingLink = async (type) => {
     if (!canSendMessages()) {
@@ -1127,7 +1126,7 @@ const Teams = () => {
           teamId: activeTeam._id,
           content: `Started a ${type} meeting`,
           type: "call_link",
-          linkData: { title: `${type} Meeting`, url: link }
+          linkData: { title: `${type} Meeting`, url: link },
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -1893,7 +1892,7 @@ const Teams = () => {
                                   onChange={setQuillContent}
                                   modules={quillModules}
                                   formats={quillFormats}
-                                  placeholder="Type your message here... Supports bold, italic, lists, headings, and more!"
+                                  placeholder="Type your message here..."
                                   className="bg-white"
                                 />
                                 
