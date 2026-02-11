@@ -141,14 +141,25 @@ export const uploadCoursePdf = async (req, res) => {
 // ------------------------- Educator Dashboard (Courses + Enrollments) -------------------------
 export const getEducatorDashboard = async (req, res) => {
   try {
-    const educatorId = req.user._id;
+    const educatorId = req.user.id;
+    const userRole = req.user?.role; // Assuming role is available on req.user
 
-    const courses = await Course.find({ educator: educatorId })
-      .populate({
-        path: "enrolledStudents",
-        select: "name email imageUrl createdAt",
-      })
-      .sort({ createdAt: -1 });
+    let courses;
+    if (userRole === "admin" || userRole === "educator") {
+      courses = await Course.find({})
+        .populate({
+          path: "enrolledStudents",
+          select: "name email imageUrl createdAt",
+        })
+        .sort({ createdAt: -1 });
+    } else {
+      courses = await Course.find({ educator: educatorId })
+        .populate({
+          path: "enrolledStudents",
+          select: "name email imageUrl createdAt",
+        })
+        .sort({ createdAt: -1 });
+    }
 
     if (!courses.length) {
       return res.json({

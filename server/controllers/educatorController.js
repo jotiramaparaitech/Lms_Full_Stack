@@ -121,12 +121,20 @@ export const getEducatorCourses = async (req, res) => {
   try {
     const auth = req.auth();
     const educator = auth?.userId;
+    const userRole = req.user?.role; // Assuming role is attached to req.user by middleware
+
     if (!educator)
       return res
         .status(401)
         .json({ success: false, message: "Unauthorized educator" });
 
-    const courses = await Course.find({ educator });
+    let courses;
+    if (userRole === "admin" || userRole === "educator") {
+      courses = await Course.find({});
+    } else {
+      courses = await Course.find({ educator });
+    }
+
     res.json({ success: true, courses });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -140,6 +148,7 @@ export const getEducatorCourseById = async (req, res) => {
   try {
     const auth = req.auth();
     const educator = auth?.userId;
+    const userRole = req.user?.role;
     const { id } = req.params;
 
     if (!educator)
@@ -147,7 +156,12 @@ export const getEducatorCourseById = async (req, res) => {
         .status(401)
         .json({ success: false, message: "Unauthorized educator" });
 
-    const course = await Course.findOne({ _id: id, educator });
+    let course;
+    if (userRole === "admin" || userRole === "educator") {
+      course = await Course.findOne({ _id: id });
+    } else {
+      course = await Course.findOne({ _id: id, educator });
+    }
 
     if (!course) {
       return res
@@ -169,6 +183,7 @@ export const updateCourse = async (req, res) => {
     const courseId = req.params.id;
     const auth = req.auth();
     const educatorId = auth?.userId;
+    const userRole = req.user?.role;
 
     if (!educatorId) {
       return res
@@ -176,10 +191,12 @@ export const updateCourse = async (req, res) => {
         .json({ success: false, message: "Unauthorized: No user ID found" });
     }
 
-    const course = await Course.findOne({
-      _id: courseId,
-      educator: educatorId,
-    });
+    let query = { _id: courseId };
+    if (userRole !== "admin" && userRole !== "educator") {
+      query.educator = educatorId;
+    }
+
+    const course = await Course.findOne(query);
     if (!course)
       return res
         .status(404)
@@ -283,8 +300,8 @@ export const updateCourse = async (req, res) => {
         const uploadResult = imageFile.buffer
           ? await uploadFromBuffer(imageFile.buffer, "courses")
           : await cloudinary.uploader.upload(imageFile.path, {
-              folder: "courses",
-            });
+            folder: "courses",
+          });
         if (uploadResult && uploadResult.secure_url) {
           course.courseThumbnail = uploadResult.secure_url;
         }
@@ -308,9 +325,9 @@ export const updateCourse = async (req, res) => {
           const uploadResult = file.buffer
             ? await uploadFromBuffer(file.buffer, "course_pdfs", "raw")
             : await cloudinary.uploader.upload(file.path, {
-                resource_type: "raw",
-                folder: "course_pdfs",
-              });
+              resource_type: "raw",
+              folder: "course_pdfs",
+            });
 
           if (uploadResult) {
             pdfResources.push({
@@ -388,11 +405,14 @@ export const deleteCourse = async (req, res) => {
     const courseId = req.params.id;
     const auth = req.auth();
     const educatorId = auth?.userId;
+    const userRole = req.user?.role;
 
-    const course = await Course.findOne({
-      _id: courseId,
-      educator: educatorId,
-    });
+    let query = { _id: courseId };
+    if (userRole !== "admin" && userRole !== "educator") {
+      query.educator = educatorId;
+    }
+
+    const course = await Course.findOne(query);
     if (!course)
       return res
         .status(404)
@@ -412,12 +432,20 @@ export const educatorDashboardData = async (req, res) => {
   try {
     const auth = req.auth();
     const educator = auth?.userId;
+    const userRole = req.user?.role;
+
     if (!educator)
       return res
         .status(401)
         .json({ success: false, message: "Unauthorized educator" });
 
-    const courses = await Course.find({ educator });
+    let courses;
+    if (userRole === "admin" || userRole === "educator") {
+      courses = await Course.find({});
+    } else {
+      courses = await Course.find({ educator });
+    }
+
     const totalCourses = courses.length;
     const courseIds = courses.map((c) => c._id);
 
@@ -464,12 +492,19 @@ export const getEnrolledStudentsData = async (req, res) => {
   try {
     const auth = req.auth();
     const educator = auth?.userId;
+    const userRole = req.user?.role;
+
     if (!educator)
       return res
         .status(401)
         .json({ success: false, message: "Unauthorized educator" });
 
-    const courses = await Course.find({ educator });
+    let courses;
+    if (userRole === "admin" || userRole === "educator") {
+      courses = await Course.find({});
+    } else {
+      courses = await Course.find({ educator });
+    }
     const courseIds = courses.map((c) => c._id);
 
     const purchases = await Purchase.find({
@@ -503,11 +538,14 @@ export const removeStudentAccess = async (req, res) => {
     const { courseId, studentId } = req.params;
     const auth = req.auth();
     const educatorId = auth?.userId;
+    const userRole = req.user?.role;
 
-    const course = await Course.findOne({
-      _id: courseId,
-      educator: educatorId,
-    });
+    let query = { _id: courseId };
+    if (userRole !== "admin" && userRole !== "educator") {
+      query.educator = educatorId;
+    }
+
+    const course = await Course.findOne(query);
     if (!course)
       return res
         .status(404)
@@ -554,11 +592,14 @@ export const assignCourse = async (req, res) => {
     const { studentId, courseId } = req.body;
     const auth = req.auth();
     const educatorId = auth?.userId;
+    const userRole = req.user?.role;
 
-    const course = await Course.findOne({
-      _id: courseId,
-      educator: educatorId,
-    });
+    let query = { _id: courseId };
+    if (userRole !== "admin" && userRole !== "educator") {
+      query.educator = educatorId;
+    }
+
+    const course = await Course.findOne(query);
     if (!course)
       return res
         .status(404)

@@ -53,13 +53,14 @@ export const protectEducator = async (req, res, next) => {
 
     const response = await clerkClient.users.getUser(userId);
 
-    if (response.publicMetadata.role !== "educator") {
-      return res
-        .status(403)
-        .json({
-          success: false,
-          message: "Unauthorized Access: Educators only",
-        });
+    if (
+      response.publicMetadata.role !== "educator" &&
+      response.publicMetadata.role !== "admin"
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized Access: Educators or Admins only",
+      });
     }
 
     // Attach educator user info to request
@@ -78,10 +79,14 @@ export const protectEducator = async (req, res, next) => {
 // ✅ Middleware: Alias for Educator Role Check (for courseRoute.js compatibility)
 export const isEducator = (req, res, next) => {
   try {
-    if (!req.user || req.user.role !== "educator") {
-      return res
-        .status(403)
-        .json({ success: false, message: "Access denied: Educators only" });
+    if (
+      !req.user ||
+      (req.user.role !== "educator" && req.user.role !== "admin")
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied: Educators or Admins only",
+      });
     }
     next();
   } catch (error) {

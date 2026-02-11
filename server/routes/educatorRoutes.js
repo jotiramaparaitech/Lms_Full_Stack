@@ -16,21 +16,21 @@ import {
   assignToTeam, // ✅ NEW
 } from "../controllers/educatorController.js";
 import upload from "../configs/multer.js";
-import { requireAuth } from "@clerk/express"; // ✅ FIXED IMPORT
+import { protect } from "../middlewares/authMiddleware.js";
 
 const educatorRouter = express.Router();
 
 // -----------------------------
 // Add Educator Role
 // -----------------------------
-educatorRouter.get("/update-role", requireAuth(), updateRoleToEducator);
+educatorRouter.get("/update-role", protect, updateRoleToEducator);
 
 // -----------------------------
 // Add Course
 // -----------------------------
 educatorRouter.post(
   "/add-course",
-  requireAuth(),
+  protect,
   upload.fields([
     { name: "image", maxCount: 1 },
     { name: "pdfs", maxCount: 10 },
@@ -41,19 +41,19 @@ educatorRouter.post(
 // -----------------------------
 // Get Educator Courses
 // -----------------------------
-educatorRouter.get("/courses", requireAuth(), getEducatorCourses);
+educatorRouter.get("/courses", protect, getEducatorCourses);
 
 // -----------------------------
 // Get Single Educator Course
 // -----------------------------
-educatorRouter.get("/course/:id", requireAuth(), getEducatorCourseById);
+educatorRouter.get("/course/:id", protect, getEducatorCourseById);
 
 // -----------------------------
 // Update Course
 // -----------------------------
 educatorRouter.put(
   "/course/:id",
-  requireAuth(),
+  protect,
   upload.fields([
     { name: "image", maxCount: 1 },
     { name: "pdfs", maxCount: 10 },
@@ -64,19 +64,19 @@ educatorRouter.put(
 // -----------------------------
 // Delete Course
 // -----------------------------
-educatorRouter.delete("/course/:id", requireAuth(), deleteCourse);
+educatorRouter.delete("/course/:id", protect, deleteCourse);
 
 // -----------------------------
 // Educator Dashboard Data
 // -----------------------------
-educatorRouter.get("/dashboard", requireAuth(), educatorDashboardData);
+educatorRouter.get("/dashboard", protect, educatorDashboardData);
 
 // -----------------------------
 // Get Enrolled Students Data
 // -----------------------------
 educatorRouter.get(
   "/enrolled-students",
-  requireAuth(),
+  protect,
   getEnrolledStudentsData,
 );
 
@@ -85,33 +85,33 @@ educatorRouter.get(
 // -----------------------------
 educatorRouter.delete(
   "/remove-student/:courseId/:studentId",
-  requireAuth(),
+  protect,
   removeStudentAccess,
 );
 
 // -----------------------------
 // Get All Students
 // -----------------------------
-educatorRouter.get("/all-students", requireAuth(), getAllStudents);
+educatorRouter.get("/all-students", protect, getAllStudents);
 
 // -----------------------------
 // Assign Course to Student
 // -----------------------------
-educatorRouter.post("/assign-course", requireAuth(), assignCourse);
+educatorRouter.post("/assign-course", protect, assignCourse);
 
 // -----------------------------
 // Assign Student to Team
 // -----------------------------
-educatorRouter.post("/assign-to-team", requireAuth(), assignToTeam);
+educatorRouter.post("/assign-to-team", protect, assignToTeam);
 
 // -----------------------------
 // Assign Team Leader
 // -----------------------------
-educatorRouter.post("/assign-team-leader", requireAuth(), assignTeamLeader);
+educatorRouter.post("/assign-team-leader", protect, assignTeamLeader);
 
 // -----------------------------
 // Get Team Leaders
 // -----------------------------
-educatorRouter.get("/team-leaders", requireAuth(), getTeamLeaders);
+educatorRouter.get("/team-leaders", protect, getTeamLeaders);
 
 export default educatorRouter;
