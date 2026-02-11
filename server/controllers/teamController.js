@@ -136,9 +136,24 @@ export const getTeams = async (req, res) => {
     const auth = req.auth();
     const userId = auth?.userId;
 
-    const teams = await Team.find({
+    // Get user role from req.user (populated by protect middleware) or fallback to User model
+    let userRole = req.user?.role;
+
+    if (!userRole) {
+      const user = await User.findById(userId);
+      userRole = user?.role || (user?.isTeamLeader ? 'educator' : 'student');
+    }
+
+    // ✅ Allow Admin & Educator to see ALL teams
+    let query = {
       $or: [{ "members.userId": userId }, { leader: userId }],
-    })
+    };
+
+    if (userRole === "admin" || userRole === "educator") {
+      query = {}; // No filter = fetch all
+    }
+
+    const teams = await Team.find(query)
       .populate("members.userId", "name imageUrl email")
       .populate("pendingRequests", "name imageUrl email")
       .sort({ updatedAt: -1 });
@@ -774,28 +789,28 @@ export const getTeamFiles = async (req, res) => {
 
     const isMember = team.members.some((m) => m.userId === userId);
     if (!isMember) {
-      return res.status(403).json({ 
-        success: false, 
-        message: "Join team to view files" 
+      return res.status(403).json({
+        success: false,
+        message: "Join team to view files"
       });
     }
 
     // Get all file messages (images and files)
-    const files = await TeamMessage.find({ 
+    const files = await TeamMessage.find({
       teamId,
       type: { $in: ['image', 'file'] },
       deleted: { $ne: true }
     })
-    .sort({ createdAt: -1 })
-    .populate("sender", "name imageUrl")
-    .lean();
+      .sort({ createdAt: -1 })
+      .populate("sender", "name imageUrl")
+      .lean();
 
     // Enhance file data with metadata
     const enhancedFiles = files.map(file => {
       let fileType = 'file';
       let fileName = file.content || 'Unknown File';
       let fileSize = 'Unknown';
-      
+
       // Extract file name from URL if possible
       if (file.attachmentUrl) {
         try {
@@ -838,10 +853,10 @@ export const getTeamFiles = async (req, res) => {
       };
     });
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       files: enhancedFiles,
-      count: enhancedFiles.length 
+      count: enhancedFiles.length
     });
   } catch (error) {
     console.error("❌ getTeamFiles error:", error);
