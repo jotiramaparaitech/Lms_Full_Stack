@@ -11,12 +11,12 @@ const teamMessageSchema = new mongoose.Schema(
 
     type: {
       type: String,
-      enum: ["text", "post", "image", "file", "call_link"],
+      enum: ["text", "post", "image", "file", "call_link", "rich_text"],
       default: "text"
     },
 
-    edited: { type: Boolean, default: false }, // 🔥
-    deleted: { type: Boolean, default: false }, // 🔥
+    edited: { type: Boolean, default: false }, 
+    deleted: { type: Boolean, default: false },
 
     attachmentUrl: String,
     linkData: Object
