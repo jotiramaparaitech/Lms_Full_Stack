@@ -21,18 +21,19 @@ import {
   ArrowLeft
 } from "lucide-react";
 import moment from "moment";
-import { io } from "socket.io-client"; // ✅ ADDED
+import { io } from "socket.io-client";
+import ReactQuill from "react-quill"; // ✅ ADDED
+import "react-quill/dist/quill.snow.css"; // ✅ ADDED
 
 const Teams = () => {
   const { userData, backendUrl, getToken } = useContext(AppContext);
   const navigate = useNavigate();
 
-  const socketRef = useRef(null); // ✅ ADDED
+  const socketRef = useRef(null);
   const scrollRef = useRef();
 
   const [teams, setTeams] = useState([]);
   const [activeTeam, setActiveTeam] = useState(null);
-  //const [loading, setLoading] = useState(true);
   const [messages, setMessages] = useState([]);
   const [messageInput, setMessageInput] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -41,7 +42,31 @@ const Teams = () => {
   const [newTeamName, setNewTeamName] = useState("");
   const [newTeamDesc, setNewTeamDesc] = useState("");
 
-  // ================= SOCKET.IO (ADDED ONLY) =================
+  // ✅ QUILL CONFIGURATION
+  const quillModules = {
+    toolbar: [
+      ["bold", "italic", "underline", "strike"],
+      [{ list: "ordered" }, { list: "bullet" }],
+      ["link", "code-block"],
+      ["clean"],
+    ],
+  };
+
+  const quillFormats = [
+    "header",
+    "bold",
+    "italic",
+    "underline",
+    "strike",
+    "blockquote",
+    "list",
+    "bullet",
+    "link",
+    "color",
+    "code-block",
+  ];
+
+  // ================= SOCKET.IO =================
   useEffect(() => {
     socketRef.current = io(backendUrl, {
       transports: ["websocket"],
@@ -62,14 +87,14 @@ const Teams = () => {
       socketRef.current.emit("join-team", activeTeam._id);
     }
   }, [activeTeam]);
-  // ==========================================================
+  // =============================================
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   // -----------------------------
-  // Data Fetching (UNCHANGED)
+  // Data Fetching
   // -----------------------------
   const fetchTeams = async () => {
     try {
@@ -80,14 +105,12 @@ const Teams = () => {
       if (data.success) {
         setTeams(data.teams);
         if (activeTeam) {
-          const updated = data.teams.find(t => t._id === activeTeam._id);
+          const updated = data.teams.find((t) => t._id === activeTeam._id);
           if (updated) setActiveTeam(updated);
         }
       }
     } catch {
       toast.error("Failed to load teams");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -113,7 +136,7 @@ const Teams = () => {
   }, [activeTeam]);
 
   // -----------------------------
-  // Actions (ALL KEPT)
+  // Actions
   // -----------------------------
   const handleCreateTeam = async (e) => {
     e.preventDefault();
@@ -153,9 +176,13 @@ const Teams = () => {
     }
   };
 
+  // ✅ UPDATED HANDLE SEND MESSAGE FOR QUILL
   const handleSendMessage = async (e) => {
-    e.preventDefault();
-    if (!messageInput.trim()) return;
+    if (e) e.preventDefault();
+    
+    // Quill often leaves <p><br></p> when empty, so we strip tags to check real content
+    const strippedContent = messageInput.replace(/<(.|\n)*?>/g, '').trim();
+    if (!strippedContent) return;
 
     try {
       const token = await getToken();
@@ -164,7 +191,7 @@ const Teams = () => {
         { teamId: activeTeam._id, content: messageInput, type: "text" },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setMessageInput(""); // ✅ socket updates UI
+      setMessageInput(""); 
     } catch {
       toast.error("Failed to send");
     }
@@ -182,7 +209,7 @@ const Teams = () => {
           teamId: activeTeam._id,
           content: `Started a ${type} meeting`,
           type: "call_link",
-          linkData: { title: `${type} Meeting`, url: link }
+          linkData: { title: `${type} Meeting`, url: link },
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -216,13 +243,11 @@ const Teams = () => {
   };
 
   // -----------------------------
-  // Render (UNCHANGED UI)
+  // Render
   // -----------------------------
-  //if (loading) return <div className="p-10 text-center">Loading Teams...</div>;
-
   return (
     <StudentLayout>
-       <div className="flex h-[calc(100vh-80px)] bg-gray-50 font-sans">
+      <div className="flex h-[calc(100vh-80px)] bg-gray-50 font-sans">
         
         {/* SIDEBAR: TEAM LIST */}
         <div className={`${activeTeam ? "hidden md:flex" : "flex w-full"} md:w-80 bg-white border-r border-gray-200 flex-col`}>
@@ -348,7 +373,7 @@ const Teams = () => {
                           <div className="flex-1 overflow-y-auto p-6 space-y-6">
                               {messages.map((msg) => (
                                   <div key={msg._id} className="flex gap-4 group">
-                                      <img src={msg.sender?.imageUrl || "/default-avatar.png"} className="w-10 h-10 rounded-full object-cover shadow-sm bg-white" />
+                                      <img src={msg.sender?.imageUrl || "/default-avatar.png"} className="w-10 h-10 rounded-full object-cover shadow-sm bg-white" alt="" />
                                       <div className="flex-1">
                                           <div className="flex items-baseline gap-2">
                                               <span className="font-bold text-gray-900 text-sm">{msg.sender?.name}</span>
@@ -356,9 +381,11 @@ const Teams = () => {
                                           </div>
                                           
                                           {msg.type === 'text' && (
-                                              <p className="text-gray-800 text-sm mt-1 leading-relaxed bg-white p-3 rounded-tr-xl rounded-br-xl rounded-bl-xl shadow-sm inline-block max-w-[80%] border border-gray-100">
-                                                  {msg.content}
-                                              </p>
+                                              /* ✅ UPDATED TO RENDER HTML FROM QUILL */
+                                              <div 
+                                                className="text-gray-800 text-sm mt-1 leading-relaxed bg-white p-3 rounded-tr-xl rounded-br-xl rounded-bl-xl shadow-sm inline-block max-w-[80%] border border-gray-100 prose prose-sm"
+                                                dangerouslySetInnerHTML={{ __html: msg.content }}
+                                              />
                                           )}
                                           
                                           {msg.type === 'call_link' && (
@@ -383,32 +410,32 @@ const Teams = () => {
                               <div ref={scrollRef}></div>
                           </div>
 
-                          {/* INPUT DECK */}
+                          {/* ✅ UPDATED INPUT DECK WITH QUILL */}
                           <div className="p-4 bg-white border-t border-gray-200">
-                              <form onSubmit={handleSendMessage} className="flex flex-col gap-3 bg-gray-50 p-3 rounded-xl border border-gray-200">
-                                  <textarea 
-                                    className="w-full bg-white border border-gray-200 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none text-sm min-h-[60px]"
-                                    placeholder="Type a new message..."
-                                    rows={2}
-                                    value={messageInput}
-                                    onChange={(e) => setMessageInput(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter' && !e.shiftKey) {
-                                            e.preventDefault();
-                                            handleSendMessage(e);
-                                        }
-                                    }}
-                                  />
+                              <form className="flex flex-col gap-3 bg-gray-50 p-3 rounded-xl border border-gray-200">
+                                  <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                                      <ReactQuill
+                                        theme="snow"
+                                        value={messageInput}
+                                        onChange={setMessageInput}
+                                        modules={quillModules}
+                                        formats={quillFormats}
+                                        placeholder="Type a formatted message..."
+                                        className="bg-white min-h-[80px]" // You can adjust height via CSS
+                                      />
+                                  </div>
+
                                   <div className="flex justify-between items-center px-1">
                                       <div className="flex gap-3 text-gray-400 bg-white p-1.5 rounded-lg border border-gray-100 shadow-sm">
                                           <button type="button" className="hover:text-blue-500 p-1.5 rounded-md hover:bg-blue-50 transition-colors"><ImageIcon size={18} /></button>
                                           <button type="button" className="hover:text-blue-500 p-1.5 rounded-md hover:bg-blue-50 transition-colors"><Paperclip size={18} /></button>
                                       </div>
                                       <button 
-                                        type="submit" 
-                                        disabled={!messageInput.trim()}
+                                        type="button" // Important: type button here so it doesn't submit unless we click it
+                                        onClick={handleSendMessage}
+                                        disabled={!messageInput.replace(/<(.|\n)*?>/g, '').trim()}
                                         className={`p-2.5 rounded-lg transition-all flex items-center gap-2 shadow-sm font-medium text-xs ${
-                                            messageInput.trim() 
+                                            messageInput.replace(/<(.|\n)*?>/g, '').trim()
                                             ? "bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md transform hover:-translate-y-0.5" 
                                             : "bg-gray-200 text-gray-400 cursor-not-allowed"
                                         }`}
@@ -434,7 +461,7 @@ const Teams = () => {
                                        {activeTeam.pendingRequests.map(user => (
                                            <div key={user._id} className="flex justify-between items-center bg-white p-3 rounded-lg border border-orange-100 shadow-sm hover:shadow-md transition-shadow">
                                                <div className="flex items-center gap-3">
-                                                    <img src={user.imageUrl || '/default-avatar.png'} className="w-9 h-9 rounded-full object-cover border border-gray-200" />
+                                                    <img src={user.imageUrl || '/default-avatar.png'} className="w-9 h-9 rounded-full object-cover border border-gray-200" alt="" />
                                                     <div>
                                                         <p className="font-semibold text-gray-800 text-sm">{user.name}</p>
                                                         <p className="text-xs text-gray-500">{user.email}</p>
@@ -467,7 +494,7 @@ const Teams = () => {
                                {activeTeam.members.map((member) => (
                                    <div key={member.userId._id} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-lg hover:shadow-sm transition-shadow">
                                        <div className="flex items-center gap-3">
-                                            <img src={member.userId.imageUrl || '/default-avatar.png'} className="w-10 h-10 rounded-full object-cover" />
+                                            <img src={member.userId.imageUrl || '/default-avatar.png'} className="w-10 h-10 rounded-full object-cover" alt="" />
                                             <div>
                                                 <p className="font-semibold text-gray-800 text-sm">{member.userId.name}</p>
                                                 <p className="text-xs text-gray-500 capitalize">{member.role}</p>
