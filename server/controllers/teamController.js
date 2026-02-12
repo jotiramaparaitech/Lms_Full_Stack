@@ -3,7 +3,7 @@ import TeamMessage from "../models/TeamMessage.js";
 import User from "../models/User.js";
 import { v2 as cloudinary } from "cloudinary";
 import moment from 'moment';
-
+import { sendTeamAnnouncement } from "../utils/sendTeamEmail.js";
 
 // -----------------------------
 // Create Team
@@ -263,7 +263,6 @@ export const manageRequest = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
-
 // -----------------------------
 // Send Message (Leader/Admin Only)
 // -----------------------------
@@ -274,25 +273,17 @@ export const sendMessage = async (req, res) => {
     const userId = auth?.userId;
 
     if (!userId) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized",
-      });
+      return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    const team = await Team.findById(teamId);
+    // 1. Fetch Team AND Populate Members (We need their emails now!)
+    const team = await Team.findById(teamId).populate("members.userId", "email");
+    
     if (!team) {
-      return res.status(404).json({
-        success: false,
-        message: "Team not found",
-      });
+      return res.status(404).json({ success: false, message: "Team not found" });
     }
 
-    // ✅ ROLE CHECK (IMPORTANT)
-    const member = team.members.find(
-      (m) => m.userId.toString() === userId
-    );
-
+    const member = team.members.find((m) => m.userId._id.toString() === userId);
     const isLeader = team.leader.toString() === userId;
     const isAdmin = member?.role === "admin";
 
@@ -303,6 +294,7 @@ export const sendMessage = async (req, res) => {
       });
     }
 
+    // 2. Create the Message
     const message = await TeamMessage.create({
       teamId,
       sender: userId,
@@ -314,13 +306,33 @@ export const sendMessage = async (req, res) => {
 
     await message.populate("sender", "name imageUrl");
 
-    // 🔔 Emit via socket if available
+    // 3. Socket Emit (Update UI immediately)
     req.app.get("io")?.to(teamId).emit("receive-message", message);
+
+    // 4. ✅ NEW: Send Email Notification (Background Process)
+    // Only send email if the sender is the LEADER
+    if (isLeader) {
+      // Get all member emails EXCLUDING the leader
+      const recipientEmails = team.members
+        .filter(m => m.userId._id.toString() !== userId) // Filter by ID first (safer)
+        .map(m => m.userId.email) // Then extract email
+        .filter(email => email); // Remove any null/undefined emails
+
+      // 🔥 Call email function without 'await' so the chat doesn't lag
+      sendTeamAnnouncement(
+        recipientEmails,
+        team.name,
+        message.sender.name, // Leader Name
+        content,
+        attachmentUrl
+      ).catch(err => console.error("Background email failed", err));
+    }
 
     return res.json({
       success: true,
       message,
     });
+
   } catch (error) {
     console.error("❌ sendMessage error:", error);
     return res.status(500).json({
