@@ -684,8 +684,9 @@ export const updateStudentProgress = async (req, res) => {
 
 
 // -----------------------------
-// Get My Team Progress 
+// Get My Team Progress
 // -----------------------------
+
 export const getMyTeamProgress = async (req, res) => {
   try {
     const auth = req.auth();
@@ -695,7 +696,7 @@ export const getMyTeamProgress = async (req, res) => {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    // Find ALL teams where user is a member (not just leader)
+    // Find ALL teams where user is a member
     const teams = await Team.find({
       "members.userId": userId
     });
@@ -723,17 +724,18 @@ export const getMyTeamProgress = async (req, res) => {
       };
     });
 
-    // Calculate overall progress as average of all team progresses
-    const totalProgress = teamProgressList.reduce((sum, t) => sum + t.progress, 0);
-    const overallProgress = teamProgressList.length > 0 
-      ? Math.round(totalProgress / teamProgressList.length) 
-      : 0;
+    // 🔥 FIX: Use MAX progress instead of AVERAGE
+    // Student sees their highest progress across all teams
+    const maxProgress = Math.max(...teamProgressList.map(t => t.progress), 0);
 
     return res.json({
       success: true,
-      teams: teamProgressList,
-      overallProgress,
-      teamCount: teams.length
+      teams: teamProgressList, // Send all teams for detailed view
+      overallProgress: maxProgress, // ✅ This is now the MAX, not average
+      teamCount: teams.length,
+      message: teamProgressList.length > 1 
+        ? `You are in ${teamProgressList.length} teams. Showing your highest progress.` 
+        : ""
     });
   } catch (error) {
     console.log("❌ getMyTeamProgress error:", error);

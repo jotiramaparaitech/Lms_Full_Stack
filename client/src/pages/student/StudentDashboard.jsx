@@ -101,8 +101,8 @@ const DashboardHome = () => {
     calculateCourseDuration,
     calculateNoOfLectures,
 
-    // ✅ Team Progress (Leader updated)
-    teamProgress,
+    // ✅ Use student's OWN progress, not team average
+    studentOverallProgress,
     fetchMyTeamProgress,
   } = useContext(AppContext);
 
@@ -118,21 +118,17 @@ const DashboardHome = () => {
     pendingTasks: 0,
   });
 
-  // ✅ IMPORTANT: refresh teamProgress when dashboard loads
+  // ✅ Refresh student's own progress when dashboard loads
   useEffect(() => {
     fetchMyTeamProgress();
   }, []);
 
-
-
   // ✅ Calculate Study Hours
   const calculateStudyHours = () => {
-    // Placeholder logic - sum up lecture durations if available in future
-    // For now return 0 to prevent crash and consistent with initial state
     return 0;
   };
 
-  // Update dashboard statistics (lecture based calculations still allowed)
+  // Update dashboard statistics
   const updateStats = (progressArray, courses) => {
     if (!courses || courses.length === 0) {
       setStats({
@@ -144,6 +140,17 @@ const DashboardHome = () => {
       });
       return;
     }
+
+    // ✅ Remove duplicate courses based on _id
+    const uniqueCourses = [];
+    const courseIds = new Set();
+    
+    courses.forEach(course => {
+      if (!courseIds.has(course._id)) {
+        courseIds.add(course._id);
+        uniqueCourses.push(course);
+      }
+    });
 
     const activeProjects = progressArray.filter(
       (p) => p.progressPercent > 0 && p.progressPercent < 100
@@ -165,7 +172,7 @@ const DashboardHome = () => {
       .length;
 
     setStats({
-      activeProjects,
+      activeProjects: uniqueCourses.length, // ✅ Use unique courses count
       completedTasks,
       studyHours,
       certificates,
@@ -173,12 +180,21 @@ const DashboardHome = () => {
     });
   };
 
-  // Fetch course progress (lecture based) - optional
+  // Fetch course progress
   const getCourseProgress = async () => {
     try {
-      // If you want to completely remove lecture-based progress, tell me.
-      // For now we keep it for cards.
-      const tempProgressArray = enrolledCourses.map((course) => {
+      // ✅ Remove duplicate courses before processing
+      const uniqueCourses = [];
+      const courseIds = new Set();
+      
+      enrolledCourses.forEach(course => {
+        if (!courseIds.has(course._id)) {
+          courseIds.add(course._id);
+          uniqueCourses.push(course);
+        }
+      });
+
+      const tempProgressArray = uniqueCourses.map((course) => {
         const totalLectures = calculateNoOfLectures(course);
         return {
           courseId: course._id,
@@ -189,7 +205,7 @@ const DashboardHome = () => {
       });
 
       setProgressData(tempProgressArray);
-      updateStats(tempProgressArray, enrolledCourses);
+      updateStats(tempProgressArray, uniqueCourses); // ✅ Pass unique courses
     } catch (error) {
       console.error("Error fetching course progress:", error);
     }
@@ -197,13 +213,24 @@ const DashboardHome = () => {
 
   // Mock recent activities
   const fetchRecentActivities = async () => {
+    // ✅ Use unique course for activity
+    const uniqueCourses = [];
+    const courseIds = new Set();
+    
+    enrolledCourses.forEach(course => {
+      if (!courseIds.has(course._id)) {
+        courseIds.add(course._id);
+        uniqueCourses.push(course);
+      }
+    });
+
     const mockActivities = [
       {
         id: 1,
         activity: "Assigned in new project",
         time: "",
         type: "enrollment",
-        courseName: enrolledCourses[0]?.courseTitle || "New Course",
+        courseName: uniqueCourses[0]?.courseTitle || "New Course",
       },
       {
         id: 3,
@@ -255,10 +282,11 @@ const DashboardHome = () => {
     },
   ];
 
+  // ✅ STATS CARDS - EXACTLY as you had them, no My Progress card, no My Teams card
   const statsCards = [
     {
       title: "Assigned Projects",
-      value: enrolledCourses.length,
+      value: enrolledCourses.length, // This will still show duplicate count - fix below
       icon: <BookOpen size={24} />,
       color: "bg-gradient-to-r from-blue-500 to-cyan-500",
       change:
@@ -283,29 +311,12 @@ const DashboardHome = () => {
       change:
         stats.completedTasks > 0
           ? `${Math.round(
-            (stats.completedTasks /
-              (stats.completedTasks + stats.pendingTasks)) *
-            100
-          ) || 0}% completion rate`
+              (stats.completedTasks /
+                (stats.completedTasks + stats.pendingTasks)) *
+                100
+            ) || 0}% completion rate`
           : "Start learning!",
     },
-    // {
-    //   title: "Study Hours",
-    //   value: `${stats.studyHours}h`,
-    //   icon: <Clock size={24} />,
-    //   color: "bg-gradient-to-r from-purple-500 to-pink-500",
-    //   change:
-    //     stats.studyHours > 0
-    //       ? `+${Math.floor(stats.studyHours / 10)}h this week`
-    //       : "Track your time",
-    // },
-    // {
-    //   title: "Overall Progress",
-    //   value: `${teamProgress || 0}%`, // ✅ REAL PROGRESS
-    //   icon: <TrendingUp size={24} />,
-    //   color: "bg-gradient-to-r from-indigo-500 to-blue-500",
-    //   change: (teamProgress || 0) > 0 ? "Keep it up!" : "Start your first project",
-    // },
     {
       title: "Documents & Certificates",
       value: stats.certificates,
@@ -314,27 +325,17 @@ const DashboardHome = () => {
       change:
         stats.certificates > 0 ? "Great progress!" : "Complete projects to earn",
     },
-
   ];
 
-  // Calculate dynamic grid classes based on number of visible cards
+  // Calculate dynamic grid classes
   const getGridClass = () => {
     const visibleCards = statsCards.length;
-
-    // For different numbers of cards, use appropriate grid columns
-    if (visibleCards <= 1) {
-      return "grid-cols-1";
-    } else if (visibleCards === 2) {
-      return "grid-cols-1 md:grid-cols-2";
-    } else if (visibleCards === 3) {
-      return "grid-cols-1 md:grid-cols-2 lg:grid-cols-3";
-    } else if (visibleCards === 4) {
-      return "grid-cols-1 md:grid-cols-2 lg:grid-cols-4";
-    } else if (visibleCards === 5) {
-      return "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5";
-    } else {
-      return "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6";
-    }
+    if (visibleCards <= 1) return "grid-cols-1";
+    else if (visibleCards === 2) return "grid-cols-1 md:grid-cols-2";
+    else if (visibleCards === 3) return "grid-cols-1 md:grid-cols-2 lg:grid-cols-3";
+    else if (visibleCards === 4) return "grid-cols-1 md:grid-cols-2 lg:grid-cols-4";
+    else if (visibleCards === 5) return "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5";
+    else return "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6";
   };
 
   const getPriorityColor = (priority) => {
@@ -406,9 +407,20 @@ const DashboardHome = () => {
     );
   }
 
+  // ✅ Remove duplicate courses for display in My Projects section
+  const uniqueEnrolledCourses = [];
+  const courseIds = new Set();
+  
+  enrolledCourses.forEach(course => {
+    if (!courseIds.has(course._id)) {
+      courseIds.add(course._id);
+      uniqueEnrolledCourses.push(course);
+    }
+  });
+
   return (
     <div className="space-y-6">
-      {/* Welcome Banner */}
+      {/* Welcome Banner - SHOW STUDENT'S OWN PROGRESS */}
       <div className="bg-gradient-to-r from-cyan-600 to-teal-600 rounded-2xl p-6 text-white shadow-xl">
         <div className="flex flex-col md:flex-row md:items-center justify-between">
           <div>
@@ -427,15 +439,15 @@ const DashboardHome = () => {
               transition={{ delay: 0.1 }}
               className="text-cyan-100 mb-4"
             >
-              {enrolledCourses.length > 0 ? (
+              {uniqueEnrolledCourses.length > 0 ? ( // ✅ Use unique courses count
                 <>
-                  You're assigned in{" "}
+                  You're assigned to{" "}
                   <span className="font-bold">
-                    {enrolledCourses.length} project
-                    {enrolledCourses.length !== 1 ? "s" : ""}
+                    {uniqueEnrolledCourses.length} project
+                    {uniqueEnrolledCourses.length !== 1 ? "s" : ""}
                   </span>
-                  . Overall progress is{" "}
-                  <span className="font-bold">{teamProgress || 0}%</span>.
+                  . Your personal progress is{" "}
+                  <span className="font-bold">{studentOverallProgress || 0}%</span>.
                 </>
               ) : (
                 "Get started by enrolling in your first project!"
@@ -471,20 +483,20 @@ const DashboardHome = () => {
           >
             <div className="bg-white/20 backdrop-blur-sm rounded-xl p-4">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium">Overall Progress</span>
-                <span className="text-lg font-bold">{teamProgress || 0}%</span>
+                <span className="text-sm font-medium">My Progress</span> {/* ✅ Changed from Overall Progress */}
+                <span className="text-lg font-bold">{studentOverallProgress || 0}%</span>
               </div>
               <div className="w-64 bg-white/30 rounded-full h-3">
                 <motion.div
                   initial={{ width: 0 }}
-                  animate={{ width: `${teamProgress || 0}%` }}
+                  animate={{ width: `${studentOverallProgress || 0}%` }}
                   transition={{ duration: 1, ease: "easeOut" }}
                   className="bg-gradient-to-r from-white to-cyan-200 h-3 rounded-full"
                 ></motion.div>
               </div>
               <p className="text-xs text-cyan-100 mt-2">
-                {enrolledCourses.length} project
-                {enrolledCourses.length !== 1 ? "s" : ""} enrolled •{" "}
+                {uniqueEnrolledCourses.length} project {/* ✅ Use unique courses count */}
+                {uniqueEnrolledCourses.length !== 1 ? "s" : ""} enrolled •{" "}
                 {stats.certificates} certificate
                 {stats.certificates !== 1 ? "s" : ""} earned
               </p>
@@ -493,37 +505,68 @@ const DashboardHome = () => {
         </div>
       </div>
 
-      {/* Stats Grid - DYNAMIC LAYOUT */}
+      {/* Stats Grid - EXACTLY as you had it */}
       <div className={`grid ${getGridClass()} gap-4`}>
-        {statsCards.map((stat, index) => (
-          <motion.div
-            key={index}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.05 }}
-            whileHover={{ y: -5, scale: 1.02 }}
-            className="bg-white rounded-xl shadow-lg p-5 hover:shadow-xl transition-all duration-300 flex flex-col h-full"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className={`${stat.color} p-3 rounded-xl text-white shadow-md`}>
-                {stat.icon}
+        {statsCards.map((stat, index) => {
+          // ✅ Fix Assigned Projects count to show unique courses
+          if (index === 0) {
+            return (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                whileHover={{ y: -5, scale: 1.02 }}
+                className="bg-white rounded-xl shadow-lg p-5 hover:shadow-xl transition-all duration-300 flex flex-col h-full"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div className={`${stat.color} p-3 rounded-xl text-white shadow-md`}>
+                    {stat.icon}
+                  </div>
+                  <span className="text-xs font-medium text-gray-500">
+                    {stat.change}
+                  </span>
+                </div>
+                <div className="flex-grow">
+                  <p className="text-sm text-gray-500">{stat.title}</p>
+                  <p className="text-2xl font-bold mt-2 text-gray-800">
+                    {uniqueEnrolledCourses.length} {/* ✅ Show unique courses count */}
+                  </p>
+                </div>
+              </motion.div>
+            );
+          }
+          
+          return (
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.05 }}
+              whileHover={{ y: -5, scale: 1.02 }}
+              className="bg-white rounded-xl shadow-lg p-5 hover:shadow-xl transition-all duration-300 flex flex-col h-full"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className={`${stat.color} p-3 rounded-xl text-white shadow-md`}>
+                  {stat.icon}
+                </div>
+                <span className="text-xs font-medium text-gray-500">
+                  {stat.change}
+                </span>
               </div>
-              <span className="text-xs font-medium text-gray-500">
-                {stat.change}
-              </span>
-            </div>
-            <div className="flex-grow">
-              <p className="text-sm text-gray-500">{stat.title}</p>
-              <p className="text-2xl font-bold mt-2 text-gray-800">
-                {stat.value}
-              </p>
-            </div>
-          </motion.div>
-        ))}
+              <div className="flex-grow">
+                <p className="text-sm text-gray-500">{stat.title}</p>
+                <p className="text-2xl font-bold mt-2 text-gray-800">
+                  {stat.value}
+                </p>
+              </div>
+            </motion.div>
+          );
+        })}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* My Projects Progress */}
+        {/* My Projects Progress - SHOW STUDENT'S OWN PROGRESS */}
         <div className="bg-white rounded-xl shadow-lg p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
@@ -538,7 +581,7 @@ const DashboardHome = () => {
             </button>
           </div>
 
-          {enrolledCourses.length === 0 ? (
+          {uniqueEnrolledCourses.length === 0 ? ( // ✅ Use unique courses
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -560,7 +603,7 @@ const DashboardHome = () => {
             </motion.div>
           ) : (
             <div className="space-y-5">
-              {enrolledCourses.slice(0, 3).map((course, index) => (
+              {uniqueEnrolledCourses.slice(0, 3).map((course, index) => ( // ✅ Use unique courses
                 <motion.div
                   key={course._id}
                   initial={{ opacity: 0, x: -20 }}
@@ -576,16 +619,17 @@ const DashboardHome = () => {
                       </h3>
                     </div>
                     <span
-                      className={`text-xs px-3 py-1 rounded-full font-medium ml-2 flex-shrink-0 ${(teamProgress || 0) === 100
+                      className={`text-xs px-3 py-1 rounded-full font-medium ml-2 flex-shrink-0 ${
+                        (studentOverallProgress || 0) === 100
                           ? "bg-green-100 text-green-800"
-                          : (teamProgress || 0) > 0
+                          : (studentOverallProgress || 0) > 0
                             ? "bg-blue-100 text-blue-800"
                             : "bg-gray-100 text-gray-800"
-                        }`}
+                      }`}
                     >
-                      {(teamProgress || 0) === 100
+                      {(studentOverallProgress || 0) === 100
                         ? "Completed"
-                        : (teamProgress || 0) > 0
+                        : (studentOverallProgress || 0) > 0
                           ? "In Progress"
                           : "Not Started"}
                     </span>
@@ -593,13 +637,13 @@ const DashboardHome = () => {
 
                   <div className="mb-2">
                     <div className="flex items-center justify-between text-sm text-gray-600 mb-1">
-                      <span>Overall Progress</span>
-                      <span className="font-semibold">{teamProgress || 0}%</span>
+                      <span>My Progress</span> {/* ✅ Changed from Overall Progress */}
+                      <span className="font-semibold">{studentOverallProgress || 0}%</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <motion.div
                         initial={{ width: 0 }}
-                        animate={{ width: `${teamProgress || 0}%` }}
+                        animate={{ width: `${studentOverallProgress || 0}%` }}
                         transition={{ duration: 1 }}
                         className="bg-gradient-to-r from-cyan-500 to-teal-500 h-2 rounded-full"
                       ></motion.div>
@@ -628,7 +672,7 @@ const DashboardHome = () => {
           )}
         </div>
 
-        {/* Right Column */}
+        {/* Right Column - EXACTLY as you had it, no My Teams section */}
         <div className="space-y-6">
           {/* Recent Activities */}
           <div className="bg-white rounded-xl shadow-lg p-6">
@@ -750,8 +794,8 @@ const DashboardHome = () => {
         </div>
       </div>
 
-      {/* Quick Stats Summary */}
-      {enrolledCourses.length > 0 && (
+      {/* Quick Stats Summary - SHOW STUDENT'S OWN PROGRESS */}
+      {uniqueEnrolledCourses.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -761,29 +805,29 @@ const DashboardHome = () => {
             <div>
               <h3 className="text-xl font-bold mb-2">Learning Summary</h3>
               <p className="text-cyan-100">
-                {(teamProgress || 0) >= 80 && " Keep up the excellent work! 💪"}
-                {(teamProgress || 0) >= 50 &&
-                  (teamProgress || 0) < 80 &&
+                {studentOverallProgress >= 80 && " Keep up the excellent work! 💪"}
+                {studentOverallProgress >= 50 &&
+                  studentOverallProgress < 80 &&
                   " Great progress so far! ✨"}
-                {(teamProgress || 0) < 50 && " Every step counts, keep going! 🚀"}
+                {studentOverallProgress < 50 && " Every step counts, keep going! 🚀"}
               </p>
             </div>
             <div className="mt-4 md:mt-0">
               <div className="flex items-center gap-4">
                 <div className="text-center">
-                  <div className="text-3xl font-bold">{enrolledCourses.length}</div>
+                  <div className="text-3xl font-bold">{uniqueEnrolledCourses.length}</div>
                   <div className="text-sm text-cyan-200">Active Projects</div>
+                </div>
+                <div className="h-12 w-px bg-cyan-400"></div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold">{studentOverallProgress}%</div>
+                  <div className="text-sm text-cyan-200">My Progress</div>
                 </div>
                 <div className="h-12 w-px bg-cyan-400"></div>
                 <div className="text-center">
                   <div className="text-3xl font-bold">{stats.certificates}</div>
                   <div className="text-sm text-cyan-200">Certificates</div>
                 </div>
-                <div className="h-12 w-px bg-cyan-400"></div>
-                {/* <div className="text-center">
-                  <div className="text-3xl font-bold">{stats.studyHours}h</div>
-                  <div className="text-sm text-cyan-200">Study Time</div>
-                </div> */}
               </div>
             </div>
           </div>

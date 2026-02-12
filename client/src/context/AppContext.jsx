@@ -36,14 +36,14 @@ export const AppContextProvider = (props) => {
 
   const [isTeamLeader, setIsTeamLeader] = useState(false);
 
-  // ✅ NEW: Individual student progress states
+  // ✅ Individual student progress states
   const [studentTeams, setStudentTeams] = useState([]);
-  const [studentOverallProgress, setStudentOverallProgress] = useState(0);
+  const [studentOverallProgress, setStudentOverallProgress] = useState(0); // 🔥 FIXED: Will store MAX progress
   const [studentProjectName, setStudentProjectName] = useState("");
   const [lorUnlocked, setLorUnlocked] = useState(false);
   const [teamsLoading, setTeamsLoading] = useState(false);
 
-  // ✅ FIXED: Fetch individual student progress from ALL teams
+  // ✅ FIXED: Fetch individual student progress - USE MAX PROGRESS FROM BACKEND
   const fetchMyTeamProgress = async () => {
     try {
       if (!user) {
@@ -64,7 +64,11 @@ export const AppContextProvider = (props) => {
       });
 
       if (res?.data?.success) {
+        // ✅ Store ALL teams with their INDIVIDUAL progress
         setStudentTeams(res.data.teams || []);
+        
+        // 🔥 FIXED: Use the overallProgress from backend (which is MAX progress)
+        // Backend already calculates maxProgress, so use that value
         setStudentOverallProgress(Number(res.data.overallProgress || 0));
         
         // Get first team's project name and LOR status for backward compatibility
@@ -97,7 +101,6 @@ export const AppContextProvider = (props) => {
         return;
       }
 
-      // Check if user is team leader from userData
       const profileSaysLeader = Boolean(userData?.isTeamLeader);
       setIsTeamLeader(profileSaysLeader);
       
@@ -115,7 +118,7 @@ export const AppContextProvider = (props) => {
     }
   }, [userData]);
 
-  // ✅ Fetch all courses (handles errors gracefully)
+  // ✅ Fetch all courses
   const fetchAllCourses = async () => {
     try {
       const response = await axios.get(`${backendUrl}/api/course/all`, {
@@ -131,9 +134,7 @@ export const AppContextProvider = (props) => {
       }
     } catch (error) {
       if (error.code === "ERR_NETWORK") {
-        toast.error(
-          "Cannot connect to backend. Check your internet or backend deployment.",
-        );
+        toast.error("Cannot connect to backend. Check your internet or backend deployment.");
       } else if (error.response?.status === 500) {
         toast.error("Server error while fetching courses.");
       } else if (error.message?.includes("CORS")) {
@@ -141,12 +142,11 @@ export const AppContextProvider = (props) => {
       } else {
         toast.error(error.message || "Unknown error fetching courses.");
       }
-
       setAllCourses([]);
     }
   };
 
-  // ✅ Fetch user data (robust to CORS/network errors)
+  // ✅ Fetch user data
   const fetchUserData = async () => {
     try {
       if (!user) {
@@ -166,12 +166,10 @@ export const AppContextProvider = (props) => {
 
       if (response?.data?.success) {
         setUserData(response.data.user);
-
         const role = user?.publicMetadata?.role || "student";
         setIsEducator(role === "educator" || role === "admin");
       } else {
-        const errorMessage =
-          response?.data?.message || "Failed to load user data.";
+        const errorMessage = response?.data?.message || "Failed to load user data.";
         if (
           errorMessage.includes("User Not Found") ||
           errorMessage.includes("Unable to create user")
@@ -197,9 +195,7 @@ export const AppContextProvider = (props) => {
             } catch (retryError) {
               console.error("Retry failed:", retryError);
             }
-            toast.error(
-              "Setting up your account... Please refresh the page if this persists.",
-            );
+            toast.error("Setting up your account... Please refresh the page if this persists.");
           }, 1000);
         } else {
           toast.error(errorMessage);
@@ -232,14 +228,10 @@ export const AppContextProvider = (props) => {
           } catch (retryError) {
             console.error("Retry failed:", retryError);
           }
-          toast.error(
-            "Setting up your account... Please refresh the page if this persists.",
-          );
+          toast.error("Setting up your account... Please refresh the page if this persists.");
         }, 1000);
       } else if (error.message?.includes("CORS")) {
-        toast.error(
-          "CORS error — backend not configured to allow this origin.",
-        );
+        toast.error("CORS error — backend not configured to allow this origin.");
       } else {
         toast.error(error.message || "Unknown error fetching user data.");
       }
@@ -272,9 +264,7 @@ export const AppContextProvider = (props) => {
       if (response?.data?.success) {
         setEnrolledCourses(response.data.enrolledCourses.reverse());
       } else {
-        toast.error(
-          response?.data?.message || "Failed to load enrolled courses.",
-        );
+        toast.error(response?.data?.message || "Failed to load enrolled courses.");
       }
     } catch (error) {
       if (error.code === "ERR_NETWORK") {
@@ -286,12 +276,11 @@ export const AppContextProvider = (props) => {
       } else {
         toast.error(error.message || "Unknown error loading courses.");
       }
-
       setEnrolledCourses([]);
     }
   };
 
-  // ✅ Fetch single course (includes PDFs)
+  // ✅ Fetch single course
   const fetchCourseById = async (courseId) => {
     try {
       const response = await axios.get(`${backendUrl}/api/course/${courseId}`, {
@@ -342,7 +331,7 @@ export const AppContextProvider = (props) => {
     }, 0);
   };
 
-  // ✅ Role-based redirect + data fetch + login success message
+  // ✅ Role-based redirect
   useEffect(() => {
     if (!isLoaded) return;
 
@@ -355,8 +344,7 @@ export const AppContextProvider = (props) => {
     const hasShownWelcome = sessionStorage.getItem("welcome_shown");
     if (!hasShownWelcome) {
       toast.success(
-        `Welcome ${user.firstName || user.emailAddresses[0]?.emailAddress || "User"
-        } 🎉`,
+        `Welcome ${user.firstName || user.emailAddresses[0]?.emailAddress || "User"} 🎉`,
       );
       sessionStorage.setItem("welcome_shown", "true");
     }
@@ -367,7 +355,7 @@ export const AppContextProvider = (props) => {
     fetchUserData();
     fetchUserEnrolledCourses();
     fetchTeamLeaderStatus();
-    fetchMyTeamProgress(); // ✅ This now fetches INDIVIDUAL student progress
+    fetchMyTeamProgress();
 
     if (
       !roleRedirectedRef.current &&
@@ -410,13 +398,15 @@ export const AppContextProvider = (props) => {
     isTeamLeader,
     fetchTeamLeaderStatus,
     
+    // ✅ FIXED: Student's own progress values
     studentTeams,
-    studentOverallProgress,
+    studentOverallProgress, // 🔥 This now contains the MAX progress from backend
     studentProjectName,
     lorUnlocked,
     teamsLoading,
   
-    teamProgress: studentOverallProgress, 
+    // ✅ Keep teamProgress as alias for backward compatibility
+    teamProgress: studentOverallProgress, // 🔥 FIXED: Now shows 80% not 0%
     teamProjectName: studentProjectName,
     
     fetchMyTeamProgress,
