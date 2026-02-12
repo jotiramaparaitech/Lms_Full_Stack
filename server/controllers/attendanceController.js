@@ -76,8 +76,8 @@ export const markAttendance = async (req, res) => {
     // ✅ FIXED TIME WINDOWS
     const LOGIN_START = 9 * 60 + 30;   
     const LOGIN_END = 10 * 60 + 30;    
-    const LOGOUT_START = 18 * 60;      
-    const LOGOUT_END = 19 * 60;        
+    const LOGOUT_START = 18 * 60 + 30;      
+    const LOGOUT_END = 19 * 60 + 30;        
 
     if (
       (session === "LOGIN" &&
@@ -182,15 +182,18 @@ export const getStudentCourseStats = async (req, res) => {
     const studentId = auth?.userId;
     const { courseId } = req.params;
 
+    // Fetch all records sorted by date
     const records = await Attendance.find({ studentId, courseId })
       .sort({ date: -1 });
 
+    // 1. Group records by date
     const attendanceMap = records.reduce((acc, curr) => {
       if (!acc[curr.date]) {
         acc[curr.date] = {
           date: curr.date,
           login: false,
           logout: false,
+          status: "Absent" // Default
         };
       }
       if (curr.session === "LOGIN") acc[curr.date].login = true;
@@ -198,11 +201,33 @@ export const getStudentCourseStats = async (req, res) => {
       return acc;
     }, {});
 
+    // 2. Calculate Stats (Full Day vs Half Day)
+    let totalFullDays = 0;
+    let totalHalfDays = 0;
+    const history = Object.values(attendanceMap).map((day) => {
+      if (day.login && day.logout) {
+        day.status = "Present"; // Full Day
+        totalFullDays++;
+      } else if (day.login && !day.logout) {
+        day.status = "Half Day"; // Login but no Logout
+        totalHalfDays++;
+      } else {
+        day.status = "Absent";
+      }
+      return day;
+    });
+
+    // 3. Calculate Total Score (e.g., 10 full days + 2 half days = 11.0)
+    const attendanceScore = totalFullDays + (totalHalfDays * 0.5);
+
     res.status(200).json({
       success: true,
       stats: {
-        totalDaysPresent: Object.keys(attendanceMap).length,
-        history: Object.values(attendanceMap),
+        totalDays: totalFullDays + totalHalfDays, // Total days they showed up at all
+        totalFullDays,
+        totalHalfDays,
+        attendanceScore, // Use this for percentage calculation (Score / Total Working Days * 100)
+        history,
       },
     });
 
