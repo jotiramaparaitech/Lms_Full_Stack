@@ -12,11 +12,10 @@ const userSchema = new mongoose.Schema(
       default: "student",
     },
     isTeamLeader: { type: Boolean, default: false },
-    assignedProject: {
+     assignedProjects: [{
       type: mongoose.Schema.Types.ObjectId,
       ref: "Course",
-      default: null,
-    }, // ✅ Assigned Project for Team Leader
+    }],  // ✅ Assigned Project for Team Leader
     enrolledCourses: [
       {
         type: mongoose.Schema.Types.ObjectId,

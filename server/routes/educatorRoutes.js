@@ -13,7 +13,8 @@ import {
   assignCourse,
   assignTeamLeader,
   getTeamLeaders,
-  assignToTeam, // ✅ NEW
+  assignToTeam, 
+  removeTeamLeaderProject,
 } from "../controllers/educatorController.js";
 import upload from "../configs/multer.js";
 import { protect } from "../middlewares/authMiddleware.js";
@@ -113,5 +114,10 @@ educatorRouter.post("/assign-team-leader", protect, assignTeamLeader);
 // Get Team Leaders
 // -----------------------------
 educatorRouter.get("/team-leaders", protect, getTeamLeaders);
+
+// -----------------------------
+// Remove Team Leader Project
+// -----------------------------
+educatorRouter.post("/remove-team-leader-project", protect, removeTeamLeaderProject);
 
 export default educatorRouter;

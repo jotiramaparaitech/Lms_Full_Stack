@@ -36,18 +36,25 @@ export const AppContextProvider = (props) => {
 
   const [isTeamLeader, setIsTeamLeader] = useState(false);
 
-  const [teamProgress, setTeamProgress] = useState(0);
-  const [teamProjectName, setTeamProjectName] = useState("");
+  // ✅ NEW: Individual student progress states
+  const [studentTeams, setStudentTeams] = useState([]);
+  const [studentOverallProgress, setStudentOverallProgress] = useState(0);
+  const [studentProjectName, setStudentProjectName] = useState("");
   const [lorUnlocked, setLorUnlocked] = useState(false);
+  const [teamsLoading, setTeamsLoading] = useState(false);
 
+  // ✅ FIXED: Fetch individual student progress from ALL teams
   const fetchMyTeamProgress = async () => {
     try {
       if (!user) {
-        setTeamProgress(0);
-        setTeamProjectName("");
+        setStudentTeams([]);
+        setStudentOverallProgress(0);
+        setStudentProjectName("");
+        setLorUnlocked(false);
         return;
       }
 
+      setTeamsLoading(true);
       const token = await getToken();
       if (!token) return;
 
@@ -57,17 +64,25 @@ export const AppContextProvider = (props) => {
       });
 
       if (res?.data?.success) {
-        setTeamProgress(Number(res.data.progress || 0));
-        setTeamProjectName(res.data.projectName || "");
-        setLorUnlocked(Boolean(res.data.lorUnlocked));
+        setStudentTeams(res.data.teams || []);
+        setStudentOverallProgress(Number(res.data.overallProgress || 0));
+        
+        // Get first team's project name and LOR status for backward compatibility
+        if (res.data.teams && res.data.teams.length > 0) {
+          setStudentProjectName(res.data.teams[0].projectName || "");
+          setLorUnlocked(res.data.teams.some(t => t.lorUnlocked));
+        }
       }
     } catch (error) {
-      setTeamProgress(0);
-      setTeamProjectName("");
+      console.error("Error fetching team progress:", error);
+      setStudentTeams([]);
+      setStudentOverallProgress(0);
+      setStudentProjectName("");
       setLorUnlocked(false);
+    } finally {
+      setTeamsLoading(false);
     }
   };
-
 
   const fetchTeamLeaderStatus = async () => {
     try {
@@ -82,19 +97,11 @@ export const AppContextProvider = (props) => {
         return;
       }
 
-      // 🔥 Use your existing API which returns isLeader
-      const res = await axios.get(`${backendUrl}/api/calendar-event/my-team-events`, {
-        headers: { Authorization: `Bearer ${token}` },
-        timeout: 8000,
-      });
-
-      // ✅ Check if API says leader OR if user profile says leader
-      const apiSaysLeader = Boolean(res?.data?.isLeader);
+      // Check if user is team leader from userData
       const profileSaysLeader = Boolean(userData?.isTeamLeader);
-
-      setIsTeamLeader(apiSaysLeader || profileSaysLeader);
+      setIsTeamLeader(profileSaysLeader);
+      
     } catch (error) {
-      // Only set false if we don't have confirmation from profile
       if (!userData?.isTeamLeader) {
         setIsTeamLeader(false);
       }
@@ -107,7 +114,6 @@ export const AppContextProvider = (props) => {
       setIsTeamLeader(true);
     }
   }, [userData]);
-
 
   // ✅ Fetch all courses (handles errors gracefully)
   const fetchAllCourses = async () => {
@@ -136,7 +142,7 @@ export const AppContextProvider = (props) => {
         toast.error(error.message || "Unknown error fetching courses.");
       }
 
-      setAllCourses([]); // Safe fallback
+      setAllCourses([]);
     }
   };
 
@@ -164,14 +170,12 @@ export const AppContextProvider = (props) => {
         const role = user?.publicMetadata?.role || "student";
         setIsEducator(role === "educator" || role === "admin");
       } else {
-        // For first-time users, retry once after a short delay
         const errorMessage =
           response?.data?.message || "Failed to load user data.";
         if (
           errorMessage.includes("User Not Found") ||
           errorMessage.includes("Unable to create user")
         ) {
-          // Retry after 1 second for first-time login
           setTimeout(async () => {
             try {
               const retryToken = await getToken();
@@ -187,11 +191,10 @@ export const AppContextProvider = (props) => {
                   setUserData(retryResponse.data.user);
                   const role = user?.publicMetadata?.role || "student";
                   setIsEducator(role === "educator" || role === "admin");
-                  return; // Success, don't show error
+                  return;
                 }
               }
             } catch (retryError) {
-              // If retry also fails, show error
               console.error("Retry failed:", retryError);
             }
             toast.error(
@@ -208,7 +211,6 @@ export const AppContextProvider = (props) => {
       } else if (error.response?.status === 401) {
         toast.error("Unauthorized. Please log in again.");
       } else if (error.response?.status === 404) {
-        // User not found - retry once
         setTimeout(async () => {
           try {
             const retryToken = await getToken();
@@ -242,7 +244,6 @@ export const AppContextProvider = (props) => {
         toast.error(error.message || "Unknown error fetching user data.");
       }
 
-      // Don't set userData to null immediately - wait for retry
       if (error.response?.status !== 404) {
         setUserData(null);
       }
@@ -341,8 +342,6 @@ export const AppContextProvider = (props) => {
     }, 0);
   };
 
-
-
   // ✅ Role-based redirect + data fetch + login success message
   useEffect(() => {
     if (!isLoaded) return;
@@ -353,7 +352,6 @@ export const AppContextProvider = (props) => {
       return;
     }
 
-    // ✅ Show welcome toast only once per session
     const hasShownWelcome = sessionStorage.getItem("welcome_shown");
     if (!hasShownWelcome) {
       toast.success(
@@ -369,9 +367,8 @@ export const AppContextProvider = (props) => {
     fetchUserData();
     fetchUserEnrolledCourses();
     fetchTeamLeaderStatus();
-    fetchMyTeamProgress();
+    fetchMyTeamProgress(); // ✅ This now fetches INDIVIDUAL student progress
 
-    // Redirect ONLY if user is on login or root
     if (
       !roleRedirectedRef.current &&
       location.pathname === "/login"
@@ -412,10 +409,17 @@ export const AppContextProvider = (props) => {
     setIsEducator,
     isTeamLeader,
     fetchTeamLeaderStatus,
-    teamProgress,
-    teamProjectName,
-    fetchMyTeamProgress,
+    
+    studentTeams,
+    studentOverallProgress,
+    studentProjectName,
     lorUnlocked,
+    teamsLoading,
+  
+    teamProgress: studentOverallProgress, 
+    teamProjectName: studentProjectName,
+    
+    fetchMyTeamProgress,
   };
 
   return (
