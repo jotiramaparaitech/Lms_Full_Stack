@@ -650,7 +650,7 @@ export const assignCourse = async (req, res) => {
 // -----------------------------
 export const assignTeamLeader = async (req, res) => {
   try {
-    const { userId, isTeamLeader, courseId } = req.body; // ✅ Added courseId
+    const { userId, isTeamLeader, courseId } = req.body;
     const auth = req.auth();
     const educatorId = auth?.userId;
 
@@ -669,11 +669,20 @@ export const assignTeamLeader = async (req, res) => {
 
     user.isTeamLeader = isTeamLeader;
 
-    // ✅ Assign or remove project
+    // ✅ Handle multiple project assignments
     if (isTeamLeader && courseId) {
-      user.assignedProject = courseId;
+      // Initialize array if it doesn't exist
+      if (!user.assignedProjects) {
+        user.assignedProjects = [];
+      }
+      
+      // Add courseId if not already assigned
+      if (!user.assignedProjects.includes(courseId)) {
+        user.assignedProjects.push(courseId);
+      }
     } else if (!isTeamLeader) {
-      user.assignedProject = null;
+      // If removing team leader status, clear all assignments
+      user.assignedProjects = [];
     }
 
     await user.save();
@@ -681,6 +690,53 @@ export const assignTeamLeader = async (req, res) => {
     res.json({
       success: true,
       message: `User ${isTeamLeader ? "promoted to" : "removed from"} Team Leader`,
+      assignedProjects: user.assignedProjects
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
+// -----------------------------
+// Remove Team Leader Project
+// -----------------------------
+export const removeTeamLeaderProject = async (req, res) => {
+  try {
+    const { userId, courseId } = req.body;
+    const auth = req.auth();
+    const educatorId = auth?.userId;
+
+    if (!educatorId) {
+      return res
+        .status(401)
+        .json({ success: false, message: "Unauthorized educator" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    // Remove specific project from assignedProjects array
+    user.assignedProjects = user.assignedProjects.filter(
+      id => id.toString() !== courseId
+    );
+
+    // If no projects left, optionally remove team leader status
+    if (user.assignedProjects.length === 0) {
+      user.isTeamLeader = false;
+    }
+
+    await user.save();
+
+    res.json({
+      success: true,
+      message: "Project removed from team leader",
+      assignedProjects: user.assignedProjects,
+      isTeamLeader: user.isTeamLeader
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -703,14 +759,16 @@ export const getTeamLeaders = async (req, res) => {
 
     const teamLeaders = await User.find(
       { isTeamLeader: true },
-      "name email imageUrl assignedProject",
-    ).populate("assignedProject", "courseTitle"); // ✅ Populate project info
+      "name email imageUrl assignedProjects"
+    ).populate("assignedProjects", "courseTitle customDomain"); // ✅ Populate multiple projects
 
     res.json({ success: true, teamLeaders });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+
 // -----------------------------
 // Assign Student to Team
 // -----------------------------

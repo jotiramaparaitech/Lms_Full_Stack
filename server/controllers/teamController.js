@@ -451,6 +451,9 @@ export const removeMember = async (req, res) => {
 // -----------------------------
 // Get Student Info (Leader Only)
 // -----------------------------
+// -----------------------------
+// Get Student Info (Leader Only)
+// -----------------------------
 export const getStudentInfo = async (req, res) => {
   try {
     const auth = req.auth();
@@ -460,67 +463,116 @@ export const getStudentInfo = async (req, res) => {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    // Find team where this user is leader OR an admin member
-    const team = await Team.findOne({
+    // ✅ FIXED: Find ALL teams where this user is leader OR admin
+    const teams = await Team.find({
       $or: [
         { leader: leaderId },
         { members: { $elemMatch: { userId: leaderId, role: "admin" } } }
       ]
     });
 
-    if (!team) {
+    if (!teams || teams.length === 0) {
       return res.status(404).json({
         success: false,
-        message: "You are not a team leader/admin or no team found",
+        message: "You are not a team leader/admin or no teams found",
       });
     }
 
-    // Get all member IDs except leader
-    const studentIds = team.members
-      .filter((m) => m.userId !== leaderId)
-      .map((m) => m.userId);
+    // ✅ Get ALL member IDs from ALL teams (except the leader)
+    let allStudentIds = [];
+    const teamMembersMap = new Map(); // To track which team each student belongs to
+    
+    teams.forEach(team => {
+      const studentIds = team.members
+        .filter(m => m.userId !== leaderId)
+        .map(m => {
+          // Store team info for this student
+          teamMembersMap.set(m.userId, {
+            teamId: team._id,
+            teamName: team.name,
+            progress: m.progress ?? 0,
+            lorUnlocked: m.lorUnlocked ?? false,
+            projectName: m.projectName ?? "",
+            role: m.role
+          });
+          return m.userId;
+        });
+      
+      allStudentIds = [...allStudentIds, ...studentIds];
+    });
+
+    // Remove duplicates (student might be in multiple teams)
+    allStudentIds = [...new Set(allStudentIds)];
 
     // Fetch student user details + populate enrolledCourses
-    const users = await User.find({ _id: { $in: studentIds } })
+    const users = await User.find({ _id: { $in: allStudentIds } })
       .populate("enrolledCourses", "courseTitle")
       .lean();
 
-    // ✅ Leader's Assigned Project
+    // ✅ Get ALL assigned projects for the leader
     const leaderUser = await User.findById(leaderId);
-    const requiredProjectId = leaderUser?.assignedProject?.toString();
+    const requiredProjectIds = leaderUser?.assignedProjects?.map(id => id.toString()) || [];
 
     // Convert user list into map for fast lookup
     const userMap = new Map();
-    users.forEach((u) => userMap.set(u._id, u));
+    users.forEach((u) => userMap.set(u._id.toString(), u));
 
-    // Format response for frontend
-    const students = team.members
-      .filter((m) => m.userId !== leaderId)
-      .map((m) => {
-        const user = userMap.get(m.userId);
+    // ✅ Format response for frontend - combine students from ALL teams
+    const studentsMap = new Map(); // To merge same student from different teams
 
-        return {
-          userId: m.userId,
-          name: user?.name || "Unknown Student",
-          email: user?.email || "",
-          imageUrl: user?.imageUrl || "",
-          role: m.role,
-          progress: m.progress ?? 0,
-          lorUnlocked: m.lorUnlocked ?? false,
+    teams.forEach(team => {
+      team.members
+        .filter((m) => m.userId !== leaderId)
+        .forEach((m) => {
+          const userId = m.userId.toString();
+          const user = userMap.get(userId);
+          
+          if (!studentsMap.has(userId)) {
+            // First time seeing this student
+            studentsMap.set(userId, {
+              userId: userId,
+              name: user?.name || "Unknown Student",
+              email: user?.email || "",
+              imageUrl: user?.imageUrl || "",
+              role: m.role,
+              progress: m.progress ?? 0,
+              lorUnlocked: m.lorUnlocked ?? false,
+              // ✅ AUTO PROJECT FETCH FROM ENROLLED COURSES
+              projects: (user?.enrolledCourses || [])
+                .filter(c => requiredProjectIds.length === 0 || requiredProjectIds.includes(c._id.toString()))
+                .map(c => c.courseTitle),
+              teams: [] // Will store which teams this student belongs to
+            });
+          }
+          
+          // Add team info to student
+          const studentData = studentsMap.get(userId);
+          studentData.teams.push({
+            teamId: team._id,
+            teamName: team.name,
+            progress: m.progress ?? 0,
+            lorUnlocked: m.lorUnlocked ?? false
+          });
+          
+          // Use highest progress if in multiple teams
+          if ((m.progress ?? 0) > studentData.progress) {
+            studentData.progress = m.progress ?? 0;
+          }
+          
+          // Unlock LOR if unlocked in any team
+          if (m.lorUnlocked) {
+            studentData.lorUnlocked = true;
+          }
+        });
+    });
 
-          // ✅ AUTO PROJECT FETCH FROM ENROLLED COURSES
-          projects: (user?.enrolledCourses || [])
-            .filter(
-              (c) =>
-                !requiredProjectId || c._id.toString() === requiredProjectId,
-            ) // ✅ Filter by domain
-            .map((c) => c.courseTitle),
-        };
-      });
+    // Convert map to array
+    const students = Array.from(studentsMap.values());
 
     return res.json({
       success: true,
-      teamId: team._id,
+      teams: teams.map(t => ({ _id: t._id, name: t.name })),
+      teamCount: teams.length,
       students,
     });
   } catch (error) {
@@ -537,7 +589,7 @@ export const updateStudentProgress = async (req, res) => {
     const auth = req.auth();
     const leaderId = auth?.userId;
 
-    const { studentId, progress, projectName, lorUnlocked } = req.body;
+    const { studentId, progress, projectName, lorUnlocked, teamId } = req.body;
 
     if (!leaderId) {
       return res.status(401).json({ success: false, message: "Unauthorized" });
@@ -549,50 +601,67 @@ export const updateStudentProgress = async (req, res) => {
         .json({ success: false, message: "studentId is required" });
     }
 
-    const team = await Team.findOne({ leader: leaderId });
+    // ✅ FIXED: Find the specific team if teamId provided, otherwise find all teams and update all
+    let query = {
+      $or: [
+        { leader: leaderId },
+        { members: { $elemMatch: { userId: leaderId, role: "admin" } } }
+      ]
+    };
+    
+    if (teamId) {
+      query._id = teamId;
+    }
 
-    if (!team) {
+    const teams = await Team.find(query);
+
+    if (!teams || teams.length === 0) {
       return res.status(404).json({
         success: false,
-        message: "Team not found for this leader",
+        message: "No teams found for this leader",
       });
     }
 
-    const memberIndex = team.members.findIndex((m) => m.userId === studentId);
+    let updatedCount = 0;
 
-    if (memberIndex === -1) {
-      return res.status(404).json({
-        success: false,
-        message: "Student not found in your team",
-      });
-    }
+    for (const team of teams) {
+      const memberIndex = team.members.findIndex((m) => m.userId === studentId);
 
-    if (progress !== undefined) {
-      const numProgress = Number(progress);
+      if (memberIndex !== -1) {
+        if (progress !== undefined) {
+          const numProgress = Number(progress);
+          if (Number.isNaN(numProgress) || numProgress < 0 || numProgress > 100) {
+            return res.status(400).json({
+              success: false,
+              message: "Progress must be a number between 0 and 100",
+            });
+          }
+          team.members[memberIndex].progress = numProgress;
+        }
 
-      if (Number.isNaN(numProgress) || numProgress < 0 || numProgress > 100) {
-        return res.status(400).json({
-          success: false,
-          message: "Progress must be a number between 0 and 100",
-        });
+        if (projectName !== undefined) {
+          team.members[memberIndex].projectName = projectName;
+        }
+
+        if (lorUnlocked !== undefined) {
+          team.members[memberIndex].lorUnlocked = lorUnlocked;
+        }
+
+        await team.save();
+        updatedCount++;
       }
-
-      team.members[memberIndex].progress = numProgress;
     }
 
-    if (projectName !== undefined) {
-      team.members[memberIndex].projectName = projectName;
+    if (updatedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Student not found in any of your teams",
+      });
     }
-
-    if (lorUnlocked !== undefined) {
-      team.members[memberIndex].lorUnlocked = lorUnlocked;
-    }
-
-    await team.save();
 
     return res.json({
       success: true,
-      message: "Student progress updated successfully",
+      message: `Student progress updated in ${updatedCount} team(s)`,
     });
   } catch (error) {
     console.log("❌ updateStudentProgress error:", error);
@@ -600,8 +669,10 @@ export const updateStudentProgress = async (req, res) => {
   }
 };
 
+
+
 // -----------------------------
-// Get My Team Progress
+// Get My Team Progress 
 // -----------------------------
 export const getMyTeamProgress = async (req, res) => {
   try {
@@ -612,30 +683,45 @@ export const getMyTeamProgress = async (req, res) => {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    const team = await Team.findOne({
-      $or: [{ leader: userId }, { "members.userId": userId }],
+    // Find ALL teams where user is a member (not just leader)
+    const teams = await Team.find({
+      "members.userId": userId
     });
 
-    if (!team) {
+    if (!teams || teams.length === 0) {
       return res.json({
         success: true,
-        teamId: null,
-        progress: 0,
-        projectName: "",
-        isLeader: false,
+        teams: [],
+        overallProgress: 0,
+        message: "No teams found"
       });
     }
 
-    const isLeader = team.leader === userId;
-    const member = team.members.find((m) => m.userId === userId);
+    // Get user's progress from each team
+    const teamProgressList = teams.map(team => {
+      const member = team.members.find(m => m.userId === userId);
+      return {
+        teamId: team._id,
+        teamName: team.name,
+        progress: member?.progress ?? 0,
+        projectName: member?.projectName ?? "",
+        lorUnlocked: member?.lorUnlocked ?? false,
+        role: member?.role ?? "member",
+        isLeader: team.leader === userId
+      };
+    });
+
+    // Calculate overall progress as average of all team progresses
+    const totalProgress = teamProgressList.reduce((sum, t) => sum + t.progress, 0);
+    const overallProgress = teamProgressList.length > 0 
+      ? Math.round(totalProgress / teamProgressList.length) 
+      : 0;
 
     return res.json({
       success: true,
-      teamId: team._id,
-      progress: member?.progress ?? 0,
-      projectName: member?.projectName ?? "",
-      lorUnlocked: member?.lorUnlocked ?? false,
-      isLeader,
+      teams: teamProgressList,
+      overallProgress,
+      teamCount: teams.length
     });
   } catch (error) {
     console.log("❌ getMyTeamProgress error:", error);

@@ -3,12 +3,14 @@ import axios from "axios";
 import { AppContext } from "../../context/AppContext";
 import StudentLayout from "../../components/student/StudentLayout";
 import { toast } from "react-toastify";
-import { User, Mail, Target, TrendingUp, Edit2, Lock, Unlock } from "lucide-react";
+import { User, Mail, Target, TrendingUp, Edit2, Lock, Unlock, Users } from "lucide-react";
 
 const StudentInfo = () => {
   const { backendUrl, getToken, isTeamLeader } = useContext(AppContext);
 
   const [students, setStudents] = useState([]);
+  const [teams, setTeams] = useState([]);
+  const [selectedTeamId, setSelectedTeamId] = useState("all");
   const [loading, setLoading] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
   const [editProgress, setEditProgress] = useState("");
@@ -24,13 +26,15 @@ const StudentInfo = () => {
 
       if (res.data.success) {
         setStudents(res.data.students || []);
+        setTeams(res.data.teams || []);
       } else {
         toast.error(res.data.message || "Failed to load student info");
       }
     } catch (error) {
       if (error.response && error.response.status === 404) {
-        setStudents([]); // Clear students
-        toast.info("You are a Team Leader but no team is assigned yet.");
+        setStudents([]);
+        setTeams([]);
+        toast.info("You are a Team Leader but no teams are assigned yet.");
       } else {
         toast.error(error.response?.data?.message || "Failed to load student info");
       }
@@ -39,29 +43,61 @@ const StudentInfo = () => {
     }
   };
 
-  const updateProgress = async (studentId, newProgress) => {
+  const updateProgress = async (studentId, newProgress, teamId = null) => {
     // Optimistic Update
     const previousStudents = [...students];
-    setStudents((prev) =>
-      prev.map((s) => {
-        if (s.userId === studentId) {
-          if (typeof newProgress === "number") return { ...s, progress: newProgress };
-          if (typeof newProgress === "object") return { ...s, ...newProgress };
-        }
-        return s;
-      })
-    );
+    
+    if (teamId) {
+      // Update for specific team
+      setStudents((prev) =>
+        prev.map((s) => {
+          if (s.userId === studentId) {
+            const updatedTeams = s.teams.map(t => 
+              t.teamId === teamId 
+                ? { ...t, progress: typeof newProgress === 'number' ? newProgress : t.progress, lorUnlocked: typeof newProgress === 'object' ? newProgress.lorUnlocked ?? t.lorUnlocked : t.lorUnlocked }
+                : t
+            );
+            // Update overall progress to max of all teams
+            const maxProgress = Math.max(...updatedTeams.map(t => t.progress));
+            return { 
+              ...s, 
+              teams: updatedTeams,
+              progress: maxProgress,
+              lorUnlocked: updatedTeams.some(t => t.lorUnlocked)
+            };
+          }
+          return s;
+        })
+      );
+    } else {
+      // Legacy update (no team specified)
+      setStudents((prev) =>
+        prev.map((s) => {
+          if (s.userId === studentId) {
+            if (typeof newProgress === "number") return { ...s, progress: newProgress };
+            if (typeof newProgress === "object") return { ...s, ...newProgress };
+          }
+          return s;
+        })
+      );
+    }
 
     try {
       const token = await getToken();
 
+      const payload = {
+        studentId,
+        ...(typeof newProgress === "number" && { progress: newProgress }),
+        ...(typeof newProgress === "object" ? newProgress : {}),
+      };
+      
+      if (teamId) {
+        payload.teamId = teamId;
+      }
+
       const res = await axios.put(
         `${backendUrl}/api/teams/update-progress`,
-        {
-          studentId,
-          ...(typeof newProgress === "number" && { progress: newProgress }),
-          ...(typeof newProgress === "object" ? newProgress : {}),
-        },
+        payload,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -69,41 +105,47 @@ const StudentInfo = () => {
 
       if (res.data.success) {
         toast.success(res.data.message || "Updated successfully");
-        // Background refresh to ensure consistency
         fetchStudentInfo(true);
         setEditingStudent(null);
       } else {
-        // Revert on failure
         setStudents(previousStudents);
         toast.error(res.data.message || "Update failed");
       }
     } catch (error) {
-      // Revert on error
       setStudents(previousStudents);
       toast.error(error.response?.data?.message || "Update failed");
     }
   };
 
-  const handleQuickUpdate = (studentId, change) => {
+  const handleQuickUpdate = (studentId, change, teamId = null) => {
     const student = students.find(s => s.userId === studentId);
     if (student) {
       const newProgress = Math.max(0, Math.min(100, student.progress + change));
-      updateProgress(studentId, newProgress);
+      updateProgress(studentId, newProgress, teamId);
     }
   };
 
-  const handleEditSave = (studentId) => {
+  const handleEditSave = (studentId, teamId = null) => {
     const progress = parseInt(editProgress);
     if (!isNaN(progress) && progress >= 0 && progress <= 100) {
-      updateProgress(studentId, progress);
+      updateProgress(studentId, progress, teamId);
     } else {
       toast.error("Please enter a valid number between 0 and 100");
     }
   };
 
+  const handleLorToggle = (studentId, currentStatus, teamId) => {
+    updateProgress(studentId, { lorUnlocked: !currentStatus }, teamId);
+  };
+
   useEffect(() => {
     if (isTeamLeader) fetchStudentInfo();
   }, [isTeamLeader]);
+
+  // Filter students based on selected team
+  const filteredStudents = selectedTeamId === "all" 
+    ? students 
+    : students.filter(s => s.teams?.some(t => t.teamId === selectedTeamId));
 
   if (!isTeamLeader) {
     return (
@@ -136,26 +178,52 @@ const StudentInfo = () => {
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Student Progress</h1>
           <p className="text-gray-600">
-            Monitor and update student progress after team meetings
+            Monitor and update student progress across all your teams
           </p>
         </div>
+
+        {/* Team Filter */}
+        {teams.length > 1 && (
+          <div className="mb-6 bg-white p-4 rounded-lg border border-gray-200">
+            <div className="flex items-center gap-3">
+              <Users size={18} className="text-gray-500" />
+              <span className="text-sm font-medium text-gray-700">Filter by Team:</span>
+              <select
+                value={selectedTeamId}
+                onChange={(e) => setSelectedTeamId(e.target.value)}
+                className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">All Teams ({students.length} students)</option>
+                {teams.map((team) => (
+                  <option key={team._id} value={team._id}>
+                    {team.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <div className="flex justify-center items-center h-64">
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
             <span className="ml-3 text-gray-600">Loading students...</span>
           </div>
-        ) : students.length === 0 ? (
+        ) : filteredStudents.length === 0 ? (
           <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <User size={24} className="text-gray-400" />
             </div>
             <h3 className="text-lg font-semibold text-gray-800 mb-2">No Students Found</h3>
-            <p className="text-gray-600">There are no students in your team yet.</p>
+            <p className="text-gray-600">
+              {selectedTeamId === "all" 
+                ? "There are no students in your teams yet."
+                : "No students in this team."}
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {students.map((s) => (
+            {filteredStudents.map((s) => (
               <div
                 key={s.userId}
                 className="bg-white rounded-lg border border-gray-200 p-5 hover:shadow-md transition-shadow"
@@ -175,6 +243,24 @@ const StudentInfo = () => {
                     )}
                   </div>
                 </div>
+
+                {/* Team Badges */}
+                {s.teams && s.teams.length > 1 && (
+                  <div className="mb-3 flex flex-wrap gap-1">
+                    {s.teams.map((team, idx) => (
+                      <span
+                        key={idx}
+                        className={`text-xs px-2 py-0.5 rounded-full ${
+                          team.teamId === selectedTeamId || selectedTeamId === "all"
+                            ? "bg-blue-100 text-blue-700"
+                            : "bg-gray-100 text-gray-600"
+                        }`}
+                      >
+                        {team.teamName}
+                      </span>
+                    ))}
+                  </div>
+                )}
 
                 {/* Projects */}
                 <div className="mb-5">
@@ -200,7 +286,7 @@ const StudentInfo = () => {
 
                 {/* Progress & LOR */}
                 <div>
-                  {/* LOR Toggle - New Addition */}
+                  {/* LOR Toggle */}
                   <div className="flex items-center justify-between mb-4 bg-gray-50 p-3 rounded-lg border border-gray-100">
                     <div className="flex items-center gap-2">
                       {s.lorUnlocked ? (
@@ -211,13 +297,21 @@ const StudentInfo = () => {
                       <span className="text-sm font-medium text-gray-700">LOR Access</span>
                     </div>
                     <button
-                      onClick={() => updateProgress(s.userId, { lorUnlocked: !s.lorUnlocked })}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${s.lorUnlocked ? 'bg-green-500' : 'bg-gray-300'
-                        }`}
+                      onClick={() => {
+                        // If viewing all teams, update the first team
+                        const teamId = selectedTeamId === "all" && s.teams?.length > 0 
+                          ? s.teams[0].teamId 
+                          : selectedTeamId;
+                        handleLorToggle(s.userId, s.lorUnlocked, teamId);
+                      }}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                        s.lorUnlocked ? 'bg-green-500' : 'bg-gray-300'
+                      }`}
                     >
                       <span
-                        className={`${s.lorUnlocked ? 'translate-x-6' : 'translate-x-1'
-                          } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+                        className={`${
+                          s.lorUnlocked ? 'translate-x-6' : 'translate-x-1'
+                        } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
                       />
                     </button>
                   </div>
@@ -254,7 +348,12 @@ const StudentInfo = () => {
                           placeholder="Enter progress %"
                         />
                         <button
-                          onClick={() => handleEditSave(s.userId)}
+                          onClick={() => {
+                            const teamId = selectedTeamId === "all" && s.teams?.length > 0 
+                              ? s.teams[0].teamId 
+                              : selectedTeamId;
+                            handleEditSave(s.userId, teamId);
+                          }}
                           className="px-3 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
                         >
                           Save
@@ -271,25 +370,45 @@ const StudentInfo = () => {
                     <div className="space-y-3">
                       <div className="grid grid-cols-4 gap-2">
                         <button
-                          onClick={() => handleQuickUpdate(s.userId, -10)}
+                          onClick={() => {
+                            const teamId = selectedTeamId === "all" && s.teams?.length > 0 
+                              ? s.teams[0].teamId 
+                              : selectedTeamId;
+                            handleQuickUpdate(s.userId, -10, teamId);
+                          }}
                           className="px-2 py-1.5 bg-red-50 text-red-600 text-xs rounded hover:bg-red-100"
                         >
                           -10%
                         </button>
                         <button
-                          onClick={() => handleQuickUpdate(s.userId, -5)}
+                          onClick={() => {
+                            const teamId = selectedTeamId === "all" && s.teams?.length > 0 
+                              ? s.teams[0].teamId 
+                              : selectedTeamId;
+                            handleQuickUpdate(s.userId, -5, teamId);
+                          }}
                           className="px-2 py-1.5 bg-red-50 text-red-600 text-xs rounded hover:bg-red-100"
                         >
                           -5%
                         </button>
                         <button
-                          onClick={() => handleQuickUpdate(s.userId, 5)}
+                          onClick={() => {
+                            const teamId = selectedTeamId === "all" && s.teams?.length > 0 
+                              ? s.teams[0].teamId 
+                              : selectedTeamId;
+                            handleQuickUpdate(s.userId, 5, teamId);
+                          }}
                           className="px-2 py-1.5 bg-green-50 text-green-600 text-xs rounded hover:bg-green-100"
                         >
                           +5%
                         </button>
                         <button
-                          onClick={() => handleQuickUpdate(s.userId, 10)}
+                          onClick={() => {
+                            const teamId = selectedTeamId === "all" && s.teams?.length > 0 
+                              ? s.teams[0].teamId 
+                              : selectedTeamId;
+                            handleQuickUpdate(s.userId, 10, teamId);
+                          }}
                           className="px-2 py-1.5 bg-green-50 text-green-600 text-xs rounded hover:bg-green-100"
                         >
                           +10%
@@ -307,7 +426,12 @@ const StudentInfo = () => {
                           Edit Progress
                         </button>
                         <button
-                          onClick={() => updateProgress(s.userId, 100)}
+                          onClick={() => {
+                            const teamId = selectedTeamId === "all" && s.teams?.length > 0 
+                              ? s.teams[0].teamId 
+                              : selectedTeamId;
+                            updateProgress(s.userId, 100, teamId);
+                          }}
                           className="px-3 py-2 bg-blue-100 text-blue-600 text-sm rounded hover:bg-blue-200"
                         >
                           100%
