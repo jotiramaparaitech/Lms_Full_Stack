@@ -4,7 +4,7 @@ const userSchema = new mongoose.Schema(
   {
     _id: { type: String, required: true }, // keep this if you’re using Clerk user IDs
     name: { type: String, required: true },
-    email: { type: String, required: true },
+    email: { type: String, required: true, unique: true, lowercase: true },
     imageUrl: { type: String },
     role: {
       type: String,
@@ -12,7 +12,7 @@ const userSchema = new mongoose.Schema(
       default: "student",
     },
     isTeamLeader: { type: Boolean, default: false },
-     assignedProjects: [{
+    assignedProjects: [{
       type: mongoose.Schema.Types.ObjectId,
       ref: "Course",
     }],  // ✅ Assigned Project for Team Leader

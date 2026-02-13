@@ -2,6 +2,7 @@ import { Webhook } from "svix";
 import User from "../models/User.js";
 import { Purchase } from "../models/Purchase.js";
 import Course from "../models/Course.js";
+import { mergeUsers } from "../utils/userUtils.js";
 
 // --------------------------------------------------------------------
 //              CLERK WEBHOOK (USER CREATE / UPDATE / DELETE)
@@ -25,19 +26,38 @@ export const clerkWebhooks = async (req, res) => {
           const firstName = data.first_name || "";
           const lastName = data.last_name || "";
           const fullName = `${firstName} ${lastName}`.trim();
+          const email = data.email_addresses[0]?.email_address || "";
 
           const userData = {
             _id: data.id,
-            email: data.email_addresses[0]?.email_address || "",
-            name: fullName || data.username || "User",
-            imageUrl: data.image_url || "",
+            email: email,
             name: fullName || data.username || "User",
             imageUrl: data.image_url || "",
             role: data.public_metadata?.role || "student",
-            isTeamLeader: data.public_metadata?.isTeamLeader || false, // ✅ Sync isTeamLeader
+            isTeamLeader: data.public_metadata?.isTeamLeader || false,
           };
 
-          // Use findOneAndUpdate with upsert to avoid duplicate key errors
+          // 🔍 Check for existing user with same email but different ID
+          if (email) {
+            const existingUser = await User.findOne({ email });
+            if (existingUser && existingUser._id !== data.id) {
+              console.log(`⚠️ Duplicate account found for email ${email}. Merging ${existingUser._id} into ${data.id}`);
+
+              // Create the new user first (or update if exists)
+              await User.findOneAndUpdate(
+                { _id: data.id },
+                userData,
+                { upsert: true, new: true, setDefaultsOnInsert: true }
+              );
+
+              // Perform merge
+              await mergeUsers(existingUser._id, data.id);
+
+              return res.json({ success: true, message: "User merged successfully" });
+            }
+          }
+
+          // Normal flow if no duplicate email or same ID
           await User.findOneAndUpdate(
             { _id: data.id },
             userData,
@@ -48,7 +68,6 @@ export const clerkWebhooks = async (req, res) => {
           return res.json({ success: true, message: "User created successfully" });
         } catch (error) {
           console.error("Error in user.created webhook:", error);
-          // If user already exists, that's okay - webhook might have been called twice
           if (error.code === 11000 || error.name === "MongoServerError") {
             console.log(`User ${data.id} already exists, skipping creation`);
             return res.json({ success: true, message: "User already exists" });
