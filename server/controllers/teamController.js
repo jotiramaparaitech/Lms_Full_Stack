@@ -42,7 +42,7 @@ export const createTeam = async (req, res) => {
     const newTeam = await Team.create({
       name,
       description,
-      logo: logoUrl, // ✅ SAVE LOGO
+      logo: logoUrl,
       leader: userId,
       members: [{ userId, role: "admin" }],
       channels: [{ name: "General", createdBy: userId }],
@@ -60,7 +60,7 @@ export const createTeam = async (req, res) => {
 };
 
 // -----------------------------
-// Update Team Details (Leader/Admin) - FIXED VERSION
+// Update Team Details (Leader/Admin)
 // -----------------------------
 export const updateTeamDetails = async (req, res) => {
   try {
@@ -92,7 +92,7 @@ export const updateTeamDetails = async (req, res) => {
       team.name = name.trim();
     }
 
-    // ✅ FIXED: Update logo (optional) - Save to team.logo instead of team.banner
+    // ✅ Update logo (optional)
     if (req.file) {
       const uploadResult = await cloudinary.uploader.upload(
         `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`,
@@ -102,7 +102,6 @@ export const updateTeamDetails = async (req, res) => {
         }
       );
 
-      // FIXED: Save to logo field, not banner
       team.logo = uploadResult.secure_url;
       console.log("✅ Logo updated:", uploadResult.secure_url);
     }
@@ -115,7 +114,7 @@ export const updateTeamDetails = async (req, res) => {
       team: {
         _id: team._id,
         name: team.name,
-        logo: team.logo, // ✅ Make sure logo is included in response
+        logo: team.logo,
         description: team.description,
         leader: team.leader,
         members: team.members,
@@ -129,29 +128,34 @@ export const updateTeamDetails = async (req, res) => {
 };
 
 // -----------------------------
-// Get All Teams
+// 🔥 FIXED: Get ONLY teams where user is member/leader
 // -----------------------------
 export const getTeams = async (req, res) => {
   try {
     const auth = req.auth();
     const userId = auth?.userId;
 
-    // Get user role from req.user (populated by protect middleware) or fallback to User model
-    let userRole = req.user?.role;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
 
+    // Get user role for logging only - NOT for filtering
+    let userRole = req.user?.role;
     if (!userRole) {
       const user = await User.findById(userId);
       userRole = user?.role || (user?.isTeamLeader ? 'educator' : 'student');
     }
 
-    // ✅ Allow Admin & Educator to see ALL teams
-    let query = {
-      $or: [{ "members.userId": userId }, { leader: userId }],
+    // 🔥 CRITICAL FIX: ALWAYS filter by user membership
+    // No one sees teams they're not part of - including admins/educators
+    const query = {
+      $or: [
+        { "members.userId": userId },  // User is a member
+        { leader: userId }              // User is the leader
+      ]
     };
 
-    if (userRole === "admin" || userRole === "educator") {
-      query = {}; // No filter = fetch all
-    }
+    console.log(`👤 User ${userId} (${userRole}) - fetching ONLY their teams`);
 
     const teams = await Team.find(query)
       .populate("members.userId", "name imageUrl email")
@@ -178,8 +182,11 @@ export const getTeams = async (req, res) => {
       };
     });
 
+    console.log(`📊 Returning ${formattedTeams.length} teams for user ${userId}`);
+    
     res.json({ success: true, teams: formattedTeams });
   } catch (error) {
+    console.error("❌ getTeams error:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -263,6 +270,7 @@ export const manageRequest = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
 // -----------------------------
 // Send Message (Leader/Admin Only)
 // -----------------------------
@@ -276,7 +284,6 @@ export const sendMessage = async (req, res) => {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    // 1. Fetch Team AND Populate Members (We need their emails now!)
     const team = await Team.findById(teamId).populate("members.userId", "email");
     
     if (!team) {
@@ -294,7 +301,6 @@ export const sendMessage = async (req, res) => {
       });
     }
 
-    // 2. Create the Message
     const message = await TeamMessage.create({
       teamId,
       sender: userId,
@@ -306,23 +312,18 @@ export const sendMessage = async (req, res) => {
 
     await message.populate("sender", "name imageUrl");
 
-    // 3. Socket Emit (Update UI immediately)
     req.app.get("io")?.to(teamId).emit("receive-message", message);
 
-    // 4. ✅ NEW: Send Email Notification (Background Process)
-    // Only send email if the sender is the LEADER
     if (isLeader) {
-      // Get all member emails EXCLUDING the leader
       const recipientEmails = team.members
-        .filter(m => m.userId._id.toString() !== userId) // Filter by ID first (safer)
-        .map(m => m.userId.email) // Then extract email
-        .filter(email => email); // Remove any null/undefined emails
+        .filter(m => m.userId._id.toString() !== userId)
+        .map(m => m.userId.email)
+        .filter(email => email);
 
-      // 🔥 Call email function without 'await' so the chat doesn't lag
       sendTeamAnnouncement(
         recipientEmails,
         team.name,
-        message.sender.name, // Leader Name
+        message.sender.name,
         content,
         attachmentUrl
       ).catch(err => console.error("Background email failed", err));
@@ -397,7 +398,6 @@ export const deleteTeam = async (req, res) => {
       });
     }
 
-    // ✅ CRITICAL FIX (ObjectId vs string)
     if (team.leader.toString() !== userId) {
       return res.status(403).json({
         success: false,
@@ -405,10 +405,7 @@ export const deleteTeam = async (req, res) => {
       });
     }
 
-    // Delete all messages of this team
     await TeamMessage.deleteMany({ teamId });
-
-    // Delete team
     await team.deleteOne();
 
     return res.json({
@@ -463,9 +460,6 @@ export const removeMember = async (req, res) => {
 // -----------------------------
 // Get Student Info (Leader Only)
 // -----------------------------
-// -----------------------------
-// Get Student Info (Leader Only)
-// -----------------------------
 export const getStudentInfo = async (req, res) => {
   try {
     const auth = req.auth();
@@ -475,7 +469,6 @@ export const getStudentInfo = async (req, res) => {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    // ✅ FIXED: Find ALL teams where this user is leader OR admin
     const teams = await Team.find({
       $or: [
         { leader: leaderId },
@@ -490,15 +483,13 @@ export const getStudentInfo = async (req, res) => {
       });
     }
 
-    // ✅ Get ALL member IDs from ALL teams (except the leader)
     let allStudentIds = [];
-    const teamMembersMap = new Map(); // To track which team each student belongs to
+    const teamMembersMap = new Map();
     
     teams.forEach(team => {
       const studentIds = team.members
         .filter(m => m.userId !== leaderId)
         .map(m => {
-          // Store team info for this student
           teamMembersMap.set(m.userId, {
             teamId: team._id,
             teamName: team.name,
@@ -513,24 +504,19 @@ export const getStudentInfo = async (req, res) => {
       allStudentIds = [...allStudentIds, ...studentIds];
     });
 
-    // Remove duplicates (student might be in multiple teams)
     allStudentIds = [...new Set(allStudentIds)];
 
-    // Fetch student user details + populate enrolledCourses
     const users = await User.find({ _id: { $in: allStudentIds } })
       .populate("enrolledCourses", "courseTitle")
       .lean();
 
-    // ✅ Get ALL assigned projects for the leader
     const leaderUser = await User.findById(leaderId);
     const requiredProjectIds = leaderUser?.assignedProjects?.map(id => id.toString()) || [];
 
-    // Convert user list into map for fast lookup
     const userMap = new Map();
     users.forEach((u) => userMap.set(u._id.toString(), u));
 
-    // ✅ Format response for frontend - combine students from ALL teams
-    const studentsMap = new Map(); // To merge same student from different teams
+    const studentsMap = new Map();
 
     teams.forEach(team => {
       team.members
@@ -540,7 +526,6 @@ export const getStudentInfo = async (req, res) => {
           const user = userMap.get(userId);
           
           if (!studentsMap.has(userId)) {
-            // First time seeing this student
             studentsMap.set(userId, {
               userId: userId,
               name: user?.name || "Unknown Student",
@@ -549,15 +534,13 @@ export const getStudentInfo = async (req, res) => {
               role: m.role,
               progress: m.progress ?? 0,
               lorUnlocked: m.lorUnlocked ?? false,
-              // ✅ AUTO PROJECT FETCH FROM ENROLLED COURSES
               projects: (user?.enrolledCourses || [])
                 .filter(c => requiredProjectIds.length === 0 || requiredProjectIds.includes(c._id.toString()))
                 .map(c => c.courseTitle),
-              teams: [] // Will store which teams this student belongs to
+              teams: []
             });
           }
           
-          // Add team info to student
           const studentData = studentsMap.get(userId);
           studentData.teams.push({
             teamId: team._id,
@@ -566,19 +549,16 @@ export const getStudentInfo = async (req, res) => {
             lorUnlocked: m.lorUnlocked ?? false
           });
           
-          // Use highest progress if in multiple teams
           if ((m.progress ?? 0) > studentData.progress) {
             studentData.progress = m.progress ?? 0;
           }
           
-          // Unlock LOR if unlocked in any team
           if (m.lorUnlocked) {
             studentData.lorUnlocked = true;
           }
         });
     });
 
-    // Convert map to array
     const students = Array.from(studentsMap.values());
 
     return res.json({
@@ -613,7 +593,6 @@ export const updateStudentProgress = async (req, res) => {
         .json({ success: false, message: "studentId is required" });
     }
 
-    // ✅ FIXED: Find the specific team if teamId provided, otherwise find all teams and update all
     let query = {
       $or: [
         { leader: leaderId },
@@ -681,12 +660,9 @@ export const updateStudentProgress = async (req, res) => {
   }
 };
 
-
-
 // -----------------------------
 // Get My Team Progress
 // -----------------------------
-
 export const getMyTeamProgress = async (req, res) => {
   try {
     const auth = req.auth();
@@ -696,7 +672,6 @@ export const getMyTeamProgress = async (req, res) => {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    // Find ALL teams where user is a member
     const teams = await Team.find({
       "members.userId": userId
     });
@@ -710,7 +685,6 @@ export const getMyTeamProgress = async (req, res) => {
       });
     }
 
-    // Get user's progress from each team
     const teamProgressList = teams.map(team => {
       const member = team.members.find(m => m.userId === userId);
       return {
@@ -724,14 +698,12 @@ export const getMyTeamProgress = async (req, res) => {
       };
     });
 
-    // 🔥 FIX: Use MAX progress instead of AVERAGE
-    // Student sees their highest progress across all teams
     const maxProgress = Math.max(...teamProgressList.map(t => t.progress), 0);
 
     return res.json({
       success: true,
-      teams: teamProgressList, // Send all teams for detailed view
-      overallProgress: maxProgress, // ✅ This is now the MAX, not average
+      teams: teamProgressList,
+      overallProgress: maxProgress,
       teamCount: teams.length,
       message: teamProgressList.length > 1 
         ? `You are in ${teamProgressList.length} teams. Showing your highest progress.` 
@@ -744,7 +716,7 @@ export const getMyTeamProgress = async (req, res) => {
 };
 
 // -----------------------------
-// Old Update Team Name (Optional - you can remove this if using updateTeamDetails)
+// Update Team Name
 // -----------------------------
 export const updateTeamName = async (req, res) => {
   try {
@@ -795,9 +767,8 @@ export const updateTeamName = async (req, res) => {
   }
 };
 
-
 // -----------------------------
-// Edit Message (Text / Image / File) - Sender Only
+// Edit Message
 // -----------------------------
 export const editMessage = async (req, res) => {
   try {
@@ -813,12 +784,10 @@ export const editMessage = async (req, res) => {
       return res.status(403).json({ success: false, message: "Not allowed" });
     }
 
-    // 📝 TEXT MESSAGE EDIT
     if (message.type === "text") {
       message.content = content;
     }
 
-    // 📎 FILE / IMAGE EDIT
     if (req.file) {
       const uploadResult = await cloudinary.uploader.upload(
         `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`,
@@ -844,9 +813,8 @@ export const editMessage = async (req, res) => {
   }
 };
 
-
 // -----------------------------
-// Delete Message (Sender Only)
+// Delete Message
 // -----------------------------
 export const deleteMessageById = async (req, res) => {
   try {
@@ -872,9 +840,8 @@ export const deleteMessageById = async (req, res) => {
   }
 };
 
-
 // -----------------------------
-// Get Team Files (Images, PDFs, Documents)
+// Get Team Files
 // -----------------------------
 export const getTeamFiles = async (req, res) => {
   try {
@@ -895,7 +862,6 @@ export const getTeamFiles = async (req, res) => {
       });
     }
 
-    // Get all file messages (images and files)
     const files = await TeamMessage.find({
       teamId,
       type: { $in: ['image', 'file'] },
@@ -905,24 +871,19 @@ export const getTeamFiles = async (req, res) => {
       .populate("sender", "name imageUrl")
       .lean();
 
-    // Enhance file data with metadata
     const enhancedFiles = files.map(file => {
       let fileType = 'file';
       let fileName = file.content || 'Unknown File';
       let fileSize = 'Unknown';
 
-      // Extract file name from URL if possible
       if (file.attachmentUrl) {
         try {
           const url = new URL(file.attachmentUrl);
           const pathParts = url.pathname.split('/');
           fileName = pathParts[pathParts.length - 1] || fileName;
-        } catch (e) {
-          // If URL parsing fails, keep original name
-        }
+        } catch (e) {}
       }
 
-      // Determine file type
       if (file.type === 'image') {
         fileType = 'image';
       } else if (file.attachmentUrl) {
@@ -964,10 +925,8 @@ export const getTeamFiles = async (req, res) => {
   }
 };
 
-
-
 // -----------------------------
-// Get ALL Teams (Admin Dashboard)
+// Get ALL Teams (Admin Dashboard ONLY)
 // -----------------------------
 export const getAllTeamsForAdmin = async (req, res) => {
   try {
@@ -981,7 +940,15 @@ export const getAllTeamsForAdmin = async (req, res) => {
       });
     }
 
-    // 🔥 NO ROLE CHECK (Admin UI already protected)
+    // Verify user is actually an admin
+    const user = await User.findById(userId);
+    if (user?.role !== 'admin' && user?.role !== 'educator') {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Admin only.",
+      });
+    }
+
     const teams = await Team.find({})
       .select("_id name leader members createdAt")
       .sort({ createdAt: -1 })
@@ -999,8 +966,3 @@ export const getAllTeamsForAdmin = async (req, res) => {
     });
   }
 };
-
-
-
-
-
