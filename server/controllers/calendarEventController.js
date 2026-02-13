@@ -1,45 +1,71 @@
 import CalendarEvent from "../models/CalendarEvent.js";
 import Team from "../models/Team.js";
 
-// ✅ Get events for student (only view)
+// ✅ Get events for student/leader (with Dropdown Support)
 export const getMyTeamEvents = async (req, res) => {
   try {
-
     const auth = req.auth();
     const userId = auth?.userId;
+    
+    // Check for a specific team requested via dropdown
+    const requestedTeamId = req.query.teamId; 
 
-
-    // 1️⃣ First look for team where I am LEADER
-    let team = await Team.findOne({ leader: userId });
-
-    // 2️⃣ If not leader, look for team where I am MEMBER
-    if (!team) {
-      team = await Team.findOne({ "members.userId": userId });
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
+    // 1️⃣ Find ALL teams where the user is a LEADER or MEMBER
+    // We use .lean() to get plain JS objects, ensuring better performance and easier manipulation
+    const allTeams = await Team.find({
+      $or: [
+        { leader: userId },
+        { "members.userId": userId }
+      ]
+    }).select("name leader _id").lean();
 
-    if (!team) {
-
+    // If no teams found, return empty state immediately
+    if (!allTeams || allTeams.length === 0) {
       return res.json({
         success: true,
         events: [],
+        teams: [],
         teamId: null,
         isLeader: false,
+        message: "No teams found"
       });
     }
 
-    const events = await CalendarEvent.find({ teamId: team._id }).sort({
+    // 2️⃣ Determine which team to show
+    let activeTeam = null;
+
+    if (requestedTeamId) {
+      // Find the requested team in the user's list of teams
+      // We convert _id to string to ensure safe comparison
+      activeTeam = allTeams.find(t => t._id.toString() === requestedTeamId);
+    }
+
+    // Fallback: If no valid ID sent, default to the first team found
+    if (!activeTeam) {
+      activeTeam = allTeams[0];
+    }
+
+    // 3️⃣ Fetch events ONLY for the active team
+    const events = await CalendarEvent.find({ teamId: activeTeam._id }).sort({
       startDate: 1,
     });
 
-    const isLeader = String(team.leader) === String(userId);
+    // Check if the current user is the leader of the ACTIVE team
+    const isLeader = String(activeTeam.leader) === String(userId);
 
+    // 4️⃣ Return data
     return res.json({
       success: true,
       events,
-      teamId: team._id,
+      teamId: activeTeam._id,
       isLeader,
+      teams: allTeams, // ✅ Sends the list of teams to populate the dropdown
     });
+
   } catch (error) {
     console.error("❌ [getMyTeamEvents] error:", error);
     return res.json({ success: false, message: error.message });
@@ -50,7 +76,6 @@ export const getMyTeamEvents = async (req, res) => {
 // ✅ Create event (Leader only)
 export const createEvent = async (req, res) => {
   try {
-
     const auth = req.auth();
     const userId = auth?.userId;
 
@@ -67,13 +92,6 @@ export const createEvent = async (req, res) => {
     } = req.body;
 
     if (!teamId || !title || !startDate || !endDate) {
-      console.warn("❌ [createEvent] Missing required fields", {
-        teamId,
-        title,
-        startDate,
-        endDate,
-      });
-
       return res.json({
         success: false,
         message: "teamId, title, startDate, endDate are required",
@@ -100,7 +118,6 @@ export const createEvent = async (req, res) => {
     });
   } catch (error) {
     console.error("❌ [createEvent] Error:", error);
-
     return res.json({ success: false, message: error.message });
   }
 };
@@ -111,7 +128,6 @@ export const updateEvent = async (req, res) => {
   try {
     const auth = req.auth();
     const userId = auth?.userId;
-
     const { id } = req.params;
 
     const event = await CalendarEvent.findById(id);
@@ -121,7 +137,8 @@ export const updateEvent = async (req, res) => {
 
     // Check leader
     const team = await Team.findById(event.teamId);
-    if (!team || team.leader.toString() !== userId.toString()) {
+    // Use toString() for safe comparison of ObjectId vs String
+    if (!team || String(team.leader) !== String(userId)) {
       return res.status(403).json({
         success: false,
         message: "Only leader can update"
@@ -143,7 +160,6 @@ export const deleteEvent = async (req, res) => {
   try {
     const auth = req.auth();
     const userId = auth?.userId;
-
     const { id } = req.params;
 
     const event = await CalendarEvent.findById(id);
@@ -152,7 +168,8 @@ export const deleteEvent = async (req, res) => {
     }
 
     const team = await Team.findById(event.teamId);
-    if (!team || team.leader.toString() !== userId.toString()) {
+    // Use toString() for safe comparison of ObjectId vs String
+    if (!team || String(team.leader) !== String(userId)) {
       return res.status(403).json({
         success: false,
         message: "Only leader can delete"

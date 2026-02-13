@@ -1,12 +1,14 @@
-import React from "react";
+import React, { useState, useEffect, useContext } from "react";
 import axios from "axios";
-import { useContext } from "react";
 import { AppContext } from "../../../context/AppContext";
 import { toast } from "react-toastify";
 import StudentLayout from "../../../components/student/StudentLayout";
-import { useState, useEffect } from "react";
+// 👇 Import the new component
+import UpcomingEvents from "../../../components/student/UpcomingEvents"; 
 import {
   Calendar as CalendarIcon,
+  ChevronDown, // Add this
+  Check,
   Plus,
   Clock,
   MapPin,
@@ -17,18 +19,15 @@ import {
   ChevronRight,
   Edit2,
   Trash2,
-  Share2,
-  Filter,
-  X,
-  Save,
   Tag,
   Megaphone,
   FileText,
   BookOpen,
   GraduationCap,
-  Briefcase,
   Coffee,
   Menu,
+  Save,
+  X
 } from "lucide-react";
 
 const Calendar = () => {
@@ -40,9 +39,11 @@ const Calendar = () => {
   const [showEventModal, setShowEventModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  // ✅ Backend events
+  // ✅ Backend events & Teams
   const [events, setEvents] = useState([]);
+  const [allTeams, setAllTeams] = useState([]); // Stores list of teams for dropdown
 
   // ✅ Leader control
   const [teamId, setTeamId] = useState(null);
@@ -144,18 +145,8 @@ const Calendar = () => {
 
   // Months
   const months = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
   ];
 
   // Initialize event form for selected date
@@ -236,7 +227,7 @@ const Calendar = () => {
     return days;
   };
 
-  // ✅ Get events for selected date (timezone safe)
+  // ✅ Get events for selected date
   const getEventsForDate = (date) => {
     return events.filter((event) => {
       const eventDate = new Date(event.date);
@@ -262,7 +253,7 @@ const Calendar = () => {
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
-  // Format date for mobile (shorter version)
+  // Format date for mobile
   const formatDateMobile = (date) => {
     return date.toLocaleDateString("en-US", {
       month: "short",
@@ -271,11 +262,9 @@ const Calendar = () => {
     });
   };
 
-  // Handle date click - open event modal
+  // Handle date click
   const handleDateClick = (date) => {
     setSelectedDate(date);
-
-    // ❌ Student should not open modal (only leader can add/edit)
     if (!isLeader) return;
 
     setEventForm((prev) => ({
@@ -289,7 +278,6 @@ const Calendar = () => {
     setShowEventModal(true);
   };
 
-  // Handle form input change
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setEventForm((prev) => ({
@@ -298,7 +286,6 @@ const Calendar = () => {
     }));
   };
 
-  // Handle reminder change
   const handleReminderChange = (reminderValue) => {
     setEventForm((prev) => ({
       ...prev,
@@ -306,7 +293,6 @@ const Calendar = () => {
     }));
   };
 
-  // Schedule reminder notification (client-side only)
   const scheduleReminder = (event, minutesBefore) => {
     const reminderTime = new Date(event.date.getTime() - minutesBefore * 60000);
     const now = new Date();
@@ -334,32 +320,32 @@ const Calendar = () => {
     }
   };
 
-  // ✅ Fetch team events from backend (FIXED)
-  const fetchTeamEvents = async () => {
+  // ✅ Fetch team events with Dropdown Logic (UPDATED)
+  const fetchTeamEvents = async (selectedTeamId = null) => {
     try {
-
       const token = await getToken();
+      
+      // ✅ Pass teamId as query param if selected
+      const query = selectedTeamId ? `?teamId=${selectedTeamId}` : "";
 
       const res = await axios.get(
-        `${backendUrl}/api/calendar-event/my-team-events`,
+        `${backendUrl}/api/calendar-event/my-team-events${query}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
       if (res.data.success) {
         setTeamId(res.data.teamId || null);
         setIsLeader(Boolean(res.data.isLeader));
+        
+        // ✅ Save all teams for the dropdown
+        setAllTeams(res.data.teams || []); 
 
         const serverEvents = res.data.events || [];
 
         const mapped = serverEvents.map((e) => {
           const start = new Date(e.startDate);
           const end = new Date(e.endDate);
-
-          const duration = Math.max(
-            0,
-            Math.floor((end.getTime() - start.getTime()) / 60000)
-          );
-
+          const duration = Math.max(0, Math.floor((end.getTime() - start.getTime()) / 60000));
           const typeMeta = eventTypes.find((t) => t.id === e.type);
 
           return {
@@ -383,7 +369,6 @@ const Calendar = () => {
 
         setEvents(mapped);
 
-        // schedule reminders
         mapped.forEach((ev) => {
           if (ev.reminders?.length > 0) {
             scheduleReminder(ev, ev.reminders[0]);
@@ -393,31 +378,25 @@ const Calendar = () => {
         toast.error(res.data.message || "Failed to load calendar events");
       }
     } catch (error) {
-      toast.error(
-        error.response?.data?.message || "Failed to load calendar events"
-      );
+      toast.error(error.response?.data?.message || "Failed to load calendar events");
     }
   };
 
-  // ✅ Load events on mount
   useEffect(() => {
     fetchTeamEvents();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Save event (Leader only) -> Backend
   const handleSaveEvent = async () => {
     try {
       if (!isLeader) {
         toast.error("Only team leader can add/update events");
         return;
       }
-
       if (!teamId) {
         toast.error("Team not found");
         return;
       }
-
       if (!eventForm.title.trim()) {
         toast.error("Please enter event title");
         return;
@@ -429,9 +408,7 @@ const Calendar = () => {
         return;
       }
 
-      const [startHour, startMinute] = eventForm.startTime
-        .split(":")
-        .map(Number);
+      const [startHour, startMinute] = eventForm.startTime.split(":").map(Number);
       const [endHour, endMinute] = eventForm.endTime.split(":").map(Number);
 
       const startDate = new Date(eventForm.date);
@@ -445,7 +422,6 @@ const Calendar = () => {
         return;
       }
 
-      // ✅ Send ISO strings (recommended)
       const payload = {
         teamId,
         title: eventForm.title,
@@ -459,7 +435,6 @@ const Calendar = () => {
       };
 
       let res;
-
       if (editingEvent) {
         res = await axios.put(
           `${backendUrl}/api/calendar-event/update/${editingEvent.id}`,
@@ -476,39 +451,28 @@ const Calendar = () => {
 
       if (res.data.success) {
         toast.success(res.data.message || "Saved");
-
         setShowEventModal(false);
         setEditingEvent(null);
         resetEventForm();
-
-        fetchTeamEvents();
+        fetchTeamEvents(teamId);
       } else {
         toast.error(res.data.message || "Failed to save event");
       }
     } catch (error) {
       console.error("❌ [handleSaveEvent] Error:", error);
-      toast.error(
-        error.response?.data?.message || error.message || "Failed to save event"
-      );
+      toast.error(error.response?.data?.message || error.message || "Failed to save event");
     }
   };
 
-  // Edit event (Leader only)
   const handleEditEvent = (event) => {
     if (!isLeader) return;
-
     setEditingEvent(event);
-
     setEventForm({
       title: event.title,
       description: event.description,
       date: new Date(event.date),
-      startTime: event.date
-        .toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-        .replace(" ", ""),
-      endTime: event.endDate
-        .toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-        .replace(" ", ""),
+      startTime: event.date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }).replace(" ", ""),
+      endTime: event.endDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }).replace(" ", ""),
       type: event.type,
       location: event.location,
       team: event.team,
@@ -519,33 +483,26 @@ const Calendar = () => {
       customReminderTime: event.reminders[0] || 30,
       repeat: "none",
     });
-
     setShowEventModal(true);
   };
 
-  // Delete event (Leader only) -> Backend
   const handleDeleteEvent = async (eventId) => {
     try {
       if (!isLeader) {
         toast.error("Only team leader can delete events");
         return;
       }
-
-      if (!window.confirm("Are you sure you want to delete this event?"))
-        return;
+      if (!window.confirm("Are you sure you want to delete this event?")) return;
 
       const token = await getToken();
-
       const res = await axios.delete(
         `${backendUrl}/api/calendar-event/delete/${eventId}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
 
       if (res.data.success) {
         toast.success(res.data.message || "Event deleted");
-        fetchTeamEvents();
+        fetchTeamEvents(teamId);
       } else {
         toast.error(res.data.message || "Failed to delete event");
       }
@@ -554,11 +511,9 @@ const Calendar = () => {
     }
   };
 
-  // Reset event form
   const resetEventForm = () => {
     const defaultDate = new Date(selectedDate);
     defaultDate.setHours(10, 0, 0, 0);
-
     setEventForm({
       title: "",
       description: "",
@@ -577,30 +532,90 @@ const Calendar = () => {
     });
   };
 
-  // Request notification permission
   useEffect(() => {
     if ("Notification" in window && Notification.permission === "default") {
       Notification.requestPermission();
     }
   }, []);
 
-  // Calendar days
   const calendarDays = generateCalendarDays();
 
   return (
     <StudentLayout>
       <div className="p-4 md:p-6 space-y-6">
-        {/* Header */}
+        {/* Header with Dropdown Logic */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center justify-between md:justify-start">
-            <div>
-              <h1 className="text-xl md:text-2xl font-bold text-gray-900">
-                Calendar
-              </h1>
-              <p className="text-sm md:text-base text-gray-600 mt-1">
-                Track your project meetings, deadlines, and schedules
-              </p>
+          <div className="flex items-center justify-between md:justify-start w-full md:w-auto">
+            
+            {/* ✅ DYNAMIC TEAM SELECTOR UI */}
+            <div className="flex flex-col relative z-20"> {/* Added z-20 for stacking context */}
+              {allTeams && allTeams.length > 1 ? (
+                <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
+                  <h1 className="text-xl md:text-2xl font-bold text-gray-900">
+                    Calendar
+                  </h1>
+                  
+                  <div className="hidden md:block h-6 w-px bg-gray-300"></div>
+
+                  {/* CUSTOM DROPDOWN COMPONENT */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                      className="flex items-center justify-between gap-3 bg-white border border-gray-200 hover:border-cyan-500 text-gray-700 text-sm md:text-base font-medium rounded-xl px-4 py-2.5 focus:outline-none focus:ring-4 focus:ring-cyan-500/10 transition-all shadow-sm min-w-[220px]"
+                    >
+                      <span className="truncate">
+                        {allTeams.find(t => t._id === teamId)?.name || "Select Team"}
+                      </span>
+                      <ChevronDown 
+                        size={18} 
+                        className={`text-gray-400 transition-transform duration-200 ${isDropdownOpen ? "rotate-180" : ""}`} 
+                      />
+                    </button>
+
+                    {/* The Custom List */}
+                    {isDropdownOpen && (
+                      <>
+                        {/* Invisible backdrop to close when clicking outside */}
+                        <div 
+                          className="fixed inset-0 z-10" 
+                          onClick={() => setIsDropdownOpen(false)}
+                        ></div>
+                        
+                        <div className="absolute top-full left-0 mt-2 w-full bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-20 animate-in fade-in zoom-in-95 duration-100">
+                          {allTeams.map((t) => (
+                            <button
+                              key={t._id}
+                              onClick={() => {
+                                fetchTeamEvents(t._id);
+                                setIsDropdownOpen(false);
+                              }}
+                              className={`w-full text-left px-4 py-2.5 text-sm md:text-base hover:bg-cyan-50 transition-colors flex items-center justify-between group ${
+                                teamId === t._id ? "bg-cyan-50 text-cyan-700 font-medium" : "text-gray-700"
+                              }`}
+                            >
+                              <span className="truncate">{t.name}</span>
+                              {teamId === t._id && (
+                                <Check size={16} className="text-cyan-600" />
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <h1 className="text-xl md:text-2xl font-bold text-gray-900">
+                    {allTeams && allTeams.length > 0 ? allTeams[0].name : "Calendar"}
+                  </h1>
+                  <p className="text-sm md:text-base text-gray-600 mt-1">
+                    Track your project meetings, deadlines, and schedules
+                  </p>
+                </>
+              )}
             </div>
+
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="md:hidden p-2 hover:bg-gray-100 rounded-lg"
@@ -614,7 +629,6 @@ const Calendar = () => {
               mobileMenuOpen ? "flex" : "hidden md:flex"
             }`}
           >
-
             {/* ✅ Only Leader can add */}
             {isLeader && (
               <button
@@ -633,8 +647,9 @@ const Calendar = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Side - Calendar */}
-          <div className="lg:col-span-2">
+          {/* Left Side - Calendar & Upcoming Events */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Calendar Card */}
             <div className="bg-white rounded-xl shadow">
               {/* Calendar Header */}
               <div className="p-4 border-b border-gray-200">
@@ -771,98 +786,15 @@ const Calendar = () => {
               </div>
             </div>
 
-            {/* Upcoming Deadlines */}
-            <div className="mt-6 bg-white rounded-xl shadow">
-              <div className="p-4 border-b border-gray-200">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <AlertCircle size={20} className="text-red-500" />
-                  Upcoming Deadlines & Events
-                </h3>
-              </div>
-              <div className="p-2 md:p-4">
-                {events
-                  .sort((a, b) => new Date(a.date) - new Date(b.date))
-                  .slice(0, 5)
-                  .map((event) => (
-                    <div
-                      key={event.id}
-                      className="mb-3 md:mb-4 p-3 border border-gray-200 rounded-lg hover:border-cyan-200 transition-colors"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start gap-3">
-                          <div
-                            className={`p-2 rounded-lg ${event.color} text-white hidden sm:block`}
-                          >
-                            {eventTypes.find((type) => type.id === event.type)
-                              ?.icon || <Users size={16} />}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-                              <h4 className="font-semibold text-gray-900 truncate">
-                                {event.title}
-                              </h4>
-                              <span
-                                className={`px-2 py-0.5 text-xs rounded-full ${
-                                  priorityOptions.find(
-                                    (p) => p.id === event.priority
-                                  )?.color
-                                } self-start sm:self-center`}
-                              >
-                                {event.priority}
-                              </span>
-                            </div>
-                            <p className="text-sm text-gray-600 mt-1 line-clamp-2">
-                              {event.description}
-                            </p>
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 mt-2 text-sm text-gray-700">
-                              <span className="flex items-center gap-1">
-                                <CalendarIcon size={14} />
-                                <span className="truncate">
-                                  {formatDateMobile(event.date)}
-                                </span>
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Clock size={14} />
-                                {formatTime(event.date)}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Bell size={14} />
-                                {event.reminders.length > 0
-                                  ? `${
-                                      event.reminders[0] >= 60
-                                        ? `${event.reminders[0] / 60}h`
-                                        : `${event.reminders[0]}m`
-                                    } before`
-                                  : "No reminder"}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* ✅ Only Leader can edit/delete */}
-                        {isLeader && (
-                          <div className="flex items-center gap-1 ml-2">
-                            <button
-                              onClick={() => handleEditEvent(event)}
-                              className="p-1 text-gray-400 hover:text-cyan-600"
-                              title="Edit"
-                            >
-                              <Edit2 size={16} />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteEvent(event.id)}
-                              className="p-1 text-gray-400 hover:text-red-600"
-                              title="Delete"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            </div>
+            {/* ✅ Upcoming Events Component - MOVED HERE */}
+            <UpcomingEvents 
+              events={events} 
+              eventTypes={eventTypes} 
+              priorityOptions={priorityOptions} 
+              isLeader={isLeader} 
+              onEdit={handleEditEvent} 
+              onDelete={handleDeleteEvent} 
+            />
           </div>
 
           {/* Right Side - Event Details & Tools */}
