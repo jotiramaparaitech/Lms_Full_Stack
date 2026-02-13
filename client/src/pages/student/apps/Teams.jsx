@@ -52,6 +52,9 @@ const Teams = () => {
   const editFileInputRef = useRef(null);
   const filesTabFileInputRef = useRef(null);
   const filesTabImageInputRef = useRef(null);
+  const messageInputRef = useRef(null);
+  const messageMenuRef = useRef(null);
+  const teamMenuRef = useRef(null);
 
   const [teams, setTeams] = useState([]);
   const [activeTeam, setActiveTeam] = useState(null);
@@ -73,6 +76,12 @@ const Teams = () => {
   
   // ================= REACT QUILL STATES =================
   const [quillContent, setQuillContent] = useState('');
+  
+  // ================= WHATSAPP STYLE FILE UPLOAD STATES =================
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [fileCaption, setFileCaption] = useState('');
+  const [showFilePreview, setShowFilePreview] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   
   // Message edit/delete states
   const [editingMessageId, setEditingMessageId] = useState(null);
@@ -105,6 +114,26 @@ const Teams = () => {
     'align',
     'link'
   ];
+
+  // ================= FIX: CLICK OUTSIDE TO CLOSE DROPDOWNS =================
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Close message menu
+      if (messageMenuRef.current && !messageMenuRef.current.contains(event.target)) {
+        setOpenMessageMenu(null);
+      }
+      
+      // Close team menu
+      if (teamMenuRef.current && !teamMenuRef.current.contains(event.target)) {
+        setShowTeamMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // ================= ENHANCED FILE UTILITY FUNCTIONS =================
   const getFileType = (url, fileName, mimeType) => {
@@ -457,14 +486,20 @@ const Teams = () => {
     
     if (message.deleted) return "[Deleted file]";
     
-    if (message.content && message.type !== 'text' && message.type !== 'rich_text') {
-      return message.content;
+    // Use fileName field if available, otherwise fallback
+    if (message.fileName) {
+      return message.fileName;
     }
     
+    // Fallback to extracting from URL
     if (message.attachmentUrl) {
-      const urlParts = message.attachmentUrl.split('/');
-      const fileName = urlParts[urlParts.length - 1].split('?')[0];
-      return decodeURIComponent(fileName);
+      try {
+        const urlParts = message.attachmentUrl.split('/');
+        const fileName = urlParts[urlParts.length - 1].split('?')[0];
+        return decodeURIComponent(fileName);
+      } catch (e) {
+        return "file";
+      }
     }
     
     return "file";
@@ -563,20 +598,9 @@ const Teams = () => {
     });
 
     socketRef.current.on("message-deleted", (deletedMsg) => {
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg._id === deletedMsg._id 
-            ? { ...msg, deleted: true, content: "[This message was deleted]" }
-            : msg
-        )
-      );
-      setFiles((prev) =>
-        prev.map((file) =>
-          file._id === deletedMsg._id 
-            ? { ...file, deleted: true, content: "[This message was deleted]" }
-            : file
-        )
-      );
+      // 🔥 FIX: Remove the message completely from state
+      setMessages((prev) => prev.filter((msg) => msg._id !== deletedMsg._id));
+      setFiles((prev) => prev.filter((file) => file._id !== deletedMsg._id));
     });
 
     return () => {
@@ -598,8 +622,8 @@ const Teams = () => {
     }
   }, [messages]);
 
-  // ================= FILE UPLOAD =================
-  const handleFileSelect = async (e, fileType = "file", isFilesTab = false) => {
+  // ================= WHATSAPP STYLE FILE SELECTION =================
+  const handleFileSelect = (e, isFilesTab = false) => {
     const file = e.target.files[0];
     if (!file) return;
 
@@ -620,28 +644,90 @@ const Teams = () => {
       "application/x-rar-compressed"
     ];
 
-    if (fileType === "image" && !allowedImageTypes.includes(file.type)) {
-      toast.error("Please select a valid image (JPEG, PNG, GIF, WebP, SVG)");
-      return;
-    }
-
-    if (fileType === "file" && !allowedFileTypes.includes(file.type) && !allowedImageTypes.includes(file.type)) {
+    if (!allowedImageTypes.includes(file.type) && !allowedFileTypes.includes(file.type)) {
       toast.error("Please select a valid file (PDF, Word, Excel, Text, Images, or Archives)");
       return;
     }
 
-    await uploadFile(file, fileType, isFilesTab);
-    
+    // For Files tab - direct upload
     if (isFilesTab) {
-      if (fileType === "image" && filesTabImageInputRef.current) filesTabImageInputRef.current.value = "";
-      if (fileType === "file" && filesTabFileInputRef.current) filesTabFileInputRef.current.value = "";
-    } else {
-      if (fileType === "image" && imageInputRef.current) imageInputRef.current.value = "";
-      if (fileType === "file" && fileInputRef.current) fileInputRef.current.value = "";
+      uploadFile(file, true);
+      return;
+    }
+
+    // For Posts tab - WhatsApp style preview
+    setSelectedFile(file);
+    setFileCaption('');
+    setShowFilePreview(true);
+    setUploadProgress(0);
+  };
+
+  // ================= WHATSAPP STYLE FILE UPLOAD WITH CAPTION =================
+  const uploadFileWithCaption = async () => {
+    if (!activeTeam || !selectedFile) return;
+    
+    if (!canSendMessages()) {
+      toast.error("Only team leaders or admins can upload files");
+      return;
+    }
+    
+    setUploadingFile(true);
+    setUploadProgress(0);
+    
+    try {
+      const token = await getToken();
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+      formData.append("teamId", activeTeam._id);
+      
+      // Send caption as content field
+      const captionText = fileCaption && fileCaption.trim() ? fileCaption.trim() : "";
+      formData.append("content", captionText);
+      
+
+      const { data } = await axios.post(
+        `${backendUrl}/api/teams/message/upload`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data",
+          },
+          onUploadProgress: (progressEvent) => {
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            setUploadProgress(percentCompleted);
+          },
+        }
+      );
+
+      if (data.success) {
+        toast.success(captionText ? "Message sent!" : "File uploaded successfully!");
+        
+        // Reset file preview
+        setSelectedFile(null);
+        setFileCaption('');
+        setShowFilePreview(false);
+        setUploadProgress(0);
+        
+        // Clear file input
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        if (imageInputRef.current) imageInputRef.current.value = "";
+        
+        // Fetch messages to show the new message with caption
+        await fetchMessages(activeTeam._id);
+        await fetchTeamFiles(activeTeam._id);
+      }
+    } catch (error) {
+      console.error("Upload error:", error);
+      toast.error(error.response?.data?.message || "Failed to upload file");
+    } finally {
+      setUploadingFile(false);
+      setUploadProgress(0);
     }
   };
 
-  const uploadFile = async (file, fileType = "file", isFilesTab = false) => {
+  // ================= DIRECT UPLOAD FOR FILES TAB =================
+  const uploadFile = async (file, isFilesTab = false) => {
     if (!activeTeam) return;
     
     if (!canSendMessages()) {
@@ -660,6 +746,7 @@ const Teams = () => {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("teamId", activeTeam._id);
+      formData.append("content", ""); // Empty content for files tab
 
       const { data } = await axios.post(
         `${backendUrl}/api/teams/message/upload`,
@@ -678,6 +765,7 @@ const Teams = () => {
         fetchTeamFiles(activeTeam._id);
       }
     } catch (error) {
+      console.error("Upload error:", error);
       toast.error(error.response?.data?.message || "Failed to upload file");
     } finally {
       if (isFilesTab) {
@@ -746,30 +834,30 @@ const Teams = () => {
     }
   };
 
-// ================= DATA FETCHING =================
-const fetchTeams = async () => {
-  try {
-    const token = await getToken();
-    const { data } = await axios.get(`${backendUrl}/api/teams/list`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (data.success) {
-      setTeams(data.teams);
-      if (activeTeam) {
-        const updated = data.teams.find(t => t._id === activeTeam._id);
-        if (updated) {
-          setActiveTeam(updated);
-          setLogoPreview(updated.logo || null);
+  // ================= DATA FETCHING =================
+  const fetchTeams = async () => {
+    try {
+      const token = await getToken();
+      const { data } = await axios.get(`${backendUrl}/api/teams/list`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (data.success) {
+        setTeams(data.teams);
+        if (activeTeam) {
+          const updated = data.teams.find(t => t._id === activeTeam._id);
+          if (updated) {
+            setActiveTeam(updated);
+            setLogoPreview(updated.logo || null);
+          }
         }
       }
+    } catch (error) {
+      console.error("Failed to load teams:", error);
+      toast.error("Failed to load teams");
+    } finally {
+      setLoading(false); 
     }
-  } catch (error) {
-    console.error("Failed to load teams:", error);
-    toast.error("Failed to load teams");
-  } finally {
-    setLoading(false); 
-  }
-};
+  };
 
   const fetchMessages = async (teamId) => {
     try {
@@ -779,7 +867,9 @@ const fetchTeams = async () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (data.success) {
-        setMessages(data.messages);
+        // 🔥 FIX: Filter out deleted messages on fetch
+        const filteredMessages = data.messages.filter(msg => !msg.deleted);
+        setMessages(filteredMessages);
       }
     } catch (error) {
       console.error("Failed to fetch messages:", error);
@@ -794,6 +884,7 @@ const fetchTeams = async () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (data.success) {
+        // 🔥 FIX: Filter out deleted files on fetch
         const fileMessages = data.files?.filter(file => 
           (file.type === 'file' || file.type === 'image') && !file.deleted
         ) || [];
@@ -850,7 +941,7 @@ const fetchTeams = async () => {
     }
   }, [activeTab, activeTeam]);
 
-  // ================= MESSAGE EDIT/DELETE FUNCTIONS =================
+  // ================= FIXED: MESSAGE EDIT FUNCTION =================
   const handleEditMessage = async () => {
     if (!editedContent.trim()) {
       toast.error("Message cannot be empty");
@@ -861,11 +952,26 @@ const fetchTeams = async () => {
 
     try {
       const token = await getToken();
+      
+      // Check if the message is rich_text type or contains HTML
+      const targetMessage = messages.find(m => m._id === editingMessageId);
+      const isRichText = targetMessage?.type === 'rich_text';
+      
+      let contentToSend = editedContent;
+      
+      // If it's a plain text message, strip HTML tags
+      if (!isRichText) {
+        contentToSend = editedContent
+          .replace(/<[^>]*>/g, '') // Remove HTML tags
+          .replace(/&nbsp;/g, ' ') // Replace &nbsp; with spaces
+          .trim();
+      }
+
       const { data } = await axios.put(
         `${backendUrl}/api/teams/message/edit`,
         { 
           messageId: editingMessageId, 
-          content: editedContent,
+          content: contentToSend,
           teamId: activeTeam._id 
         },
         { headers: { Authorization: `Bearer ${token}` } }
@@ -879,7 +985,7 @@ const fetchTeams = async () => {
         setMessages(prev => 
           prev.map(msg => 
             msg._id === editingMessageId 
-              ? { ...msg, content: editedContent, edited: true, updatedAt: new Date().toISOString() }
+              ? { ...msg, content: contentToSend, edited: true, updatedAt: new Date().toISOString() }
               : msg
           )
         );
@@ -887,7 +993,7 @@ const fetchTeams = async () => {
         if (socketRef.current) {
           socketRef.current.emit("message-updated", {
             _id: editingMessageId,
-            content: editedContent,
+            content: contentToSend,
             edited: true,
             updatedAt: new Date().toISOString()
           });
@@ -901,6 +1007,7 @@ const fetchTeams = async () => {
     }
   };
 
+  // ================= 🔥 FIXED: DELETE MESSAGE - NOW COMPLETELY REMOVES =================
   const handleDeleteMessage = async (messageId) => {
     if (!window.confirm("Are you sure you want to delete this message?")) {
       return;
@@ -920,21 +1027,9 @@ const fetchTeams = async () => {
         toast.success("Message deleted");
         setOpenMessageMenu(null);
         
-        setMessages(prev => 
-          prev.map(msg => 
-            msg._id === messageId 
-              ? { ...msg, deleted: true, content: "[This message was deleted]" }
-              : msg
-          )
-        );
-        
-        setFiles(prev => 
-          prev.map(file => 
-            file._id === messageId 
-              ? { ...file, deleted: true, content: "[This message was deleted]" }
-              : file
-          )
-        );
+        // 🔥 FIX: Remove the message completely from both states
+        setMessages(prev => prev.filter(msg => msg._id !== messageId));
+        setFiles(prev => prev.filter(file => file._id !== messageId));
         
         if (socketRef.current) {
           socketRef.current.emit("message-deleted", { _id: messageId });
@@ -1082,7 +1177,7 @@ const fetchTeams = async () => {
     }
   };
 
-  // ================= FIXED handleSendRichMessage FUNCTION =================
+  // ================= SEND RICH MESSAGE FUNCTION =================
   const handleSendRichMessage = async () => {
     if (!quillContent || quillContent === '<p><br></p>' || !canSendMessages()) return;
 
@@ -1107,6 +1202,16 @@ const fetchTeams = async () => {
       console.error("Send message error:", error);
       toast.error(error.response?.data?.message || "Failed to send message");
     }
+  };
+
+  // ================= CANCEL FILE PREVIEW =================
+  const cancelFilePreview = () => {
+    setSelectedFile(null);
+    setFileCaption('');
+    setShowFilePreview(false);
+    setUploadProgress(0);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (imageInputRef.current) imageInputRef.current.value = "";
   };
 
   const postMeetingLink = async (type) => {
@@ -1261,6 +1366,23 @@ const fetchTeams = async () => {
     const isUpdating = updatingMessages[msg._id];
     const displayTime = msg.updatedAt && msg.edited ? msg.updatedAt : msg.createdAt;
     const fileType = getFileType(fileUrl, fileName, msg.mimeType);
+    
+    // 🔥 FIX: Don't render deleted messages at all
+    if (msg.deleted) {
+      return null;
+    }
+    
+    // Check if this is a file/image message with caption
+    const hasCaption = msg.content && 
+                      msg.content.trim() !== '' && 
+                      msg.content !== fileName && 
+                      msg.type !== 'text' && 
+                      msg.type !== 'rich_text';
+
+    // Strip HTML for plain text messages
+    const displayContent = (msg.type === 'text' && msg.content) 
+      ? msg.content.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ')
+      : msg.content;
 
     return (
       <div key={msg._id} className="flex gap-3 group">
@@ -1286,17 +1408,14 @@ const fetchTeams = async () => {
                     moment(displayTime).format("h:mm A")
                   )}
                 </span>
-                {msg.edited && !msg.deleted && (
+                {msg.edited && (
                   <span className="text-xs text-gray-400 italic">(edited)</span>
-                )}
-                {msg.deleted && (
-                  <span className="text-xs text-gray-400 italic">(deleted)</span>
                 )}
               </div>
             </div>
             
-            {canEditDelete && !msg.deleted && (
-              <div className="relative">
+            {canEditDelete && (
+              <div className="relative" ref={messageMenuRef}>
                 <button
                   onClick={() => setOpenMessageMenu(openMessageMenu === msg._id ? null : msg._id)}
                   className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors opacity-0 group-hover:opacity-100"
@@ -1315,7 +1434,10 @@ const fetchTeams = async () => {
                       onClick={() => {
                         if (msg.type === "text" || msg.type === "rich_text") {
                           setEditingMessageId(msg._id);
-                          setEditedContent(msg.content);
+                          const editContent = msg.type === 'text' 
+                            ? msg.content.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ')
+                            : msg.content;
+                          setEditedContent(editContent);
                           setOpenMessageMenu(null);
                         } else if (msg.type === "image" || msg.type === "file") {
                           editFileInputRef.current.click();
@@ -1349,13 +1471,24 @@ const fetchTeams = async () => {
           
           {isEditing && (msg.type === "text" || msg.type === "rich_text") ? (
             <div className="mt-2">
-              <textarea
-                className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none text-sm"
-                value={editedContent}
-                onChange={(e) => setEditedContent(e.target.value)}
-                rows={3}
-                autoFocus
-              />
+              {msg.type === 'rich_text' ? (
+                <ReactQuill
+                  theme="snow"
+                  value={editedContent}
+                  onChange={setEditedContent}
+                  modules={quillModules}
+                  formats={quillFormats}
+                  className="bg-white"
+                />
+              ) : (
+                <textarea
+                  className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none text-sm"
+                  value={editedContent}
+                  onChange={(e) => setEditedContent(e.target.value)}
+                  rows={3}
+                  autoFocus
+                />
+              )}
               <div className="flex justify-end gap-2 mt-2">
                 <button
                   onClick={() => {
@@ -1391,19 +1524,15 @@ const fetchTeams = async () => {
             <>
               {msg.type === 'text' && (
                 <div className="text-gray-800 text-sm mt-1 leading-relaxed bg-white p-3 rounded-tr-xl rounded-br-xl rounded-bl-xl shadow-sm border border-gray-100 break-words whitespace-pre-wrap">
-                  {msg.deleted ? "[This message was deleted]" : msg.content}
+                  {displayContent}
                 </div>
               )}
 
-              {msg.type === 'rich_text' && !msg.deleted && renderRichTextContent(msg.content)}
+              {msg.type === 'rich_text' && renderRichTextContent(msg.content)}
               
               {(msg.type === 'image' || msg.type === 'file') && (
                 <div className="mt-2 max-w-md">
-                  <div className={`border rounded-lg p-3 shadow-sm relative ${
-                    msg.deleted 
-                      ? "bg-gray-50 border-gray-200" 
-                      : "bg-white border-gray-200"
-                  }`}>
+                  <div className="border rounded-lg p-3 shadow-sm relative bg-white border-gray-200">
                     {isUpdating && (
                       <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10 rounded-lg">
                         <div className="flex flex-col items-center gap-2">
@@ -1412,20 +1541,52 @@ const fetchTeams = async () => {
                         </div>
                       </div>
                     )}
-                    <div className="flex items-center justify-between mb-2">
+                    
+                    {/* FILE/IMAGE PREVIEW SECTION */}
+                    <>
+                      {fileType === 'image' && fileUrl ? (
+                        <div className="relative">
+                          <img 
+                            src={fileUrl} 
+                            alt={fileName || "Shared image"}
+                            className="w-full rounded-lg max-h-48 object-contain bg-gray-50 cursor-pointer"
+                            onClick={() => viewFile(fileUrl, fileName, msg.mimeType)}
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = "https://placehold.co/400x300/e2e8f0/64748b?text=Image+Not+Found";
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                          <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${getFileTypeColor(fileType).split(' ')[0]}`}>
+                            {getFileIcon(fileType)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-gray-800 text-sm truncate">
+                              {fileName}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {fileType === 'pdf' ? "PDF Document" : `${fileType} file`}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                    
+                    {/* FILE INFO AND ACTIONS */}
+                    <div className="flex items-center justify-between mt-3 pt-2 border-t border-gray-100">
                       <div className="flex items-center gap-2">
                         {getFileIcon(fileType)}
-                        <span className={`text-xs font-medium ${
-                          msg.deleted ? "text-gray-500" : "text-gray-700"
-                        }`}>
-                          {msg.deleted ? 'Deleted File' : (fileType === 'pdf' ? 'PDF Document' : (fileType === 'image' ? 'Image' : 'File'))}
+                        <span className="text-xs font-medium text-gray-700">
+                          {fileType === 'pdf' ? 'PDF' : (fileType === 'image' ? 'Image' : 'File')}
                         </span>
-                        {msg.edited && !msg.deleted && (
+                        {msg.edited && (
                           <span className="text-xs text-gray-400 italic">(edited)</span>
                         )}
                       </div>
                       
-                      {!msg.deleted && fileUrl && !isUpdating && (
+                      {fileUrl && !isUpdating && (
                         <div className="flex gap-3">
                           {fileType === 'image' && (
                             <button
@@ -1450,56 +1611,17 @@ const fetchTeams = async () => {
                       )}
                     </div>
                     
-                    {msg.deleted ? (
-                      <div className="flex items-center justify-center p-4 bg-gray-50 rounded-lg">
-                        <div className="text-center">
-                          <AlertCircle size={24} className="text-gray-400 mx-auto mb-2" />
-                          <p className="text-sm text-gray-500">This file has been deleted</p>
-                        </div>
+                    {/* CAPTION BELOW THE DOCUMENT/IMAGE */}
+                    {hasCaption && (
+                      <div className="mt-3 pt-2 border-t border-gray-100 text-gray-800 text-sm leading-relaxed bg-white break-words whitespace-pre-wrap">
+                        {msg.content}
                       </div>
-                    ) : (
-                      <>
-                        {fileType === 'image' && fileUrl ? (
-                          <div className="relative">
-                            <img 
-                              src={fileUrl} 
-                              alt={fileName || "Shared image"}
-                              className="w-full rounded-lg max-h-48 object-contain bg-gray-50 cursor-pointer"
-                              onClick={() => viewFile(fileUrl, fileName, msg.mimeType)}
-                              onError={(e) => {
-                                e.target.onerror = null;
-                                e.target.src = "https://placehold.co/400x300/e2e8f0/64748b?text=Image+Not+Found";
-                              }}
-                            />
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                            <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${getFileTypeColor(fileType).split(' ')[0]}`}>
-                              {getFileIcon(fileType)}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="font-medium text-gray-800 text-sm truncate">
-                                {fileName}
-                              </div>
-                              <div className="text-xs text-gray-500">
-                                {fileType === 'pdf' ? "PDF Document - Click 'Download' to save" : "Click to download"}
-                              </div>
-                              {fileType === 'pdf' && (
-                                <div className="text-xs text-blue-500 mt-1 flex items-center gap-1">
-                                  <span className="bg-blue-50 px-2 py-0.5 rounded">PDF</span>
-                                  <span className="text-gray-500">• Download only</span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </>
                     )}
                   </div>
                 </div>
               )}
               
-              {msg.type === 'call_link' && !msg.deleted && (
+              {msg.type === 'call_link' && (
                 <div className="mt-2 bg-blue-50 border border-blue-100 rounded-lg p-3 max-w-md">
                   <div className="flex items-center gap-3 mb-2">
                     <div className="w-9 h-9 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
@@ -1687,7 +1809,7 @@ const fetchTeams = async () => {
         <div className={`${activeTeam ? "flex w-full" : "hidden md:flex"} flex-1 flex-col bg-white`}>
           {activeTeam ? (
             <>
-              {/* FIXED HEADER */}
+              {/* FIXED HEADER WITH TEAM MENU */}
               <div className={`h-16 border-b border-gray-200 flex items-center justify-between px-4 md:px-6 bg-white sticky top-0 z-20 transition-all duration-200 ${
                 isScrolled ? 'shadow-sm' : ''
               }`}>
@@ -1738,7 +1860,9 @@ const fetchTeams = async () => {
                         >
                             <Phone size={20} />
                         </button>
-                        <div className="relative">
+                        
+                        {/* TEAM MENU WITH CLICK OUTSIDE CLOSE */}
+                        <div className="relative" ref={teamMenuRef}>
                            <button
                              onClick={() => setShowTeamMenu((prev) => !prev)}
                              className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-600"
@@ -1822,7 +1946,7 @@ const fetchTeams = async () => {
                       </div>
                   )}
 
-                  {/* POSTS TAB WITH REACT QUILL EDITOR */}
+                  {/* POSTS TAB WITH WHATSAPP STYLE FILE UPLOAD */}
                   {activeTeam.isMember && activeTab === 'posts' && (
                       <div className="flex flex-col h-full">
                           <div 
@@ -1865,14 +1989,14 @@ const fetchTeams = async () => {
                             ref={imageInputRef}
                             className="hidden"
                             accept="image/*"
-                            onChange={(e) => handleFileSelect(e, "image", false)}
+                            onChange={(e) => handleFileSelect(e, false)}
                           />
                           <input
                             type="file"
                             ref={fileInputRef}
                             className="hidden"
-                            accept=".pdf,.doc,.docx,.txt,.xls,.xlsx,image/*"
-                            onChange={(e) => handleFileSelect(e, "file", false)}
+                            accept=".pdf,.doc,.docx,.txt,.xls,.xlsx,image/*,.zip,.rar"
+                            onChange={(e) => handleFileSelect(e, false)}
                           />
                           <input
                             ref={editFileInputRef}
@@ -1882,8 +2006,109 @@ const fetchTeams = async () => {
                             onChange={handleEditFileSelect}
                           />
 
-                          {/* REACT QUILL RICH TEXT EDITOR - MICROSOFT COMMUNITY STYLE */}
-                          {canSendMessages() ? (
+                          {/* WHATSAPP STYLE FILE PREVIEW */}
+                          {showFilePreview && selectedFile && (
+                            <div className="p-4 bg-white border-t border-gray-200">
+                              <div className="bg-gray-50 rounded-xl border border-gray-200 p-4 relative">
+                                <button
+                                  onClick={cancelFilePreview}
+                                  className="absolute -top-2 -right-2 w-8 h-8 bg-gray-200 text-gray-600 rounded-full flex items-center justify-center hover:bg-gray-300 transition-colors shadow-sm"
+                                  title="Cancel"
+                                >
+                                  <X size={14} />
+                                </button>
+                                
+                                <div className="flex items-start gap-3">
+                                  <div className={`w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                                    selectedFile.type.startsWith('image/') 
+                                      ? 'bg-green-50' 
+                                      : selectedFile.type === 'application/pdf'
+                                      ? 'bg-red-50'
+                                      : 'bg-blue-50'
+                                  }`}>
+                                    {selectedFile.type.startsWith('image/') ? (
+                                      <ImageIcon className="text-green-500" size={24} />
+                                    ) : selectedFile.type === 'application/pdf' ? (
+                                      <FileText className="text-red-500" size={24} />
+                                    ) : (
+                                      <Paperclip className="text-blue-500" size={24} />
+                                    )}
+                                  </div>
+                                  
+                                  <div className="flex-1 min-w-0">
+                                    <h4 className="font-medium text-gray-800 text-sm truncate">
+                                      {selectedFile.name}
+                                    </h4>
+                                    <p className="text-xs text-gray-500 mt-0.5">
+                                      {formatFileSize(selectedFile.size)}
+                                    </p>
+                                    
+                                    {/* Caption input - WhatsApp style */}
+                                    <input
+                                      type="text"
+                                      value={fileCaption}
+                                      onChange={(e) => setFileCaption(e.target.value)}
+                                      placeholder="Add a caption..."
+                                      className="mt-3 w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                                      disabled={uploadingFile}
+                                    />
+                                    
+                                    {/* Upload progress bar */}
+                                    {uploadingFile && uploadProgress > 0 && (
+                                      <div className="mt-3">
+                                        <div className="flex justify-between items-center mb-1">
+                                          <span className="text-xs text-gray-500">Uploading...</span>
+                                          <span className="text-xs font-medium text-blue-600">{uploadProgress}%</span>
+                                        </div>
+                                        <div className="w-full bg-gray-200 rounded-full h-1.5">
+                                          <div 
+                                            className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
+                                            style={{ width: `${uploadProgress}%` }}
+                                          ></div>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                  
+                                  <button
+                                    onClick={uploadFileWithCaption}
+                                    disabled={uploadingFile}
+                                    className={`px-4 py-2 rounded-lg flex items-center gap-2 flex-shrink-0 ${
+                                      uploadingFile
+                                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                                    }`}
+                                  >
+                                    {uploadingFile ? (
+                                      <>
+                                        <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
+                                        <span>Sending...</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Send size={16} />
+                                        <span>Send</span>
+                                      </>
+                                    )}
+                                  </button>
+                                </div>
+                                
+                                {/* Image preview */}
+                                {selectedFile.type.startsWith('image/') && (
+                                  <div className="mt-4 border border-gray-200 rounded-lg overflow-hidden">
+                                    <img
+                                      src={URL.createObjectURL(selectedFile)}
+                                      alt="Preview"
+                                      className="w-full max-h-48 object-contain bg-gray-100"
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* REACT QUILL RICH TEXT EDITOR */}
+                          {!showFilePreview && canSendMessages() && (
                             <div className="p-4 bg-white border-t border-gray-200">
                               <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
                                 <ReactQuill 
@@ -1892,7 +2117,7 @@ const fetchTeams = async () => {
                                   onChange={setQuillContent}
                                   modules={quillModules}
                                   formats={quillFormats}
-                                  placeholder="Type your message here..."
+                                  placeholder="Type a message..."
                                   className="bg-white"
                                 />
                                 
@@ -1904,7 +2129,7 @@ const fetchTeams = async () => {
                                       onClick={() => imageInputRef.current.click()}
                                       className="p-2 text-gray-500 hover:text-green-600 rounded-lg hover:bg-green-50 transition-colors"
                                       disabled={uploadingFile}
-                                      title="Upload Image"
+                                      title="Attach Image"
                                     >
                                       {uploadingFile ? (
                                         <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-green-500"></div>
@@ -1917,7 +2142,7 @@ const fetchTeams = async () => {
                                       onClick={() => fileInputRef.current.click()}
                                       className="p-2 text-gray-500 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
                                       disabled={uploadingFile}
-                                      title="Upload File"
+                                      title="Attach File"
                                     >
                                       {uploadingFile ? (
                                         <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500"></div>
@@ -1943,12 +2168,14 @@ const fetchTeams = async () => {
                                 </div>
                               </div>
                             </div>
-                          ) : (
+                          )}
+
+                          {!canSendMessages() && !showFilePreview && (
                             <div className="p-4 bg-gray-50 border-t border-gray-200">
                               <div className="flex items-center justify-center gap-2 text-gray-500 p-3 bg-white rounded-xl border border-gray-200">
                                 <Lock size={14} />
                                 <p className="text-xs font-medium">
-                                  Only team leaders and admins can send messages in this team
+                                  Only team leaders and admins can send messages
                                 </p>
                               </div>
                             </div>
@@ -1964,14 +2191,14 @@ const fetchTeams = async () => {
                         ref={filesTabImageInputRef}
                         className="hidden"
                         accept="image/*"
-                        onChange={(e) => handleFileSelect(e, "image", true)}
+                        onChange={(e) => handleFileSelect(e, true)}
                       />
                       <input
                         type="file"
                         ref={filesTabFileInputRef}
                         className="hidden"
                         accept=".pdf,.doc,.docx,.txt,.xls,.xlsx,image/*,.zip,.rar"
-                        onChange={(e) => handleFileSelect(e, "file", true)}
+                        onChange={(e) => handleFileSelect(e, true)}
                       />
                       
                       <input
@@ -2017,7 +2244,7 @@ const fetchTeams = async () => {
                             <div className="flex-1 relative">
                               <div className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 min-h-[60px] flex items-center">
                                 <p className="text-sm text-gray-400">
-                                  {uploadingFilesTab ? "Uploading file..." : "Click buttons to upload images or files"}
+                                  {uploadingFilesTab ? "Uploading file..." : "Click to upload files"}
                                 </p>
                               </div>
                             </div>
@@ -2039,7 +2266,7 @@ const fetchTeams = async () => {
                             <p className="text-lg font-medium">No files shared yet</p>
                             <p className="text-sm mt-2">
                               {canSendMessages() 
-                                ? "Upload your first file using the upload buttons above" 
+                                ? "Upload your first file" 
                                 : "Only team leaders and admins can upload files"}
                             </p>
                           </div>
@@ -2049,7 +2276,7 @@ const fetchTeams = async () => {
                               .filter(file => !file.deleted)
                               .map((file) => {
                                 const fileUrl = file.attachmentUrl;
-                                const fileName = file.content || 'Unnamed File';
+                                const fileName = file.fileName || file.content || 'Unnamed File';
                                 const fileType = getFileType(fileUrl, fileName, file.mimeType);
                                 const canEditDelete = canEditDeleteMessage(file);
                                 const isUpdating = updatingMessages[file._id];
@@ -2105,7 +2332,7 @@ const fetchTeams = async () => {
                                                 title="View Image"
                                               >
                                                 <Eye size={12} />
-                                                View Image
+                                                View
                                               </button>
                                             )}
                                             
@@ -2117,19 +2344,6 @@ const fetchTeams = async () => {
                                               <Download size={12} />
                                               Download
                                             </button>
-                                            
-                                            {fileUrl && fileType !== 'pdf' && (
-                                              <a
-                                                href={fileUrl}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-medium rounded-md hover:bg-gray-200 transition-colors"
-                                                title="Open direct link"
-                                              >
-                                                <ExternalLink size={12} />
-                                                Direct Link
-                                              </a>
-                                            )}
                                           </div>
                                         </div>
                                       </div>
@@ -2183,16 +2397,6 @@ const fetchTeams = async () => {
                                             e.target.src = 'https://placehold.co/600x400/e2e8f0/64748b?text=Image+Not+Found';
                                           }}
                                         />
-                                      </div>
-                                    )}
-                                    
-                                    {fileType === 'pdf' && (
-                                      <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
-                                        <span className="flex items-center gap-1">
-                                          <FileText size={12} />
-                                          <span>PDF Document - Download only</span>
-                                        </span>
-                                        <span className="text-blue-500 font-medium">PDF Ready</span>
                                       </div>
                                     )}
                                   </div>
@@ -2273,9 +2477,7 @@ const fetchTeams = async () => {
                                                   )}
                                                 </p>
                                                 <p className="text-xs text-gray-500 capitalize truncate">
-                                                  {member.role === 'admin' && member.userId._id !== activeTeam.leaderId 
-                                                    ? 'Team Admin' 
-                                                    : member.role}
+                                                  {member.role}
                                                 </p>
                                             </div>
                                        </div>
@@ -2301,7 +2503,7 @@ const fetchTeams = async () => {
                    <Users size={64} className="text-gray-300" />
                </div>
                <h3 className="text-xl font-semibold text-gray-600">Select a Team</h3>
-               <p className="text-sm mt-2 max-w-xs text-center">Choose a team from the sidebar to start collaborating or create a new one.</p>
+               <p className="text-sm mt-2 max-w-xs text-center">Choose a team from the sidebar to start collaborating</p>
             </div>
           )}
         </div>
@@ -2322,7 +2524,7 @@ const fetchTeams = async () => {
                     className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
                     value={newTeamName}
                     onChange={(e) => setNewTeamName(e.target.value)}
-                    placeholder="e.g. Web Dev Project Alpha"
+                    placeholder="e.g. Web Dev Project"
                   />
                 </div>
                 <div>

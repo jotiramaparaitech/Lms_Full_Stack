@@ -16,12 +16,12 @@ import {
   editMessage,
   deleteMessageById,
   getTeamFiles,
-  getAllTeamsForAdmin
+  getAllTeamsForAdmin,
 } from "../controllers/teamController.js";
 
 import { requireAuth } from "@clerk/express";
 import upload from "../configs/multer.js";
-import { uploadTeamFile } from "../controllers/teamUploadController.js";
+import { uploadTeamFile, editTeamMessage } from "../controllers/teamUploadController.js";
 
 const teamRouter = express.Router();
 
@@ -65,7 +65,7 @@ teamRouter.put(
   "/message/edit",
   requireAuth(),
   upload.single("file"),
-  editMessage
+  editTeamMessage
 );
 teamRouter.delete("/message/delete/:messageId", requireAuth(), deleteMessageById);
 
@@ -75,3 +75,4 @@ teamRouter.put("/update-progress", requireAuth(), updateStudentProgress);
 teamRouter.get("/my-progress", requireAuth(), getMyTeamProgress);
 
 export default teamRouter;
+
