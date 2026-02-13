@@ -3,6 +3,7 @@ import { CourseProgress } from "../models/CourseProgress.js";
 import { Purchase } from "../models/Purchase.js";
 import User from "../models/User.js";
 import { clerkClient } from "@clerk/express";
+import { mergeUsers } from "../utils/userUtils.js";
 
 // ---------------- Helper: Ensure User Exists in DB ----------------
 export const ensureUserExists = async (userId) => {
@@ -22,15 +23,40 @@ export const ensureUserExists = async (userId) => {
         const firstName = clerkUser.firstName || "";
         const lastName = clerkUser.lastName || "";
         const fullName = `${firstName} ${lastName}`.trim();
+        const email = clerkUser.emailAddresses[0]?.emailAddress || "";
 
         const userData = {
           _id: clerkUser.id,
-          email: clerkUser.emailAddresses[0]?.emailAddress || "",
+          email: email,
           name: fullName || clerkUser.username || "User",
           imageUrl: clerkUser.imageUrl || "",
           role: clerkUser.publicMetadata?.role || "student",
           isTeamLeader: clerkUser.publicMetadata?.isTeamLeader || false, // ✅ Sync isTeamLeader
         };
+
+        // 🔍 Check for existing user with same email but different ID
+        if (email) {
+          const existingUser = await User.findOne({ email });
+          if (existingUser && existingUser._id !== userId) {
+            console.log(`⚠️ Duplicate account found for email ${email} in ensureUserExists. Merging ${existingUser._id} into ${userId}`);
+
+            // Create the new user first (or update if exists)
+            try {
+              user = await User.findOneAndUpdate(
+                { _id: userId },
+                userData,
+                { upsert: true, new: true, setDefaultsOnInsert: true }
+              );
+
+              // Perform merge
+              await mergeUsers(existingUser._id, userId);
+              return user;
+            } catch (mergeCreateError) {
+              console.error("Error in merge user creation:", mergeCreateError);
+              // Continue to normal flow if this fails for some reason
+            }
+          }
+        }
 
         try {
           user = await User.create(userData);
