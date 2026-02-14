@@ -1,6 +1,10 @@
 import Attendance from "../models/Attendance.js";
 import Course from "../models/Course.js";
 import User from "../models/User.js";
+import fetch from "node-fetch"; // Optional: Only needed if you are on Node < 18
+
+// 🔹 YOUR GOOGLE SCRIPT URL (Webhook)
+const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbxtnJAFUA5MaW4kK9buTPLGImIn4yOgeTntl-ts38Igurtdry6ao94dT5pkYBpFOevz1w/exec";
 
 /**
  * 🔹 DEPLOYMENT-SAFE IST TIME FUNCTION
@@ -10,7 +14,6 @@ const getISTDate = () => {
     new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
   );
 };
-
 
 /**
  * @desc    Student marks attendance (LOGIN / LOGOUT)
@@ -75,7 +78,7 @@ export const markAttendance = async (req, res) => {
 
     // ✅ FIXED TIME WINDOWS
     const LOGIN_START = 9 * 60 + 30;   
-    const LOGIN_END = 10 * 60 + 30;    
+    const LOGIN_END = 18 * 60 + 30;    
     const LOGOUT_START = 18 * 60 + 30;      
     const LOGOUT_END = 19 * 60 + 30;        
 
@@ -93,16 +96,53 @@ export const markAttendance = async (req, res) => {
 
     // ✅ Attendance date
     const today = istNow.toLocaleDateString("en-CA"); // YYYY-MM-DD
+    const timeString = istNow.toLocaleTimeString("en-IN", { hour12: true });
 
-
-    // ✅ Save attendance
+    // ✅ Save attendance to MongoDB
     const attendance = await Attendance.create({
       studentId,
       courseId,
       date: today,
       session,
-      time: istNow.toLocaleTimeString("en-IN", { hour12: true }),
+      time: timeString,
     });
+
+    // ============================================================
+    // 🔥 GOOGLE SHEETS INTEGRATION STARTS HERE
+    // ============================================================
+    
+    // 1. Get Course Object
+    const course = await Course.findById(courseId);
+    
+    // 2. Extract Title (FIXED: Using 'courseTitle' matching your Schema)
+    const courseTitle = course ? course.courseTitle : "Unknown Course";
+
+    // 3. Prepare Data for Google Sheet
+    const sheetPayload = {
+        date: today,
+        time: timeString,
+        studentName: student.name || "Unknown Student", // Fallback if name is missing
+        email: student.email || "No Email",             // Fallback if email is missing
+        courseName: courseTitle,                        // Sending the correct title
+        session: session
+    };
+
+    // 4. Send Data to Google Script (Non-blocking)
+    fetch(GOOGLE_SHEET_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(sheetPayload)
+    })
+    .then(response => {
+        if (!response.ok) {
+           console.error(`⚠️ Google Sheet Error: ${response.statusText}`);
+        }
+    })
+    .catch(err => console.error("❌ Google Sheet Connection Failed:", err));
+
+    // ============================================================
+    // 🔥 GOOGLE SHEETS INTEGRATION ENDS
+    // ============================================================
 
     res.status(201).json({
       success: true,

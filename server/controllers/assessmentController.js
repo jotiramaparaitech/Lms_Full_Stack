@@ -258,10 +258,7 @@ export const submitTest = async (req, res) => {
   }
 };
 
-/**
- * @desc    Get History
- * @route   GET /api/assessment/history
- */
+
 export const getHistory = async (req, res) => {
   try {
     const auth = req.auth();
@@ -273,5 +270,25 @@ export const getHistory = async (req, res) => {
 
   } catch (error) {
     res.status(500).json({ success: false, message: "Error fetching history" });
+  }
+};
+
+
+
+export const getStudentTests = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+
+    const tests = await TestResult.find({ studentId })
+      .sort({ attemptDate: -1 })
+      .select("percentage score totalQuestions domain topic difficulty attemptDate");
+
+    res.status(200).json({
+      success: true,
+      tests
+    });
+
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Failed to fetch student tests" });
   }
 };
