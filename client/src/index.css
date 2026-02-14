@@ -4,7 +4,7 @@
 @tailwind components;
 @tailwind utilities;
 
-*{
+* {
   font-family: Outfit;
 }
 
@@ -14,33 +14,78 @@
   }
 }
 
-::-webkit-scrollbar{
+::-webkit-scrollbar {
   display: none;
 }
 
-.rich-text { font-size: 15px; color: #7A7B7D; }
+.rich-text {
+  font-size: 15px;
+  color: #7A7B7D;
+}
 
-.rich-text p { margin-bottom: 16px; }
+.rich-text p {
+  margin-bottom: 16px;
+}
 
-.rich-text h1 { font-size: 36px; font-weight: 800; color: #252525; margin: 32px 0; }
+.rich-text h1 {
+  font-size: 36px;
+  font-weight: 800;
+  color: #252525;
+  margin: 32px 0;
+}
 
-.rich-text h2 { font-size: 22px; font-weight: 700; color: #252525; margin: 24px 0; }
+.rich-text h2 {
+  font-size: 22px;
+  font-weight: 700;
+  color: #252525;
+  margin: 24px 0;
+}
 
-.rich-text h3 { font-size: 18px; font-weight: 600; color: #333333; margin: 20px 0; }
+.rich-text h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333333;
+  margin: 20px 0;
+}
 
-.rich-text h4 { font-size: 16px; font-weight: 500; color: #444444; margin: 16px 0; }
+.rich-text h4 {
+  font-size: 16px;
+  font-weight: 500;
+  color: #444444;
+  margin: 16px 0;
+}
 
-.rich-text h5 { font-size: 14px; font-weight: 400; color: #555555; margin: 12px 0; }
+.rich-text h5 {
+  font-size: 14px;
+  font-weight: 400;
+  color: #555555;
+  margin: 12px 0;
+}
 
-.rich-text h6 { font-size: 12px; font-weight: 400; color: #666666; margin: 8px 0; }
+.rich-text h6 {
+  font-size: 12px;
+  font-weight: 400;
+  color: #666666;
+  margin: 8px 0;
+}
 
-.rich-text strong { font-weight: 700; }
+.rich-text strong {
+  font-weight: 700;
+}
 
-.rich-text ol { margin-left: 30px; list-style-type: decimal; }
+.rich-text ol {
+  margin-left: 30px;
+  list-style-type: decimal;
+}
 
-.rich-text ul { margin-left: 30px; list-style-type: disc; }
+.rich-text ul {
+  margin-left: 30px;
+  list-style-type: disc;
+}
 
-.rich-text li { margin-bottom: 8px; }
+.rich-text li {
+  margin-bottom: 8px;
+}
 
 /* Smooth transitions */
 * {
@@ -53,6 +98,7 @@
     transform: translateX(-100%);
     opacity: 0;
   }
+
   to {
     transform: translateX(0);
     opacity: 1;
@@ -64,6 +110,7 @@
     transform: translateX(0);
     opacity: 1;
   }
+
   to {
     transform: translateX(-100%);
     opacity: 0;
@@ -103,6 +150,7 @@
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -111,4 +159,68 @@
 
 .animate-slide-up {
   animation: slide-up 0.3s ease-out;
+}
+
+/* Valentine's Day Animation */
+@keyframes float {
+  0% {
+    transform: translateY(0) scale(0.5);
+    opacity: 0;
+  }
+
+  50% {
+    opacity: 0.8;
+  }
+
+  100% {
+    transform: translateY(-30px) scale(0);
+    opacity: 0;
+  }
+}
+
+.valentine-text {
+  font-weight: 950;
+  /* Extra Bold */
+  letter-spacing: 1px;
+  color: #800020;
+  /* Deep Burgundy Red */
+  text-shadow:
+    3px 2px 0px #FFB6C1;
+  /* Light Pink Shadow */
+  position: relative;
+  display: inline-block;
+}
+
+.heart-float {
+  position: absolute;
+  color: #ff4d6d;
+  animation: float 2.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+
+@keyframes heartbeat {
+  0% {
+    transform: scale(1);
+  }
+
+  14% {
+    transform: scale(1.1);
+  }
+
+  28% {
+    transform: scale(1);
+  }
+
+  42% {
+    transform: scale(1.1);
+  }
+
+  70% {
+    transform: scale(1);
+  }
+}
+
+.animate-heartbeat {
+  animation: heartbeat 1.5s ease-in-out infinite;
 }

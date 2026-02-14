@@ -3,6 +3,7 @@ import {
   generateTest,
   submitTest,
   getHistory,
+  getStudentTests
 } from "../controllers/assessmentController.js";
 
 // Using your existing auth middleware
@@ -18,5 +19,7 @@ router.post("/submit", protect, submitTest);
 
 // Student → Get Past Test History
 router.get("/history", protect, getHistory);
+
+router.get("/student/:studentId", protect, getStudentTests);
 
 export default router;
