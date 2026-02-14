@@ -478,6 +478,17 @@ const StudentInfo = () => {
                     </button>
                   </div>
 
+                  {/* Attendance Display */}
+                  <div className="flex items-center justify-between mb-4 px-1">
+                    <div className="flex items-center gap-2">
+                      <Calendar size={14} className="text-gray-500" />
+                      <span className="text-sm font-medium text-gray-700">Attendance</span>
+                    </div>
+                    <span className="text-sm font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
+                      {s.attendanceDays || 0} Days
+                    </span>
+                  </div>
+                  
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <TrendingUp size={14} className="text-gray-500" />
