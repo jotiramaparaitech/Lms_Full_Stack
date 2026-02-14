@@ -5,13 +5,39 @@ import { toast } from "react-toastify";
 import Loading from "../../components/student/Loading";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { Search } from "lucide-react";
 
 const MyCourses = () => {
   const { backendUrl, isEducator, currency, getToken } = useContext(AppContext);
   const [courses, setCourses] = useState(null);
-  const [filteredCourses, setFilteredCourses] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isLocked, setIsLocked] = useState(true);
+  const [showLockModal, setShowLockModal] = useState(false);
+  const [password, setPassword] = useState("");
+  const DASHBOARD_PASSWORD = import.meta.env.VITE_DASHBOARD_PASSWORD || "Aparaitech123@";
+
   const navigate = useNavigate();
+
+  const handleUnlock = (e) => {
+    e.preventDefault();
+    if (password === DASHBOARD_PASSWORD) {
+      setIsLocked(false);
+      setShowLockModal(false);
+      setPassword("");
+      toast.success("Unlocked successfully!");
+    } else {
+      toast.error("Incorrect password");
+    }
+  };
+
+  const toggleLock = () => {
+    if (isLocked) {
+      setShowLockModal(true);
+    } else {
+      setIsLocked(true);
+      toast.info("Locked successfully");
+    }
+  };
 
   const fetchEducatorCourses = async () => {
     try {
@@ -19,10 +45,7 @@ const MyCourses = () => {
       const { data } = await axios.get(`${backendUrl}/api/educator/courses`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (data.success) {
-        setCourses(data.courses);
-        setFilteredCourses(data.courses);
-      }
+      if (data.success) setCourses(data.courses);
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to load courses");
     }
@@ -40,7 +63,6 @@ const MyCourses = () => {
       if (data.success) {
         toast.success("Project removed successfully!");
         setCourses((prev) => prev.filter((c) => c._id !== courseId));
-        setFilteredCourses((prev) => prev.filter((c) => c._id !== courseId));
       } else {
         toast.error("Failed to remove project.");
       }
@@ -53,25 +75,19 @@ const MyCourses = () => {
     navigate(`/educator/course/${courseId}/edit`);
   };
 
-  // Search filter function - projects starting with search term
-  useEffect(() => {
-    if (courses) {
-      if (searchTerm.trim() === "") {
-        setFilteredCourses(courses);
-      } else {
-        const filtered = courses.filter((course) =>
-          course.courseTitle.toLowerCase().startsWith(searchTerm.toLowerCase())
-        );
-        setFilteredCourses(filtered);
-      }
-    }
-  }, [searchTerm, courses]);
-
   useEffect(() => {
     if (isEducator) fetchEducatorCourses();
   }, [isEducator]);
 
   if (!courses) return <Loading />;
+
+  const filteredCourses = courses.filter((course) => {
+    if (!searchQuery.trim()) return true;
+    const query = searchQuery.toLowerCase().trim();
+    const title = (course.courseTitle || "").toLowerCase().trim();
+    console.log(`Search: "${query}" vs "${title}" -> ${title.startsWith(query)}`);
+    return title.startsWith(query);
+  });
 
   return (
     <div className="min-h-screen flex flex-col items-center md:p-12 p-4 bg-gradient-to-br from-sky-50 via-white to-blue-50 relative overflow-hidden">
@@ -81,68 +97,93 @@ const MyCourses = () => {
 
       {/* Search Bar */}
       <motion.div
-        initial={{ opacity: 0, y: -20 }}
+        initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
+        transition={{ duration: 0.5 }}
         className="w-full max-w-6xl mb-6"
       >
         <div className="relative">
+          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
           <input
             type="text"
-            placeholder="Search projects by title..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-5 py-3 pl-12 pr-10 rounded-2xl border border-gray-300 bg-white/80 backdrop-blur-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400 shadow-md"
+            placeholder="Search by project title..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-12 pr-4 py-3 rounded-2xl bg-white/80 border border-gray-200 shadow-md focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all text-gray-700 placeholder-gray-400"
           />
-          <svg
-            className="absolute left-4 top-3.5 w-5 h-5 text-gray-500"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            />
-          </svg>
-          {searchTerm && (
-            <button
-              onClick={() => setSearchTerm("")}
-              className="absolute right-4 top-3.5 text-gray-500 hover:text-gray-700"
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
+          {searchQuery && (
+            <div className="absolute right-4 top-1/2 transform -translate-y-1/2 text-xs text-gray-500">
+              {filteredCourses?.length || 0} result{filteredCourses?.length !== 1 ? 's' : ''}
+            </div>
           )}
         </div>
-        {filteredCourses && (
-          <div className="flex justify-between items-center mt-2 ml-2">
-            <p className="text-sm text-gray-600">
-              Showing {filteredCourses.length} of {courses.length} projects
-            </p>
-            {searchTerm && (
-              <p className="text-xs text-gray-500 bg-white/60 px-3 py-1 rounded-full">
-                Showing projects starting with "{searchTerm}"
-              </p>
-            )}
-          </div>
-        )}
       </motion.div>
+
+      {/* Lock/Unlock Button */}
+      <div className="w-full max-w-6xl mb-4 flex justify-end">
+        <button
+          onClick={toggleLock}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-white transition-all shadow-md ${isLocked ? "bg-red-500 hover:bg-red-600" : "bg-green-500 hover:bg-green-600"
+            }`}
+        >
+          {isLocked ? (
+            <>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+              </svg>
+              Locked
+            </>
+          ) : (
+            <>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5V6.75a4.5 4.5 0 00-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+              </svg>
+              Unlocked
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Password Modal */}
+      {showLockModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm"
+          >
+            <h3 className="text-xl font-bold text-gray-800 mb-4">Enter Password to Unlock</h3>
+            <form onSubmit={handleUnlock}>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter password"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4 focus:ring-2 focus:ring-blue-500 outline-none"
+                autoFocus
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowLockModal(false);
+                    setPassword("");
+                  }}
+                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Unlock
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
 
       {/* TABLE VIEW (Visible on md and above) */}
       <motion.div
@@ -186,16 +227,20 @@ const MyCourses = () => {
                   </td>
 
                   <td className="px-4 py-3 font-semibold text-blue-600 whitespace-nowrap">
-                    {currency}{" "}
-                    {Math.floor(
-                      course.enrolledStudents.length *
-                        (course.coursePrice -
-                          (course.discount * course.coursePrice) / 100)
+                    {isLocked ? "****" : (
+                      <>
+                        {currency}{" "}
+                        {Math.floor(
+                          course.enrolledStudents.length *
+                          (course.coursePrice -
+                            (course.discount * course.coursePrice) / 100)
+                        )}
+                      </>
                     )}
                   </td>
 
                   <td className="px-4 py-3 text-center font-medium text-gray-800">
-                    {course.enrolledStudents.length}
+                    {isLocked ? "****" : course.enrolledStudents.length}
                   </td>
 
                   <td className="px-4 py-3 text-gray-700 whitespace-nowrap">
@@ -225,8 +270,11 @@ const MyCourses = () => {
               ))
             ) : (
               <tr>
-                <td colSpan="5" className="text-center py-8 text-gray-500">
-                  No projects found starting with "{searchTerm}"
+                <td colSpan="5" className="px-4 py-8 text-center text-gray-500">
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <Search className="w-10 h-10 text-gray-300" />
+                    <p className="font-medium">No projects found matching "{searchQuery}"</p>
+                  </div>
                 </td>
               </tr>
             )}
@@ -255,13 +303,17 @@ const MyCourses = () => {
                     {course.courseTitle}
                   </h3>
                   <p className="text-sm text-gray-600 mt-1">
-                    {currency}{" "}
-                    {Math.floor(
-                      course.enrolledStudents.length *
-                        (course.coursePrice -
-                          (course.discount * course.coursePrice) / 100)
+                    {isLocked ? "****" : (
+                      <>
+                        {currency}{" "}
+                        {Math.floor(
+                          course.enrolledStudents.length *
+                          (course.coursePrice -
+                            (course.discount * course.coursePrice) / 100)
+                        )}
+                      </>
                     )}{" "}
-                    • {course.enrolledStudents.length} Students
+                    • {isLocked ? "****" : course.enrolledStudents.length} Students
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
                     {new Date(course.createdAt).toLocaleDateString()}
@@ -291,8 +343,9 @@ const MyCourses = () => {
             </motion.div>
           ))
         ) : (
-          <div className="text-center py-8 text-gray-500 bg-white/80 rounded-2xl border border-gray-200 p-4">
-            No projects found starting with "{searchTerm}"
+          <div className="flex flex-col items-center justify-center p-8 text-gray-500 bg-white/80 rounded-2xl border border-gray-200 shadow-sm backdrop-blur-sm">
+            <Search className="w-10 h-10 text-gray-300 mb-2" />
+            <p className="font-medium text-center">No projects found matching "{searchQuery}"</p>
           </div>
         )}
       </div>
