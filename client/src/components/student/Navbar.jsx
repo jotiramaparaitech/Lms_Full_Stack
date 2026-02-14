@@ -88,11 +88,19 @@ const Navbar = () => {
             transition={{ type: "spring", stiffness: 250, damping: 20 }}
             src={assets.logo}
             alt="Aparaitech Logo"
-            className="w-12 sm:w-14 md:w-16 drop-shadow-lg transition-all duration-300"
+            className="w-12 sm:w-14 md:w-16 drop-shadow-lg transition-all duration-300 animate-heartbeat"
           />
-          <span className="ml-2 font-semibold text-gray-800 tracking-wide text-base sm:text-lg md:text-xl lg:text-2xl whitespace-nowrap">
-            Aparaitech
-          </span>
+          <div className="relative ml-2 group cursor-pointer">
+            <span className="valentine-text text-xl sm:text-2xl md:text-3xl whitespace-nowrap font-black tracking-widest">
+              APARAITECH
+            </span>
+            {/* Valentine's Hearts Decorations */}
+            <span className="heart-float text-xl" style={{ top: '-15px', right: '-15px', animationDelay: '0s' }}>❤️</span>
+            <span className="heart-float text-2xl" style={{ bottom: '-10px', left: '-10px', animationDelay: '1s' }}>💖</span>
+            <span className="heart-float text-lg" style={{ top: '-20px', left: '20%', animationDelay: '0.5s' }}>💕</span>
+            <span className="heart-float text-xl" style={{ top: '-15px', right: '30%', animationDelay: '1.5s' }}>💘</span>
+            <span className="heart-float text-lg" style={{ bottom: '-5px', right: '10px', animationDelay: '2s' }}>💗</span>
+          </div>
         </div>
 
         {/* Mobile Toggle */}
