@@ -182,7 +182,6 @@ export const getTeams = async (req, res) => {
       };
     });
 
-    console.log(`📊 Returning ${formattedTeams.length} teams for user ${userId}`);
     
     res.json({ success: true, teams: formattedTeams });
   } catch (error) {

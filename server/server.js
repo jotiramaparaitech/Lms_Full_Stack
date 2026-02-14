@@ -118,12 +118,11 @@ io.on("connection", (socket) => {
   });
 
   socket.on("disconnect", () => {
-    console.log("❌ User disconnected");
   });
 });
 
 // ------------------ SERVER START ------------------
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () =>
-  console.log(`🚀 Server running with Socket.IO on port ${PORT}`)
+  console.log(`Server running with Socket.IO on port ${PORT}`)
 );
