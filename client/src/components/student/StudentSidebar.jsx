@@ -20,7 +20,8 @@ import {
   MessageSquare,
   Users,
   Info,
-  CheckSquare
+  CheckSquare,
+  Send
 } from "lucide-react";
 import { AppContext } from "../../context/AppContext";
 
@@ -29,52 +30,57 @@ const StudentSidebar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  
+
   // Get user data from context
   const { userData, enrolledCourses = [], isTeamLeader, teamProgress, fetchMyTeamProgress } =
-  useContext(AppContext) || {};
+    useContext(AppContext) || {};
 
 
- const menuItems = [
-  {
-    icon: <LayoutDashboard size={20} />,
-    label: "Dashboard",
-    path: "/student/dashboard"
-  },
-  {
-    icon: <FolderKanban size={20} />,
-    label: "My Projects",
-    path: "/student/projects"
-  },
-  {
-    icon: <ClipboardList size={20} />,
-    label: "Tests & Assessments",
-    path: "/student/tests"
-  },
-  {
-    icon: <Award size={20} />,
-    label: "Documents & Certificates",
-    path: "/student/certificates"
-  },
-  {
-    icon: <TrendingUp size={20} />,
-    label: "Project Tracker",
-    path: "/student/progress"
-  },
-  
+  const menuItems = [
+    {
+      icon: <LayoutDashboard size={20} />,
+      label: "Dashboard",
+      path: "/student/dashboard"
+    },
+    {
+      icon: <FolderKanban size={20} />,
+      label: "My Projects",
+      path: "/student/projects"
+    },
+    {
+      icon: <Send size={20} />,
+      label: "Project Submissions",
+      path: "/student/submissions"
+    },
+    {
+      icon: <ClipboardList size={20} />,
+      label: "Tests & Assessments",
+      path: "/student/tests"
+    },
+    {
+      icon: <Award size={20} />,
+      label: "Documents & Certificates",
+      path: "/student/certificates"
+    },
+    {
+      icon: <TrendingUp size={20} />,
+      label: "Project Tracker",
+      path: "/student/progress"
+    },
 
 
-  // ✅ NEW (ONLY leader)
-  ...(isTeamLeader
-    ? [
+
+    // ✅ NEW (ONLY leader)
+    ...(isTeamLeader
+      ? [
         {
           icon: <Info size={20} />,
           label: "Student Info",
           path: "/student/student-info",
         },
       ]
-    : []),
-];
+      : []),
+  ];
 
   const appItems = [
     {
@@ -83,7 +89,7 @@ const StudentSidebar = () => {
       path: "/student/attendance",
       highlight: true, // 👈 ADD THIS
       blink: true, // 👈 ADD THIS FOR BLINKING EFFECT
-      },
+    },
     {
       icon: <CalendarDays size={20} />,
       label: "Calendar",
@@ -116,12 +122,12 @@ const StudentSidebar = () => {
       };
     }
 
-    const completedCourses = enrolledCourses.filter(course => 
+    const completedCourses = enrolledCourses.filter(course =>
       course.completed === true
     ).length;
 
     const totalCourses = enrolledCourses.length;
-    const progressPercentage = totalCourses > 0 
+    const progressPercentage = totalCourses > 0
       ? Math.round((completedCourses / totalCourses) * 100)
       : 0;
 
@@ -132,15 +138,15 @@ const StudentSidebar = () => {
     };
   };
 
- const userProgress = {
-  progressPercentage: teamProgress ?? 0,
-  completedCourses: 0,
-  totalCourses: enrolledCourses.length,
-};
+  const userProgress = {
+    progressPercentage: teamProgress ?? 0,
+    completedCourses: 0,
+    totalCourses: enrolledCourses.length,
+  };
 
   const userDisplayName = userData?.name || 'Student';
   const userEmail = userData?.email || '';
-  
+
   const getUserDomain = () => {
     if (userEmail) {
       const domain = userEmail.split('@')[1];
@@ -168,7 +174,7 @@ const StudentSidebar = () => {
     } else {
       document.body.style.overflow = 'auto';
     }
-    
+
     return () => {
       document.body.style.overflow = 'auto';
     };
@@ -237,7 +243,7 @@ const StudentSidebar = () => {
 
         {/* Mobile Overlay */}
         {mobileMenuOpen && (
-          <div 
+          <div
             className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 transition-opacity duration-300"
             onClick={() => setMobileMenuOpen(false)}
           />
@@ -283,8 +289,8 @@ const StudentSidebar = () => {
                 <div className="relative">
                   <div className="w-12 h-12 bg-gradient-to-r from-cyan-500 to-teal-400 rounded-full flex items-center justify-center text-white font-semibold">
                     {userData?.imageUrl ? (
-                      <img 
-                        src={userData.imageUrl} 
+                      <img
+                        src={userData.imageUrl}
                         alt={userDisplayName}
                         className="w-full h-full rounded-full object-cover"
                       />
@@ -292,12 +298,11 @@ const StudentSidebar = () => {
                       <User size={20} />
                     )}
                   </div>
-                  <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-white ${
-                    userProgress.progressPercentage === 100 ? 'bg-green-500' : 
-                    userProgress.progressPercentage > 0 ? 'bg-yellow-500' : 'bg-gray-400'
-                  }`}></div>
+                  <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-white ${userProgress.progressPercentage === 100 ? 'bg-green-500' :
+                      userProgress.progressPercentage > 0 ? 'bg-yellow-500' : 'bg-gray-400'
+                    }`}></div>
                 </div>
-                
+
                 <div className="overflow-hidden">
                   <h3 className="font-semibold text-gray-900 truncate">
                     {userDisplayName}
@@ -311,11 +316,10 @@ const StudentSidebar = () => {
                       <span className="font-semibold text-cyan-600">{userProgress.progressPercentage}%</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-1.5">
-                      <div 
-                        className={`h-1.5 rounded-full ${
-                          userProgress.progressPercentage === 100 ? 'bg-green-500' :
-                          'bg-gradient-to-r from-cyan-500 to-teal-400'
-                        }`}
+                      <div
+                        className={`h-1.5 rounded-full ${userProgress.progressPercentage === 100 ? 'bg-green-500' :
+                            'bg-gradient-to-r from-cyan-500 to-teal-400'
+                          }`}
                         style={{ width: `${userProgress.progressPercentage}%` }}
                       ></div>
                     </div>
@@ -329,10 +333,9 @@ const StudentSidebar = () => {
                 <div className="w-10 h-10 bg-gradient-to-r from-cyan-500 to-teal-400 rounded-full flex items-center justify-center text-white font-semibold">
                   <User size={18} />
                 </div>
-                <div className={`absolute -bottom-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-white ${
-                  userProgress.progressPercentage === 100 ? 'bg-green-500' : 
-                  userProgress.progressPercentage > 0 ? 'bg-yellow-500' : 'bg-gray-400'
-                }`}></div>
+                <div className={`absolute -bottom-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-white ${userProgress.progressPercentage === 100 ? 'bg-green-500' :
+                    userProgress.progressPercentage > 0 ? 'bg-yellow-500' : 'bg-gray-400'
+                  }`}></div>
               </div>
             </div>
           )}
@@ -347,8 +350,8 @@ const StudentSidebar = () => {
                 className={({ isActive }) => `
                   flex items-center gap-3 px-3 py-2.5 rounded-lg 
                   transition-all duration-200
-                  ${isActive 
-                    ? 'bg-gradient-to-r from-cyan-50 to-blue-50 text-cyan-700 border border-cyan-100' 
+                  ${isActive
+                    ? 'bg-gradient-to-r from-cyan-50 to-blue-50 text-cyan-700 border border-cyan-100'
                     : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
                   }
                 `}
@@ -382,8 +385,8 @@ const StudentSidebar = () => {
                               flex items-center gap-3 px-3 py-2 rounded-lg 
                               transition-all duration-200
                               animate-pulse
-                              ${isActive 
-                                ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg' 
+                              ${isActive
+                                ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg'
                                 : 'bg-gradient-to-r from-green-400 to-emerald-500 text-white shadow-md hover:shadow-lg hover:from-green-500 hover:to-emerald-600'
                               }
                             `}
@@ -400,7 +403,7 @@ const StudentSidebar = () => {
                           </NavLink>
                         );
                       }
-                      
+
                       // Regular styling for other tabs
                       return (
                         <NavLink
@@ -409,8 +412,8 @@ const StudentSidebar = () => {
                           className={({ isActive }) => `
                             flex items-center gap-3 px-3 py-2 rounded-lg 
                             transition-all duration-200
-                            ${isActive 
-                              ? 'bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700' 
+                            ${isActive
+                              ? 'bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700'
                               : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                             }
                           `}
@@ -441,8 +444,8 @@ const StudentSidebar = () => {
                           className={({ isActive }) => `
                             flex items-center justify-center p-2 rounded-lg 
                             transition-all duration-200 animate-pulse
-                            ${isActive 
-                              ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg' 
+                            ${isActive
+                              ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg'
                               : 'bg-gradient-to-r from-green-400 to-emerald-500 text-white shadow-md hover:shadow-lg hover:from-green-500 hover:to-emerald-600'
                             }
                           `}
@@ -453,7 +456,7 @@ const StudentSidebar = () => {
                         </NavLink>
                       );
                     }
-                    
+
                     // Regular styling for other tabs in collapsed mode
                     return (
                       <NavLink
@@ -462,8 +465,8 @@ const StudentSidebar = () => {
                         className={({ isActive }) => `
                           flex items-center justify-center p-2 rounded-lg 
                           transition-all duration-200
-                          ${isActive 
-                            ? 'bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700' 
+                          ${isActive
+                            ? 'bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700'
                             : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                           }
                         `}
@@ -492,8 +495,8 @@ const StudentSidebar = () => {
                   className={({ isActive }) => `
                     flex items-center gap-3 px-3 py-2.5 rounded-lg 
                     transition-all duration-200
-                    ${isActive 
-                      ? 'bg-gradient-to-r from-cyan-50 to-blue-50 text-cyan-700 border border-cyan-100' 
+                    ${isActive
+                      ? 'bg-gradient-to-r from-cyan-50 to-blue-50 text-cyan-700 border border-cyan-100'
                       : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
                     }
                   `}
@@ -519,8 +522,8 @@ const StudentSidebar = () => {
               className={({ isActive }) => `
                 flex items-center gap-3 px-3 py-2 rounded-lg 
                 transition-all duration-200
-                ${isActive 
-                  ? 'bg-gray-100 text-gray-900' 
+                ${isActive
+                  ? 'bg-gray-100 text-gray-900'
                   : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
                 }
               `}
@@ -530,7 +533,7 @@ const StudentSidebar = () => {
               {isOpen && <span className="text-sm font-medium">Back to Home</span>}
             </NavLink>
 
-            <button 
+            <button
               onClick={() => {
                 window.location.href = '/';
                 handleMenuItemClick();
@@ -571,7 +574,7 @@ const StudentSidebar = () => {
                     </p>
                   </div>
                 </div>
-                
+
                 <button
                   onClick={() => setMobileMenuOpen(false)}
                   className="text-cyan-600 hover:text-cyan-800 hover:bg-cyan-100 p-2 rounded-full transition-all duration-300"
@@ -586,8 +589,8 @@ const StudentSidebar = () => {
                 <div className="relative">
                   <div className="w-12 h-12 bg-gradient-to-r from-cyan-500 to-teal-400 rounded-full flex items-center justify-center text-white font-semibold shadow-lg">
                     {userData?.imageUrl ? (
-                      <img 
-                        src={userData.imageUrl} 
+                      <img
+                        src={userData.imageUrl}
                         alt={userDisplayName}
                         className="w-full h-full rounded-full object-cover"
                       />
@@ -595,12 +598,11 @@ const StudentSidebar = () => {
                       <User size={20} />
                     )}
                   </div>
-                  <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white shadow-md ${
-                    userProgress.progressPercentage === 100 ? 'bg-green-500' : 
-                    userProgress.progressPercentage > 0 ? 'bg-yellow-500' : 'bg-gray-400'
-                  }`}></div>
+                  <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white shadow-md ${userProgress.progressPercentage === 100 ? 'bg-green-500' :
+                      userProgress.progressPercentage > 0 ? 'bg-yellow-500' : 'bg-gray-400'
+                    }`}></div>
                 </div>
-                
+
                 <div>
                   <h3 className="font-bold text-gray-900">
                     {userDisplayName}
@@ -610,11 +612,10 @@ const StudentSidebar = () => {
                   </p>
                   <div className="flex items-center gap-1 mt-2">
                     <div className="w-32 bg-gray-200 rounded-full h-2">
-                      <div 
-                        className={`h-2 rounded-full ${
-                          userProgress.progressPercentage === 100 ? 'bg-green-500' :
-                          'bg-gradient-to-r from-cyan-500 to-teal-400'
-                        }`}
+                      <div
+                        className={`h-2 rounded-full ${userProgress.progressPercentage === 100 ? 'bg-green-500' :
+                            'bg-gradient-to-r from-cyan-500 to-teal-400'
+                          }`}
                         style={{ width: `${userProgress.progressPercentage}%` }}
                       ></div>
                     </div>
@@ -644,8 +645,8 @@ const StudentSidebar = () => {
                   className={({ isActive }) => `
                     flex items-center gap-3 px-3 py-2.5 rounded-lg 
                     transition-all duration-200 mb-2
-                    ${isActive 
-                      ? 'bg-gradient-to-r from-cyan-600 to-teal-500 text-white shadow-lg' 
+                    ${isActive
+                      ? 'bg-gradient-to-r from-cyan-600 to-teal-500 text-white shadow-lg'
                       : 'text-gray-800 hover:bg-cyan-50'
                     }
                   `}
@@ -672,8 +673,8 @@ const StudentSidebar = () => {
                           className={({ isActive }) => `
                             flex items-center gap-3 px-3 py-2 rounded-lg 
                             transition-all duration-200 animate-pulse
-                            ${isActive 
-                              ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg' 
+                            ${isActive
+                              ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg'
                               : 'bg-gradient-to-r from-green-400 to-emerald-500 text-white shadow-md hover:shadow-lg hover:from-green-500 hover:to-emerald-600'
                             }
                           `}
@@ -684,7 +685,7 @@ const StudentSidebar = () => {
                         </NavLink>
                       );
                     }
-                    
+
                     // Regular styling for other tabs in mobile
                     return (
                       <NavLink
@@ -693,8 +694,8 @@ const StudentSidebar = () => {
                         className={({ isActive }) => `
                           flex items-center gap-3 px-3 py-2 rounded-lg 
                           transition-all duration-200
-                          ${isActive 
-                            ? 'bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700' 
+                          ${isActive
+                            ? 'bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700'
                             : 'text-gray-600 hover:bg-gray-100'
                           }
                         `}
@@ -720,8 +721,8 @@ const StudentSidebar = () => {
                     className={({ isActive }) => `
                       flex items-center gap-3 px-3 py-2.5 rounded-lg 
                       transition-all duration-200
-                      ${isActive 
-                        ? 'bg-gradient-to-r from-cyan-600 to-teal-500 text-white shadow-lg' 
+                      ${isActive
+                        ? 'bg-gradient-to-r from-cyan-600 to-teal-500 text-white shadow-lg'
                         : 'text-gray-800 hover:bg-cyan-50'
                       }
                     `}
@@ -745,7 +746,7 @@ const StudentSidebar = () => {
                 <span className="text-sm font-medium">Back to Home</span>
               </NavLink>
 
-              <button 
+              <button
                 onClick={() => {
                   window.location.href = '/';
                   handleMenuItemClick();

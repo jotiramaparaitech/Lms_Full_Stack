@@ -46,6 +46,7 @@ import Calendar from "./pages/student/apps/Calendar";
 import Todo from "./pages/student/apps/Todo";
 import Chat from "./pages/student/apps/Chat";
 import Teams from "./pages/student/apps/Teams";
+import ProjectSubmission from "./pages/student/ProjectSubmission";
 
 import AssignTeamLeader from "./pages/educator/AssignTeamLeader";
 import TeamLeaders from "./pages/educator/TeamLeaders";
@@ -73,10 +74,10 @@ const AppContent = ({ isEducatorRoute, isEducator }) => {
     useContext(AllProjectsContext);
 
 
-    // 🔥 CALL THE HOOK HERE (One line only)
+  // 🔥 CALL THE HOOK HERE (One line only)
   usePushNotification();
 
-  
+
   return (
     <div className="text-default min-h-screen bg-white relative">
       <ToastContainer />
@@ -110,19 +111,20 @@ const AppContent = ({ isEducatorRoute, isEducator }) => {
         <Route path="/contact" element={<Contact />} />
         <Route path="/connect" element={<Connect />} />
         <Route path="/AllTestimonials" element={<AllTestimonials />} />
-       
-        {/* ✅ Student Dashboard Route */}
-         <Route path="/student/dashboard/*" element={<StudentDashboard />} />
-         <Route path="/student/projects" element={<MyProjects />} />
-         <Route path="/student/tests" element={<Tests />} />
-         <Route path="/student/certificates" element={<Certificates />} />
-         <Route path="/student/progress" element={<Progress />} />
-         <Route path="/student/apps/calendar" element={<Calendar />} />
-         <Route path="/student/apps/todo" element={<Todo />} />
-         <Route path="/student/apps/chat" element={<Chat />} />
-         <Route path="/student/apps/teams" element={<Teams />} />
 
-         <Route path="/student/student-info" element={<StudentInfo />} />
+        {/* ✅ Student Dashboard Route */}
+        <Route path="/student/dashboard/*" element={<StudentDashboard />} />
+        <Route path="/student/projects" element={<MyProjects />} />
+        <Route path="/student/tests" element={<Tests />} />
+        <Route path="/student/certificates" element={<Certificates />} />
+        <Route path="/student/progress" element={<Progress />} />
+        <Route path="/student/apps/calendar" element={<Calendar />} />
+        <Route path="/student/apps/todo" element={<Todo />} />
+        <Route path="/student/apps/chat" element={<Chat />} />
+        <Route path="/student/apps/teams" element={<Teams />} />
+        <Route path="/student/submissions" element={<ProjectSubmission />} />
+
+        <Route path="/student/student-info" element={<StudentInfo />} />
         <Route path="/student/attendance" element={<StudentAttendance />} />
 
 
@@ -133,8 +135,8 @@ const AppContent = ({ isEducatorRoute, isEducator }) => {
             isEducator === undefined
               ? null /* or <Loading /> */
               : isEducator
-              ? <Educator />
-              : <Navigate to="/" replace />
+                ? <Educator />
+                : <Navigate to="/" replace />
           }
         >
 
@@ -157,8 +159,8 @@ const AppContent = ({ isEducatorRoute, isEducator }) => {
         <AiAssistant />
       </div>
       <div className="fixed bottom-24 right-6 z-50">
-  <SupportTicketButton />
-</div>
+        <SupportTicketButton />
+      </div>
 
       {/* <ChatbotWidget /> */}
     </div>
