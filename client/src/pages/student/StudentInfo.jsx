@@ -3,7 +3,10 @@ import axios from "axios";
 import { AppContext } from "../../context/AppContext";
 import StudentLayout from "../../components/student/StudentLayout";
 import { toast } from "react-toastify";
-import { User, Mail, Target, TrendingUp, Edit2, Lock, Unlock, Users } from "lucide-react";
+import { 
+  User, Mail, Target, TrendingUp, Edit2, Lock, Unlock, Users,
+  ClipboardList, ChevronDown, ChevronUp, Calendar 
+} from "lucide-react";
 
 const StudentInfo = () => {
   const { backendUrl, getToken, isTeamLeader } = useContext(AppContext);
@@ -14,6 +17,55 @@ const StudentInfo = () => {
   const [loading, setLoading] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
   const [editProgress, setEditProgress] = useState("");
+
+  // NEW STATES FOR TESTS
+  const [studentTests, setStudentTests] = useState({});
+  const [loadingTests, setLoadingTests] = useState({});
+  const [expandedTests, setExpandedTests] = useState({});
+
+  // FETCH STUDENT TESTS
+  const fetchStudentTests = async (studentId) => {
+    try {
+      setLoadingTests(prev => ({ ...prev, [studentId]: true }));
+      const token = await getToken();
+
+      const res = await axios.get(
+        `${backendUrl}/api/assessment/student/${studentId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (res.data.success) {
+        // Sort tests by date (oldest first) to show Test 1, Test 2 in order
+        const sortedTests = (res.data.tests || []).sort((a, b) => {
+          return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+        });
+        
+        setStudentTests(prev => ({
+          ...prev,
+          [studentId]: sortedTests
+        }));
+      } else {
+        toast.error("Failed to load tests");
+      }
+    } catch (error) {
+      toast.error("Unable to fetch student tests");
+    } finally {
+      setLoadingTests(prev => ({ ...prev, [studentId]: false }));
+    }
+  };
+
+  // TOGGLE TEST EXPANSION
+  const toggleTestExpansion = (studentId) => {
+    setExpandedTests(prev => ({
+      ...prev,
+      [studentId]: !prev[studentId]
+    }));
+    
+    // Fetch tests if not already loaded and expanding
+    if (!expandedTests[studentId] && !studentTests[studentId]) {
+      fetchStudentTests(studentId);
+    }
+  };
 
   const fetchStudentInfo = async (isBackground = false) => {
     try {
@@ -171,6 +223,8 @@ const StudentInfo = () => {
     return "bg-green-500";
   };
 
+
+
   return (
     <StudentLayout>
       <div className="p-4 md:p-6">
@@ -263,7 +317,7 @@ const StudentInfo = () => {
                 )}
 
                 {/* Projects */}
-                <div className="mb-5">
+                <div className="mb-4">
                   <div className="flex items-center gap-2 mb-2">
                     <Target size={14} className="text-gray-500" />
                     <span className="text-sm font-medium text-gray-700">Projects</span>
@@ -281,6 +335,114 @@ const StudentInfo = () => {
                     </div>
                   ) : (
                     <p className="text-sm text-gray-500">No project assigned</p>
+                  )}
+                </div>
+
+                {/* ================= TEST SECTION WITH DROPDOWN ================= */}
+                <div className="mb-4 border border-indigo-100 rounded-lg overflow-hidden">
+                  {/* Test Header - Clickable */}
+                  <div 
+                    onClick={() => toggleTestExpansion(s.userId)}
+                    className="flex items-center justify-between p-3 bg-indigo-50 cursor-pointer hover:bg-indigo-100 transition-colors"
+                  >
+                    <div className="flex items-center gap-2 text-indigo-700 font-medium">
+                      <ClipboardList size={16} />
+                      <span className="text-sm">Tests</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {studentTests[s.userId] && (
+                        <span className="text-xs bg-indigo-200 text-indigo-800 px-2 py-0.5 rounded-full">
+                          {studentTests[s.userId].length}
+                        </span>
+                      )}
+                      {expandedTests[s.userId] ? (
+                        <ChevronUp size={16} className="text-indigo-600" />
+                      ) : (
+                        <ChevronDown size={16} className="text-indigo-600" />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Test Content - Expandable */}
+                  {expandedTests[s.userId] && (
+                    <div className="p-3 bg-white border-t border-indigo-100">
+                      {loadingTests[s.userId] ? (
+                        <div className="flex items-center justify-center py-4">
+                          <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-indigo-500"></div>
+                          <span className="ml-2 text-xs text-gray-500">Loading tests...</span>
+                        </div>
+                      ) : studentTests[s.userId]?.length > 0 ? (
+                        <div className="space-y-3">
+                          <div className="text-xs text-gray-500 flex items-center gap-1 mb-2">
+                            <Calendar size={12} />
+                            <span>Tests shown in order taken (Test 1 = first test)</span>
+                          </div>
+                          <div className="max-h-48 overflow-y-auto">
+                            <table className="w-full text-xs">
+                              <thead className="bg-gray-50 text-gray-600 sticky top-0">
+                                <tr>
+                                  <th className="px-2 py-1.5 text-left font-medium">#</th>
+                                  <th className="px-2 py-1.5 text-left font-medium">Score</th>
+                                  <th className="px-2 py-1.5 text-left font-medium">Percentage</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-100">
+                                {studentTests[s.userId].map((test, idx) => (
+                                  <tr key={idx} className="hover:bg-gray-50">
+                                    <td className="px-2 py-1.5 font-medium text-gray-700">
+                                      Test {idx + 1}
+                                    </td>
+                                    <td className="px-2 py-1.5">
+                                      {test.score}/{test.totalQuestions}
+                                    </td>
+                                    <td className="px-2 py-1.5">
+                                      <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
+                                        test.percentage >= 70 ? 'bg-green-100 text-green-700' :
+                                        test.percentage >= 40 ? 'bg-yellow-100 text-yellow-700' :
+                                        'bg-red-100 text-red-700'
+                                      }`}>
+                                        {test.percentage}%
+                                      </span>
+                                    </td>
+                                  
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                          
+                          {/* Test Summary */}
+                          <div className="mt-3 pt-2 border-t border-gray-100 flex justify-between text-xs">
+                            <span className="text-gray-600">
+                              Average: {
+                                (studentTests[s.userId].reduce((acc, test) => acc + test.percentage, 0) / 
+                                studentTests[s.userId].length).toFixed(1)
+                              }%
+                            </span>
+                            <span className="text-gray-600">
+                              Best: {Math.max(...studentTests[s.userId].map(t => t.percentage))}%
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-500 text-center py-3">
+                          No tests available
+                        </p>
+                      )}
+                      
+                      {/* Refresh button */}
+                      {studentTests[s.userId] && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            fetchStudentTests(s.userId);
+                          }}
+                          className="mt-2 w-full text-xs text-indigo-600 hover:text-indigo-800 py-1 border-t border-indigo-100"
+                        >
+                          Refresh tests
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
 
