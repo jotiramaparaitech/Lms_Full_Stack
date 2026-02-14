@@ -154,7 +154,7 @@ const AddCourse = () => {
     e.preventDefault();
     try {
       if (!image) return toast.error("Thumbnail Not Selected");
-      if (!courseTitle) return toast.error("Please enter course title");
+      if (!courseTitle) return toast.error("Please enter Project Title");
 
       const token = await getToken();
 
@@ -232,7 +232,7 @@ const AddCourse = () => {
             type="text"
             value={courseTitle}
             onChange={(e) => setCourseTitle(e.target.value)}
-            placeholder="Enter course title..."
+            placeholder="Enter Project Title..."
             className="mt-2 bg-white/80 text-gray-800 border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#80deea] shadow-inner"
             required
           />

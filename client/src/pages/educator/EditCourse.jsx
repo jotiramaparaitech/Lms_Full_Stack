@@ -78,41 +78,40 @@ const EditCourse = () => {
 
   // Set description when both Quill is ready AND data is loaded
   useEffect(() => {
-    if (
-      quillRef.current &&
-      quillRef.current.root &&
-      quillReady &&
-      dataLoaded &&
-      initialDescription !== undefined
-    ) {
+    if (dataLoaded && initialDescription !== undefined && quillReady && quillRef.current) {
       // Use a small delay to ensure DOM is ready
       const timer = setTimeout(() => {
-        if (quillRef.current && quillRef.current.root) {
+        if (quillRef.current) {
           const description = initialDescription || "";
+
+          // Check if editor is already empty or matches initial to avoid overwriting user edits if this effect re-runs
+          // But for initial load, we want to force it.
+          // Since initialDescription only gets set once effectively, this is safe for initialization.
+
           try {
-            // Use Quill's clipboard API for better compatibility
-            const delta = quillRef.current.clipboard.convert({
-              html: description,
-            });
-            quillRef.current.setContents(delta, "silent");
+            // Standard way to set HTML in Quill 1.x
+            quillRef.current.clipboard.dangerouslyPasteHTML(description);
+            console.log("Quill content set via dangerouslyPasteHTML");
           } catch (error) {
-            // Fallback to innerHTML if clipboard API fails
-            console.warn("Quill clipboard API failed, using innerHTML:", error);
-            quillRef.current.root.innerHTML = description;
+            console.error("Error setting Quill content:", error);
+            // Fallback
+            if (quillRef.current.root) {
+              quillRef.current.root.innerHTML = description;
+            }
           }
         }
-      }, 300);
+      }, 100);
       return () => clearTimeout(timer);
     }
-  }, [initialDescription, quillReady, dataLoaded]);
+  }, [dataLoaded, initialDescription, quillReady]);
 
   const normalizeChapter = (chapter) => ({
     ...chapter,
     collapsed: false,
     chapterContent: Array.isArray(chapter.chapterContent)
       ? chapter.chapterContent.map((lecture) => ({
-          ...lecture,
-        }))
+        ...lecture,
+      }))
       : [],
   });
 
@@ -155,22 +154,6 @@ const EditCourse = () => {
       });
       setInitialDescription(description);
       setDataLoaded(true); // Mark data as loaded
-
-      // Also try to set immediately if Quill is already ready (fallback)
-      if (quillRef.current && quillRef.current.root && quillReady) {
-        setTimeout(() => {
-          if (quillRef.current && quillRef.current.root) {
-            try {
-              const delta = quillRef.current.clipboard.convert({
-                html: description,
-              });
-              quillRef.current.setContents(delta, "silent");
-            } catch (error) {
-              quillRef.current.root.innerHTML = description;
-            }
-          }
-        }, 300);
-      }
     } catch (error) {
       toast.error(
         error.response?.data?.message || "Failed to fetch course details"
@@ -381,7 +364,7 @@ const EditCourse = () => {
 
       // Validate required fields
       if (!courseData.courseTitle) {
-        toast.error("Course title is required");
+        toast.error("Project Title is required");
         setIsSubmitting(false);
         return;
       }
@@ -476,7 +459,7 @@ const EditCourse = () => {
             type="text"
             value={courseTitle}
             onChange={(e) => setCourseTitle(e.target.value)}
-            placeholder="Enter course title..."
+            placeholder="Enter Project Title..."
             className="mt-2 bg-white/80 text-gray-800 border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#80deea] shadow-inner"
             required
           />
@@ -598,9 +581,8 @@ const EditCourse = () => {
                     src={assets.dropdown_icon}
                     width={16}
                     alt=""
-                    className={`cursor-pointer transition-transform ${
-                      chapter.collapsed && "-rotate-90"
-                    }`}
+                    className={`cursor-pointer transition-transform ${chapter.collapsed && "-rotate-90"
+                      }`}
                   />
                   {index + 1}. {chapter.chapterTitle}
                 </div>

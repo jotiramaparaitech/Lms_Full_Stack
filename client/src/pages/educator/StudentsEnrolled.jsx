@@ -4,10 +4,15 @@ import { AppContext } from "../../context/AppContext";
 import { toast } from "react-toastify";
 import Loading from "../../components/student/Loading";
 import { motion } from "framer-motion";
+import { Search } from "lucide-react";
 
 const StudentsEnrolled = () => {
   const { backendUrl, getToken, isEducator } = useContext(AppContext);
   const [enrolledStudents, setEnrolledStudents] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterType, setFilterType] = useState("all");
+
+
 
   // -----------------------------
   // Fetch Enrolled Students
@@ -80,6 +85,27 @@ const StudentsEnrolled = () => {
 
   if (!enrolledStudents) return <Loading />;
 
+  // Filter students based on search query
+  const filteredStudents = enrolledStudents
+    ?.filter(
+      (item) =>
+        item && item.student && item.student._id && item.student.name
+    )
+    .filter((item) => {
+      // Search filter
+      if (!searchQuery.trim()) return true;
+      const query = searchQuery.toLowerCase().trim();
+
+      const studentName = (item.student?.name || "").toLowerCase().trim();
+      const courseTitle = (item.courseTitle || "").toLowerCase().trim();
+
+      console.log(`Searching for "${query}" in "${studentName}" / "${courseTitle}" -> ${studentName.startsWith(query) || courseTitle.startsWith(query)}`);
+
+      if (filterType === "name") return studentName.startsWith(query);
+      if (filterType === "title") return courseTitle.startsWith(query);
+      return studentName.startsWith(query) || courseTitle.startsWith(query);
+    });
+
   // -----------------------------
   // UI
   // -----------------------------
@@ -88,6 +114,45 @@ const StudentsEnrolled = () => {
       {/* Background glow blobs */}
       <div className="absolute top-[-100px] left-[-50px] w-72 h-72 bg-blue-300/30 blur-3xl rounded-full animate-pulse -z-10"></div>
       <div className="absolute bottom-[-120px] right-[-50px] w-96 h-96 bg-cyan-400/30 blur-3xl rounded-full animate-pulse -z-10"></div>
+
+      {/* Search Bar */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-6xl mb-6 flex flex-col md:flex-row gap-4 items-center"
+      >
+        <div className="relative flex-1 w-full">
+          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+          <input
+            type="text"
+            placeholder="Search..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-12 pr-4 py-3 rounded-2xl bg-white/80 border border-gray-200 shadow-md focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all text-gray-700 placeholder-gray-400"
+          />
+          {searchQuery && (
+            <div className="absolute right-4 top-1/2 transform -translate-y-1/2 text-xs text-gray-500">
+              {filteredStudents?.length || 0} result{filteredStudents?.length !== 1 ? 's' : ''}
+            </div>
+          )}
+        </div>
+
+        <div className="relative w-full md:w-auto">
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            className="w-full md:w-48 px-4 py-3 rounded-2xl bg-white/80 border border-gray-200 shadow-md focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-700 cursor-pointer appearance-none"
+            style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: `right 0.5rem center`, backgroundRepeat: `no-repeat`, backgroundSize: `1.5em 1.5em`, paddingRight: '2.5rem' }}
+          >
+            <option value="all">All Fields</option>
+            <option value="name">Student Name</option>
+            <option value="title">Project Title</option>
+          </select>
+        </div>
+      </motion.div>
+
+
 
       {/* Table Container */}
       <motion.div
@@ -103,7 +168,7 @@ const StudentsEnrolled = () => {
                 #
               </th>
               <th className="px-4 py-3 font-semibold">Student Name</th>
-              <th className="px-4 py-3 font-semibold">Course Title</th>
+              <th className="px-4 py-3 font-semibold">Project Title</th>
               <th className="px-4 py-3 font-semibold hidden sm:table-cell">
                 Date
               </th>
@@ -112,14 +177,10 @@ const StudentsEnrolled = () => {
           </thead>
 
           <tbody className="text-gray-700">
-            {enrolledStudents
-              ?.filter(
-                (item) =>
-                  item && item.student && item.student._id && item.student.name
-              )
-              .map((item, index) => (
+            {filteredStudents && filteredStudents.length > 0 ? (
+              filteredStudents.map((item, index) => (
                 <motion.tr
-                  key={`${item.student?._id}-${item.courseId}`}
+                  key={`${item.student?._id}-${item.courseId}-${index}`}
                   whileHover={{
                     scale: 1.02,
                     backgroundColor: "rgba(224, 242, 254, 0.5)",
@@ -144,7 +205,7 @@ const StudentsEnrolled = () => {
                     </span>
                   </td>
 
-                  {/* Course Title */}
+                  {/* Project Title */}
                   <td className="px-4 py-3 truncate font-medium text-gray-700">
                     {item.courseTitle || "Untitled Course"}
                   </td>
@@ -168,11 +229,28 @@ const StudentsEnrolled = () => {
                     </button>
                   </td>
                 </motion.tr>
-              ))}
+              ))
+            ) : (
+              <tr>
+                <td colSpan="5" className="px-4 py-12 text-center">
+                  <div className="flex flex-col items-center gap-3">
+                    <Search size={48} className="text-gray-300" />
+                    <p className="text-gray-500 font-medium">
+                      {searchQuery ? "No students found matching your search" : "No enrolled students"}
+                    </p>
+                    {searchQuery && (
+                      <p className="text-sm text-gray-400">
+                        Try searching with a different keyword
+                      </p>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </motion.div>
-    </div>
+    </div >
   );
 };
 
