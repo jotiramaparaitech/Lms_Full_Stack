@@ -4,6 +4,7 @@ import User from "../models/User.js";
 import { v2 as cloudinary } from "cloudinary";
 import moment from 'moment';
 import { sendTeamAnnouncement } from "../utils/sendTeamEmail.js";
+import Attendance from "../models/Attendance.js";
 
 // -----------------------------
 // Create Team
@@ -456,9 +457,8 @@ export const removeMember = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
-
 // -----------------------------
-// Get Student Info (Leader Only)
+// Get Student Info (Leader Only) - WITH ATTENDANCE
 // -----------------------------
 export const getStudentInfo = async (req, res) => {
   try {
@@ -469,6 +469,7 @@ export const getStudentInfo = async (req, res) => {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
+    // 1. Fetch teams where the user is Leader or Admin
     const teams = await Team.find({
       $or: [
         { leader: leaderId },
@@ -483,29 +484,47 @@ export const getStudentInfo = async (req, res) => {
       });
     }
 
+    // 2. Collect unique student IDs from all these teams
     let allStudentIds = [];
-    const teamMembersMap = new Map();
-    
     teams.forEach(team => {
-      const studentIds = team.members
+      const ids = team.members
         .filter(m => m.userId !== leaderId)
-        .map(m => {
-          teamMembersMap.set(m.userId, {
-            teamId: team._id,
-            teamName: team.name,
-            progress: m.progress ?? 0,
-            lorUnlocked: m.lorUnlocked ?? false,
-            projectName: m.projectName ?? "",
-            role: m.role
-          });
-          return m.userId;
-        });
-      
-      allStudentIds = [...allStudentIds, ...studentIds];
+        .map(m => m.userId);
+      allStudentIds = [...allStudentIds, ...ids];
     });
-
     allStudentIds = [...new Set(allStudentIds)];
 
+    // 3. FETCH ATTENDANCE DATA for all these students
+    const attendanceRecords = await Attendance.find({
+      studentId: { $in: allStudentIds }
+    }).lean();
+
+    // 4. CALCULATE ATTENDANCE DAYS
+    // Logic: Group by student -> then group by date. 
+    // 2 sessions on same date = 1.0 day, 1 session = 0.5 day.
+    const attendanceSummaryMap = new Map();
+
+    attendanceRecords.forEach(rec => {
+      if (!attendanceSummaryMap.has(rec.studentId)) {
+        attendanceSummaryMap.set(rec.studentId, {});
+      }
+      const studentDates = attendanceSummaryMap.get(rec.studentId);
+      
+      // Count sessions per unique date
+      studentDates[rec.date] = (studentDates[rec.date] || 0) + 1;
+    });
+
+    const finalAttendanceCountMap = new Map();
+    attendanceSummaryMap.forEach((dates, studentId) => {
+      let totalDays = 0;
+      Object.values(dates).forEach(sessionCount => {
+        if (sessionCount >= 2) totalDays += 1; // Full Day
+        else if (sessionCount === 1) totalDays += 0.5; // Half Day
+      });
+      finalAttendanceCountMap.set(studentId, totalDays);
+    });
+
+    // 5. Fetch User details and populated projects
     const users = await User.find({ _id: { $in: allStudentIds } })
       .populate("enrolledCourses", "courseTitle")
       .lean();
@@ -518,6 +537,7 @@ export const getStudentInfo = async (req, res) => {
 
     const studentsMap = new Map();
 
+    // 6. Build final student objects
     teams.forEach(team => {
       team.members
         .filter((m) => m.userId !== leaderId)
@@ -534,6 +554,8 @@ export const getStudentInfo = async (req, res) => {
               role: m.role,
               progress: m.progress ?? 0,
               lorUnlocked: m.lorUnlocked ?? false,
+              // Add the attendance score here
+              attendanceDays: finalAttendanceCountMap.get(userId) || 0,
               projects: (user?.enrolledCourses || [])
                 .filter(c => requiredProjectIds.length === 0 || requiredProjectIds.includes(c._id.toString()))
                 .map(c => c.courseTitle),
@@ -552,27 +574,21 @@ export const getStudentInfo = async (req, res) => {
           if ((m.progress ?? 0) > studentData.progress) {
             studentData.progress = m.progress ?? 0;
           }
-          
-          if (m.lorUnlocked) {
-            studentData.lorUnlocked = true;
-          }
+          if (m.lorUnlocked) studentData.lorUnlocked = true;
         });
     });
-
-    const students = Array.from(studentsMap.values());
 
     return res.json({
       success: true,
       teams: teams.map(t => ({ _id: t._id, name: t.name })),
-      teamCount: teams.length,
-      students,
+      students: Array.from(studentsMap.values()),
     });
+
   } catch (error) {
     console.log("❌ getStudentInfo error:", error);
     return res.status(500).json({ success: false, message: error.message });
   }
 };
-
 // -----------------------------
 // Update Student Progress (Leader Only)
 // -----------------------------

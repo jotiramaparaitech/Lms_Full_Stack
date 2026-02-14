@@ -76,7 +76,7 @@ const StudentAttendance = () => {
   // ✅ UPDATED TIME WINDOWS
   // Morning: 09:30 AM - 10:30 AM
   const CHECKIN_START = 570;   // 09:30
-  const CHECKIN_END = 630;     // 10:30
+  const CHECKIN_END = 1100;     // 10:30
   
   // Evening: 06:30 PM - 07:30 PM
   const CHECKOUT_START = 1110; // 18:30
