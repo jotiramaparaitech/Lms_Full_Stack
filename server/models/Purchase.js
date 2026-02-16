@@ -25,6 +25,17 @@ const PurchaseSchema = new mongoose.Schema(
       type: String,
       default: "manual-assignment", // ✅ For manual or Razorpay reference
     },
+    // New Registration Fields
+    fullName: { type: String },
+    email: { type: String },
+    phone: { type: String },
+    college: { type: String },
+    projectOpted: { type: String },
+    monthOpted: { type: String },
+    yearOfGraduation: { type: String },
+    stream: { type: String },
+    scholarshipId: { type: String },
+    language: { type: String },
   },
   { timestamps: true }
 );
