@@ -1,4 +1,5 @@
-import fetch from "node-fetch";
+// import fetch from "node-fetch"; // Using global fetch for Node 18+
+
 import ProjectSubmission from "../models/ProjectSubmission.js";
 
 // The same script URL from the frontend
@@ -75,6 +76,7 @@ export const submitProject = async (req, res) => {
             const sheetResponse = await fetch(GOOGLE_SCRIPT_URL, {
                 method: "POST",
                 body: formData,
+                redirect: "follow"
             });
 
             const text = await sheetResponse.text();
