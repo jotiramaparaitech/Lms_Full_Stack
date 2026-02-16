@@ -74,8 +74,8 @@ export const createOrder = async (req, res) => {
     // Get userId from either Clerk auth or protect middleware
     const auth = req.auth();
     const userId = auth?.userId || req.user?.id || req.user?._id;
-    // Extract courseId from request body
-    const { courseId } = req.body;
+    // Extract courseId and registration data from request body
+    const { courseId, registrationData } = req.body;
     let razorpay;
     try {
       razorpay = getRazorpayClient();
@@ -92,10 +92,9 @@ export const createOrder = async (req, res) => {
       // If it's any other error during initialization, treat it as config error
       return res.status(503).json({
         success: false,
-        message: `Payment Failed because of a configuration error. ${
-          error.message ||
+        message: `Payment Failed because of a configuration error. ${error.message ||
           "Authentication key was missing during initialization."
-        }`,
+          }`,
         error: "RAZORPAY_CONFIG_ERROR",
       });
     }
@@ -168,6 +167,8 @@ export const createOrder = async (req, res) => {
       userId,
       amount: finalAmount,
       status: "pending",
+      // Save registration details
+      ...registrationData,
     });
 
     // Create Razorpay order
@@ -229,10 +230,9 @@ export const verifyPayment = async (req, res) => {
       // If it's any other error during initialization, treat it as config error
       return res.status(503).json({
         success: false,
-        message: `Payment Failed because of a configuration error. ${
-          error.message ||
+        message: `Payment Failed because of a configuration error. ${error.message ||
           "Authentication key was missing during initialization."
-        }`,
+          }`,
         error: "RAZORPAY_CONFIG_ERROR",
       });
     }
@@ -327,7 +327,7 @@ export const verifyPayment = async (req, res) => {
     });
   } catch (error) {
     console.error("❌ Razorpay verification error:", error);
-    
+
     // Handle Razorpay API errors
     if (error.statusCode || error.error) {
       return res.status(error.statusCode || 500).json({
