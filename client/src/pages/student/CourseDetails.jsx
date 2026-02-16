@@ -9,6 +9,7 @@ import humanizeDuration from "humanize-duration";
 import YouTube from "react-youtube";
 import { useAuth } from "@clerk/clerk-react";
 import Loading from "../../components/student/Loading";
+import RegistrationForm from "../../components/student/RegistrationForm";
 
 const CourseDetails = () => {
   const { id } = useParams();
@@ -18,6 +19,7 @@ const CourseDetails = () => {
   const [openSections, setOpenSections] = useState({});
   const [isLoading, setIsLoading] = useState(false); // Loader for payment
   const [isLocked, setIsLocked] = useState(false); // Locked by admin
+  const [isRegistrationOpen, setIsRegistrationOpen] = useState(false); // Registration Modal State
 
   const {
     backendUrl,
@@ -90,7 +92,7 @@ const CourseDetails = () => {
   };
 
   // ---------------- Enroll Course (Razorpay Checkout) ----------------
-  const enrollCourse = async () => {
+  const enrollCourse = async (registrationData = {}) => {
     let checkoutLaunched = false;
 
     if (!id) {
@@ -128,7 +130,7 @@ const CourseDetails = () => {
       // 1️⃣ Create Razorpay order
       const { data: orderData } = await axios.post(
         `${backendUrl}/api/course/purchase/create-order`,
-        { courseId: id },
+        { courseId: id, registrationData },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -274,10 +276,27 @@ const CourseDetails = () => {
         serverMessage || error.message || "Payment failed. Try again."
       );
     } finally {
+      setIsRegistrationOpen(false); // Close modal if open
       if (!checkoutLaunched) {
         setIsLoading(false);
       }
     }
+  };
+
+  const handleEnrollClick = () => {
+    if (!userData) {
+      toast.error("Please sign in to enroll.");
+      return;
+    }
+    if (isLocked) {
+      toast.error("This project is currently locked by the admin.");
+      return;
+    }
+    if (isAlreadyEnrolled) {
+      toast.error("You are already enrolled.");
+      return;
+    }
+    setIsRegistrationOpen(true);
   };
 
   // ---------------- Check Enrollment ----------------
@@ -356,9 +375,8 @@ const CourseDetails = () => {
                       <img
                         src={assets.down_arrow_icon}
                         alt="arrow"
-                        className={`transform transition-transform ${
-                          openSections[index] ? "rotate-180" : ""
-                        }`}
+                        className={`transform transition-transform ${openSections[index] ? "rotate-180" : ""
+                          }`}
                       />
                       <p className="font-medium">{chapter.chapterTitle}</p>
                     </div>
@@ -370,9 +388,8 @@ const CourseDetails = () => {
 
                   {/* Lectures */}
                   <div
-                    className={`overflow-hidden transition-all duration-300 ${
-                      openSections[index] ? "max-h-96" : "max-h-0"
-                    }`}
+                    className={`overflow-hidden transition-all duration-300 ${openSections[index] ? "max-h-96" : "max-h-0"
+                      }`}
                   >
                     <ul className="list-disc md:pl-10 pl-4 pr-4 py-2 text-gray-600 border-t">
                       {chapter.chapterContent.map((lecture, i) => (
@@ -527,27 +544,38 @@ const CourseDetails = () => {
 
             {/* ENROLL BUTTON */}
             <button
-              onClick={enrollCourse}
+              onClick={handleEnrollClick}
               disabled={isLoading || isAlreadyEnrolled || isLocked}
-              className={`mt-6 w-full py-3 rounded font-medium transition ${
-                isAlreadyEnrolled || isLocked
-                  ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-blue-600 hover:bg-blue-700 text-white"
-              }`}
+              className={`mt-6 w-full py-3 rounded font-medium transition ${isAlreadyEnrolled || isLocked
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-blue-600 hover:bg-blue-700 text-white"
+                }`}
             >
               {isAlreadyEnrolled
                 ? "Already Enrolled"
                 : isLocked
-                ? "Project Locked"
-                : isLoading
-                ? "Processing..."
-                : "Enroll Now"}
+                  ? "Project Locked"
+                  : isLoading
+                    ? "Processing..."
+                    : "Enroll Now"}
             </button>
           </div>
         </div>
       </div>
 
       <Footer />
+
+      {/* Registration Form Modal */}
+      <RegistrationForm
+        isOpen={isRegistrationOpen}
+        onClose={() => setIsRegistrationOpen(false)}
+        onSubmit={enrollCourse}
+        isSubmitting={isLoading}
+        courseName={courseData.courseTitle}
+        coursePrice={(courseData.coursePrice - (courseData.discount * courseData.coursePrice) / 100).toFixed(2)}
+        currency={currency}
+        userData={userData}
+      />
     </>
   );
 };
