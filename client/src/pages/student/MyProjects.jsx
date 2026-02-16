@@ -7,10 +7,11 @@ import {
   FolderOpen,
   ExternalLink,
   TrendingUp,
+  WifiOff,
+  AlertCircle
 } from "lucide-react";
 import StudentLayout from "../../components/student/StudentLayout";
-import { motion } from "framer-motion";
-import { Line } from "rc-progress";
+import { motion, AnimatePresence } from "framer-motion";
 
 const MyProjects = () => {
   const {
@@ -18,12 +19,56 @@ const MyProjects = () => {
     enrolledCourses,
     fetchUserEnrolledCourses,
     navigate,
-    teamProgress, // ✅ MAIN PROGRESS (Leader updated)
+    teamProgress,
   } = useContext(AppContext);
 
   const [loading, setLoading] = useState(true);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [error, setError] = useState(null);
+  const [loadingProgress, setLoadingProgress] = useState(0);
 
-  // ✅ Strip HTML tags like <p>, <br>, <strong> etc.
+  // ✅ Monitor online/offline status
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOffline(false);
+      setError(null);
+      if (enrolledCourses.length === 0) {
+        fetchUserEnrolledCourses();
+      }
+    };
+    
+    const handleOffline = () => {
+      setIsOffline(true);
+      setError("No internet connection. Please check your network.");
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [enrolledCourses]);
+
+  // ✅ Simulate loading progress (YouTube style) - Smoother increments
+  useEffect(() => {
+    if (loading) {
+      const interval = setInterval(() => {
+        setLoadingProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(interval);
+            return 90;
+          }
+          return prev + 5; // Slower increment (5% instead of 10%)
+        });
+      }, 150); // Slightly faster interval but smaller increments = smoother
+
+      return () => clearInterval(interval);
+    }
+  }, [loading]);
+
+  // ✅ Strip HTML tags
   const stripHtml = (html) => {
     if (!html) return "";
     return html.replace(/<[^>]*>?/gm, "").trim();
@@ -31,13 +76,16 @@ const MyProjects = () => {
 
   useEffect(() => {
     if (userData) {
-      fetchUserEnrolledCourses();
+      fetchUserEnrolledCourses()
+        .catch(err => {
+          setError(err.message || "Failed to load projects");
+        })
+        .finally(() => {
+          setLoading(false);
+          setLoadingProgress(100);
+        });
     }
   }, [userData]);
-
-  useEffect(() => {
-    setLoading(false);
-  }, [enrolledCourses]);
 
   const getStatusColor = (progressPercent) => {
     if (progressPercent === 100) return "bg-green-100 text-green-800";
@@ -51,7 +99,7 @@ const MyProjects = () => {
     return "Not Started";
   };
 
-  // Handle card click - navigate to course player
+  // Handle card click
   const handleCardClick = (courseId, e) => {
     if (
       e.target.closest("button") ||
@@ -64,57 +112,159 @@ const MyProjects = () => {
     navigate("/player/" + courseId);
   };
 
-  // Handle button click - stop propagation to prevent card click
+  // Handle button click
   const handleButtonClick = (courseId, e) => {
     e.stopPropagation();
     navigate("/player/" + courseId);
   };
 
-  if (loading) {
-    return (
-      <StudentLayout>
-        <div className="p-6">
-          <h1 className="text-3xl font-bold text-gray-800 mb-6">
-            My Projects
-          </h1>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1, 2, 3].map((i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-                className="bg-white rounded-xl shadow-lg p-6 animate-pulse"
-              >
-                <div className="h-6 bg-gray-200 rounded mb-4"></div>
-                <div className="h-4 bg-gray-200 rounded mb-2"></div>
-                <div className="h-4 bg-gray-200 rounded mb-4"></div>
-                <div className="h-2 bg-gray-200 rounded"></div>
-              </motion.div>
-            ))}
-          </div>
+  // YouTube-style skeleton card with smoother shimmer
+  const SkeletonCard = () => (
+    <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100">
+      {/* Thumbnail skeleton */}
+      <div className="h-48 bg-gradient-to-r from-gray-100 via-gray-200 to-gray-100 bg-[length:200%_100%] animate-smooth-shimmer" />
+      
+      {/* Content skeleton */}
+      <div className="p-5 space-y-4">
+        {/* Title and badge row */}
+        <div className="flex items-start justify-between">
+          <div className="h-7 w-3/4 bg-gradient-to-r from-gray-100 via-gray-200 to-gray-100 bg-[length:200%_100%] animate-smooth-shimmer rounded" />
+          <div className="h-6 w-20 bg-gradient-to-r from-gray-100 via-gray-200 to-gray-100 bg-[length:200%_100%] animate-smooth-shimmer rounded-full" />
         </div>
-      </StudentLayout>
-    );
-  }
+        
+        {/* Description lines */}
+        <div className="space-y-2">
+          <div className="h-4 w-full bg-gradient-to-r from-gray-100 via-gray-200 to-gray-100 bg-[length:200%_100%] animate-smooth-shimmer rounded" />
+          <div className="h-4 w-5/6 bg-gradient-to-r from-gray-100 via-gray-200 to-gray-100 bg-[length:200%_100%] animate-smooth-shimmer rounded" />
+        </div>
+        
+        {/* Buttons skeleton */}
+        <div className="flex gap-3">
+          <div className="flex-1 h-10 bg-gradient-to-r from-gray-100 via-gray-200 to-gray-100 bg-[length:200%_100%] animate-smooth-shimmer rounded-lg" />
+          <div className="w-12 h-10 bg-gradient-to-r from-gray-100 via-gray-200 to-gray-100 bg-[length:200%_100%] animate-smooth-shimmer rounded-lg" />
+        </div>
+      </div>
+    </div>
+  );
+
+  // Loading indicator with YouTube-style progress bar
+  const LoadingIndicator = () => (
+    <StudentLayout>
+      <div className="p-4 md:p-6">
+        {/* YouTube-style top loading bar */}
+        <div className="fixed top-0 left-0 w-full h-1 bg-gray-200 z-50">
+          <motion.div
+            className="h-full bg-gradient-to-r from-red-600 via-gray-600 to-red-600"
+            initial={{ width: "0%" }}
+            animate={{ width: `${loadingProgress}%` }}
+            transition={{ duration: 0.2, ease: "easeInOut" }}
+          />
+        </div>
+
+        {/* Header skeleton */}
+        <div className="mb-8">
+          <div className="h-10 w-64 bg-gradient-to-r from-gray-100 via-gray-200 to-gray-100 bg-[length:200%_100%] animate-smooth-shimmer rounded-lg mb-2" />
+          <div className="h-5 w-80 bg-gradient-to-r from-gray-100 via-gray-200 to-gray-100 bg-[length:200%_100%] animate-smooth-shimmer rounded" />
+        </div>
+
+        {/* Cards grid skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(6)].map((_, i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </div>
+      </div>
+    </StudentLayout>
+  );
+
+  // Error/Offline state
+  const ErrorState = ({ message, isOffline }) => (
+    <StudentLayout>
+      <div className="min-h-[60vh] flex items-center justify-center p-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+          className="text-center max-w-md"
+        >
+          <div className="inline-block p-8 bg-white rounded-2xl shadow-lg border border-gray-200">
+            {isOffline ? (
+              <WifiOff className="w-20 h-20 text-gray-400 mx-auto mb-4" />
+            ) : (
+              <AlertCircle className="w-20 h-20 text-red-400 mx-auto mb-4" />
+            )}
+            
+            <h3 className="text-xl font-semibold text-gray-700 mb-2">
+              {isOffline ? "You're offline" : "Something went wrong"}
+            </h3>
+            
+            <p className="text-gray-500 mb-6">
+              {message || (isOffline 
+                ? "Please check your internet connection and try again." 
+                : "We couldn't load your projects. Please try again.")}
+            </p>
+
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                setLoading(true);
+                fetchUserEnrolledCourses().finally(() => setLoading(false));
+              }}
+              className="px-6 py-3 bg-gradient-to-r from-gray-800 to-gray-900 text-white rounded-lg font-medium shadow-lg hover:shadow-xl transition-all"
+            >
+              Try Again
+            </motion.button>
+          </div>
+        </motion.div>
+      </div>
+    </StudentLayout>
+  );
+
+  if (loading) return <LoadingIndicator />;
+  if (isOffline) return <ErrorState isOffline={true} />;
+  if (error) return <ErrorState message={error} isOffline={false} />;
 
   return (
     <StudentLayout>
+      {/* Add smooth shimmer animation styles */}
+      <style>
+        {`
+          @keyframes smoothShimmer {
+            0% {
+              background-position: -200% 0;
+            }
+            100% {
+              background-position: 200% 0;
+            }
+          }
+          .animate-smooth-shimmer {
+            animation: smoothShimmer 2.5s infinite ease-in-out;
+            background-size: 200% 100%;
+          }
+          
+          /* Prevent layout shifts during animation */
+          .motion-safe {
+            will-change: transform, opacity;
+          }
+        `}
+      </style>
+
       <div className="p-4 md:p-6">
         {/* Header */}
-        <div className="mb-8">
-          <motion.h1
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="text-3xl md:text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-600 via-blue-600 to-teal-500"
-          >
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+          className="mb-8"
+        >
+          <h1 className="text-3xl md:text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-600 via-blue-600 to-teal-500">
             My Projects
-          </motion.h1>
+          </h1>
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
+            transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
             className="text-gray-600 mt-2"
           >
             {enrolledCourses.length > 0
@@ -123,160 +273,172 @@ const MyProjects = () => {
                 }`
               : "Explore and enroll in projects to get started"}
           </motion.p>
-        </div>
+        </motion.div>
 
         {/* Enrolled Courses Grid */}
         {enrolledCourses.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {enrolledCourses.map((course, index) => {
-              const progress = teamProgress ?? 0; // ✅ ONLY REAL PROGRESS
-              const statusColor = getStatusColor(progress);
-              const statusText = getStatusText(progress);
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+          >
+            <AnimatePresence mode="wait">
+              {enrolledCourses.map((course, index) => {
+                const progress = teamProgress ?? 0;
+                const statusColor = getStatusColor(progress);
+                const statusText = getStatusText(progress);
 
-              return (
-                <motion.div
-                  key={course._id}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.3, delay: index * 0.1 }}
-                  whileHover={{ y: -5, scale: 1.02 }}
-                  onClick={(e) => handleCardClick(course._id, e)}
-                  className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 border border-gray-100 cursor-pointer group"
-                >
-                  {/* Course Thumbnail */}
-                  <div className="h-48 relative overflow-hidden bg-gradient-to-br from-cyan-500/20 to-blue-500/20">
-                    {course.courseThumbnail ? (
-                      <img
-                        src={course.courseThumbnail}
-                        alt={course.courseTitle}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <BookOpen
-                          size={48}
-                          className="text-cyan-600 opacity-80"
+                return (
+                  <motion.div
+                    key={course._id}
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ 
+                      duration: 0.5, 
+                      delay: index * 0.08,
+                      ease: "easeOut"
+                    }}
+                    whileHover={{ 
+                      y: -5, 
+                      scale: 1.02,
+                      transition: { duration: 0.2, ease: "easeOut" }
+                    }}
+                    onClick={(e) => handleCardClick(course._id, e)}
+                    className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 border border-gray-100 cursor-pointer group motion-safe"
+                  >
+                    {/* Course Thumbnail */}
+                    <div className="h-48 relative overflow-hidden bg-gradient-to-br from-cyan-500/20 to-blue-500/20">
+                      {course.courseThumbnail ? (
+                        <img
+                          src={course.courseThumbnail}
+                          alt={course.courseTitle}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
                         />
-                      </div>
-                    )}
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <BookOpen
+                            size={48}
+                            className="text-cyan-600 opacity-80"
+                          />
+                        </div>
+                      )}
 
-                    {/* Status Badge */}
-                    <div
-                      className={`absolute top-4 right-4 px-3 py-1 rounded-full text-xs font-medium ${statusColor}`}
-                    >
-                      {statusText}
-                    </div>
+                      {/* Status Badge */}
+                      <motion.div
+                        initial={{ x: 20, opacity: 0 }}
+                        animate={{ x: 0, opacity: 1 }}
+                        transition={{ delay: index * 0.08 + 0.2, duration: 0.4, ease: "easeOut" }}
+                        className={`absolute top-4 right-4 px-3 py-1 rounded-full text-xs font-medium ${statusColor}`}
+                      >
+                        {statusText}
+                      </motion.div>
 
-                    {/* Progress Bar */}
-                    {/* <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
-                      <div className="flex items-center justify-between text-white mb-2">
-                        <span className="text-sm font-medium">Progress</span>
-                        <span className="text-sm font-bold">{progress}%</span>
-                      </div>
-                      <div className="w-full bg-white/30 rounded-full h-2">
-                        <div
-                          className="bg-gradient-to-r from-cyan-400 to-blue-500 h-2 rounded-full transition-all duration-700"
-                          style={{ width: `${progress}%` }}
-                        ></div>
-                      </div>
-                    </div> */}
-                  </div>
-
-                  {/* Course Details */}
-                  <div className="p-5">
-                    <div className="flex items-start justify-between mb-3">
-                      <h3 className="text-xl font-bold text-gray-800 line-clamp-2 group-hover:text-cyan-700 transition-colors duration-300">
-                        {course.courseTitle}
-                      </h3>
+                      {/* Trending Badge */}
                       {course.isTrending && (
-                        <span className="bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-full font-medium flex items-center gap-1 no-click">
+                        <motion.div
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{ delay: index * 0.08 + 0.25, type: "spring", stiffness: 200, damping: 15 }}
+                          className="absolute top-4 left-4 bg-orange-500 text-white text-xs px-2 py-1 rounded-full font-medium flex items-center gap-1 shadow-lg"
+                        >
                           <TrendingUp size={12} />
                           Trending
-                        </span>
+                        </motion.div>
                       )}
                     </div>
 
-                    {/* Description */}
-                    <p className="text-gray-600 text-sm mb-4 line-clamp-2">
-                      {stripHtml(course.courseDescription || "").substring(
-                        0,
-                        120
+                    {/* Course Details */}
+                    <div className="p-5">
+                      <motion.div 
+                        className="flex items-start justify-between mb-3"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.08 + 0.15, duration: 0.4, ease: "easeOut" }}
+                      >
+                        <h3 className="text-xl font-bold text-gray-800 line-clamp-2 group-hover:text-cyan-700 transition-colors duration-300">
+                          {course.courseTitle}
+                        </h3>
+                      </motion.div>
+
+                      {/* Description */}
+                      <motion.p
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: index * 0.08 + 0.2, duration: 0.4, ease: "easeOut" }}
+                        className="text-gray-600 text-sm mb-4 line-clamp-2"
+                      >
+                        {stripHtml(course.courseDescription || "").substring(0, 120)}
+                        {stripHtml(course.courseDescription || "").length > 120 ? "..." : ""}
+                      </motion.p>
+
+                      {/* Action Buttons */}
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.08 + 0.25, duration: 0.4, ease: "easeOut" }}
+                        className="flex gap-3"
+                      >
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.98 }}
+                          transition={{ type: "spring", stiffness: 400, damping: 15 }}
+                          onClick={(e) => handleButtonClick(course._id, e)}
+                          className="flex-1 bg-gradient-to-r from-cyan-600 to-teal-500 text-white py-2.5 px-4 rounded-lg font-medium hover:from-cyan-700 hover:to-teal-600 transition-all duration-300 text-center flex items-center justify-center gap-2 no-click shadow-md hover:shadow-lg"
+                        >
+                          {progress > 0 ? (
+                            <>
+                              <PlayCircle size={18} />
+                              Continue
+                            </>
+                          ) : (
+                            <>
+                              <BookOpen size={18} />
+                              Start Project
+                            </>
+                          )}
+                        </motion.button>
+
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.98 }}
+                          transition={{ type: "spring", stiffness: 400, damping: 15 }}
+                          onClick={(e) => handleButtonClick(course._id, e)}
+                          className="px-4 py-2.5 border border-cyan-600 text-cyan-600 rounded-lg font-medium hover:bg-cyan-50 transition-all duration-300 flex items-center justify-center no-click"
+                        >
+                          <ExternalLink size={18} />
+                        </motion.button>
+                      </motion.div>
+
+                      {/* Progress Update Info */}
+                      {progress > 0 && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.08 + 0.3, duration: 0.4, ease: "easeOut" }}
+                          className="mt-4 pt-4 border-t border-gray-100"
+                        >
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-600 flex items-center gap-1">
+                              <CheckCircle size={16} className="text-green-500" />
+                              Team Leader Progress: {progress}%
+                            </span>
+                          </div>
+                        </motion.div>
                       )}
-                      {stripHtml(course.courseDescription || "").length > 120
-                        ? "..."
-                        : ""}
-                    </p>
-
-                    {/* Progress Line */}
-                    {/* <div className="mb-4">
-                      <div className="flex items-center justify-between text-sm text-gray-600 mb-1">
-                        <span>Overall Progress</span>
-                        <span className="font-semibold">{progress}%</span>
-                      </div>
-                      <Line
-                        percent={progress}
-                        strokeWidth={3}
-                        trailWidth={3}
-                        strokeColor="#06b6d4"
-                        trailColor="#e5e7eb"
-                        className="rounded-full"
-                      />
-                    </div> */}
-
-                    {/* Action Buttons */}
-                    {/* Action Buttons */}
-                    <div className="flex gap-3">
-                      <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={(e) => handleButtonClick(course._id, e)}
-                        className="flex-1 bg-gradient-to-r from-cyan-600 to-teal-500 text-white py-2.5 px-4 rounded-lg font-medium hover:from-cyan-700 hover:to-teal-600 transition-all duration-300 text-center flex items-center justify-center gap-2 no-click"
-                      >
-                        {progress > 0 ? (
-                          <>
-                            <PlayCircle size={18} />
-                            Continue
-                          </>
-                        ) : (
-                          <>
-                            <BookOpen size={18} />
-                            Start Project
-                          </>
-                        )}
-                      </motion.button>
-
-                      <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={(e) => handleButtonClick(course._id, e)}
-                        className="px-4 py-2.5 border border-cyan-600 text-cyan-600 rounded-lg font-medium hover:bg-cyan-50 transition-all duration-300 flex items-center justify-center no-click"
-                      >
-                        <ExternalLink size={18} />
-                      </motion.button>
                     </div>
-
-                    {/* Optional: Show text */}
-                    {progress > 0 && (
-                      <div className="mt-4 pt-4 border-t border-gray-100">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600 flex items-center gap-1">
-                            <CheckCircle size={16} className="text-green-500" />
-                            Team Leader Progress Updated: {progress}%
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+          </motion.div>
         ) : (
           /* No Projects Found */
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
             className="bg-white rounded-2xl shadow-lg p-8 md:p-12 text-center max-w-2xl mx-auto"
           >
             <div className="w-24 h-24 bg-gradient-to-r from-cyan-100 to-teal-100 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -295,9 +457,10 @@ const MyProjects = () => {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <motion.button
                 whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ type: "spring", stiffness: 400, damping: 15 }}
                 onClick={() => navigate("/courses")}
-                className="bg-gradient-to-r from-cyan-600 to-teal-500 text-white py-3 px-8 rounded-lg font-medium hover:from-cyan-700 hover:to-teal-600 transition-all duration-300 inline-flex items-center justify-center gap-2"
+                className="bg-gradient-to-r from-cyan-600 to-teal-500 text-white py-3 px-8 rounded-lg font-medium hover:from-cyan-700 hover:to-teal-600 transition-all duration-300 inline-flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
               >
                 <BookOpen size={20} />
                 Browse Projects
@@ -305,7 +468,8 @@ const MyProjects = () => {
 
               <motion.button
                 whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ type: "spring", stiffness: 400, damping: 15 }}
                 onClick={() => navigate("/student/dashboard")}
                 className="border border-cyan-600 text-cyan-600 py-3 px-8 rounded-lg font-medium hover:bg-cyan-50 transition-all duration-300"
               >
