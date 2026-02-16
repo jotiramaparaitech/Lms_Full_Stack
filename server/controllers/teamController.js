@@ -183,7 +183,7 @@ export const getTeams = async (req, res) => {
       };
     });
 
-    
+
     res.json({ success: true, teams: formattedTeams });
   } catch (error) {
     console.error("❌ getTeams error:", error);
@@ -285,7 +285,7 @@ export const sendMessage = async (req, res) => {
     }
 
     const team = await Team.findById(teamId).populate("members.userId", "email");
-    
+
     if (!team) {
       return res.status(404).json({ success: false, message: "Team not found" });
     }
@@ -508,7 +508,7 @@ export const getStudentInfo = async (req, res) => {
         attendanceSummaryMap.set(rec.studentId, {});
       }
       const studentDates = attendanceSummaryMap.get(rec.studentId);
-      
+
       // Count sessions per unique date
       studentDates[rec.date] = (studentDates[rec.date] || 0) + 1;
     });
@@ -543,7 +543,7 @@ export const getStudentInfo = async (req, res) => {
         .forEach((m) => {
           const userId = m.userId.toString();
           const user = userMap.get(userId);
-          
+
           if (!studentsMap.has(userId)) {
             studentsMap.set(userId, {
               userId: userId,
@@ -553,6 +553,7 @@ export const getStudentInfo = async (req, res) => {
               role: m.role,
               progress: m.progress ?? 0,
               lorUnlocked: m.lorUnlocked ?? false,
+              projectSubmissionUnlocked: m.projectSubmissionUnlocked ?? false,
               // Add the attendance score here
               attendanceDays: finalAttendanceCountMap.get(userId) || 0,
               projects: (user?.enrolledCourses || [])
@@ -561,19 +562,22 @@ export const getStudentInfo = async (req, res) => {
               teams: []
             });
           }
-          
+
           const studentData = studentsMap.get(userId);
           studentData.teams.push({
             teamId: team._id,
             teamName: team.name,
             progress: m.progress ?? 0,
-            lorUnlocked: m.lorUnlocked ?? false
+            lorUnlocked: m.lorUnlocked ?? false,
+            projectSubmissionUnlocked: m.projectSubmissionUnlocked ?? false
           });
-          
+
           if ((m.progress ?? 0) > studentData.progress) {
             studentData.progress = m.progress ?? 0;
           }
           if (m.lorUnlocked) studentData.lorUnlocked = true;
+          if (m.projectSubmissionUnlocked) studentData.projectSubmissionUnlocked = true;
+          if (m.projectSubmissionUnlocked) studentData.projectSubmissionUnlocked = true;
         });
     });
 
@@ -596,7 +600,7 @@ export const updateStudentProgress = async (req, res) => {
     const auth = req.auth();
     const leaderId = auth?.userId;
 
-    const { studentId, progress, projectName, lorUnlocked, teamId } = req.body;
+    const { studentId, progress, projectName, lorUnlocked, projectSubmissionUnlocked, teamId } = req.body;
 
     if (!leaderId) {
       return res.status(401).json({ success: false, message: "Unauthorized" });
@@ -614,7 +618,7 @@ export const updateStudentProgress = async (req, res) => {
         { members: { $elemMatch: { userId: leaderId, role: "admin" } } }
       ]
     };
-    
+
     if (teamId) {
       query._id = teamId;
     }
@@ -651,6 +655,10 @@ export const updateStudentProgress = async (req, res) => {
 
         if (lorUnlocked !== undefined) {
           team.members[memberIndex].lorUnlocked = lorUnlocked;
+        }
+
+        if (projectSubmissionUnlocked !== undefined) {
+          team.members[memberIndex].projectSubmissionUnlocked = projectSubmissionUnlocked;
         }
 
         await team.save();
@@ -708,6 +716,7 @@ export const getMyTeamProgress = async (req, res) => {
         progress: member?.progress ?? 0,
         projectName: member?.projectName ?? "",
         lorUnlocked: member?.lorUnlocked ?? false,
+        projectSubmissionUnlocked: member?.projectSubmissionUnlocked ?? false,
         role: member?.role ?? "member",
         isLeader: team.leader === userId
       };
@@ -720,8 +729,8 @@ export const getMyTeamProgress = async (req, res) => {
       teams: teamProgressList,
       overallProgress: maxProgress,
       teamCount: teams.length,
-      message: teamProgressList.length > 1 
-        ? `You are in ${teamProgressList.length} teams. Showing your highest progress.` 
+      message: teamProgressList.length > 1
+        ? `You are in ${teamProgressList.length} teams. Showing your highest progress.`
         : ""
     });
   } catch (error) {
@@ -896,7 +905,7 @@ export const getTeamFiles = async (req, res) => {
           const url = new URL(file.attachmentUrl);
           const pathParts = url.pathname.split('/');
           fileName = pathParts[pathParts.length - 1] || fileName;
-        } catch (e) {}
+        } catch (e) { }
       }
 
       if (file.type === 'image') {

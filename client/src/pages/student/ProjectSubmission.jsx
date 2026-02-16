@@ -1,7 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import StudentLayout from "../../components/student/StudentLayout";
 import { toast } from "react-toastify";
-import { Send, Calendar, User, Phone, Mail, Globe, CheckCircle, Type, Link, FileUp, Video } from "lucide-react";
+import { Send, Calendar, User, Phone, Mail, Globe, CheckCircle, Type, Link, FileUp, Video, Loader2, Lock as LockIcon } from "lucide-react";
+import { AppContext } from "../../context/AppContext";
+import axios from "axios";
 
 
 const ProjectSubmission = () => {
@@ -19,6 +21,33 @@ const ProjectSubmission = () => {
         videoLink: "",
     });
 
+    const { backendUrl, getToken } = useContext(AppContext);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [projectSubmissionUnlocked, setProjectSubmissionUnlocked] = useState(false);
+    const [loadingAccess, setLoadingAccess] = useState(true);
+
+    useEffect(() => {
+        checkProjectAccess();
+    }, []);
+
+    const checkProjectAccess = async () => {
+        try {
+            const token = await getToken();
+            const res = await axios.get(`${backendUrl}/api/teams/my-progress`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (res.data.success) {
+                const teams = res.data.teams || [];
+                const isUnlocked = teams.some(t => t.projectSubmissionUnlocked);
+                setProjectSubmissionUnlocked(isUnlocked);
+            }
+        } catch (error) {
+            console.error("Error checking Project Submission Access:", error);
+        } finally {
+            setLoadingAccess(false);
+        }
+    };
+
     const handleChange = (e) => {
         const { name, value, type, files } = e.target;
         if (type === "file") {
@@ -34,10 +63,14 @@ const ProjectSubmission = () => {
         }
     };
 
-    const scriptURL = "https://script.google.com/macros/s/AKfycbwNGdzNJHxV9OGX_BZ7VnBhBqNz78ZwgxRsgQmq7PHzy9NuORdeXX-S-sjDtldcx2ip0Q/exec";
-
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        if (!projectSubmissionUnlocked) {
+            toast.error("Project submission is locked. Please contact your Team Leader.");
+            return;
+        }
+
         console.log("Submitting Project Form:", formData);
 
         if (!formData.reviewMode) {
@@ -45,52 +78,92 @@ const ProjectSubmission = () => {
             return;
         }
 
+        setIsSubmitting(true);
+
         try {
-            const formDataToSend = new URLSearchParams();
-            formDataToSend.append("fullName", formData.fullName);
-            formDataToSend.append("email", formData.email);
-            formDataToSend.append("contactNumber", formData.contactNumber);
-            formDataToSend.append("domain", formData.domain);
-            formDataToSend.append("reviewDate", formData.reviewDate);
-            formDataToSend.append("reviewMode", formData.reviewMode);
-            formDataToSend.append("projectTitle", formData.projectTitle);
-            formDataToSend.append("githubLink", formData.githubLink);
-            formDataToSend.append("linkedinLink", formData.linkedinLink);
-            formDataToSend.append("videoLink", formData.videoLink);
-            formDataToSend.append("zipFile", formData.zipFile ? formData.zipFile.name : "");
+            let zipFileUrl = "";
 
-            const response = await fetch(scriptURL, {
-                method: "POST",
-                body: formDataToSend,
-                mode: 'no-cors'
-            });
+            // 1. Upload file if it exists
+            if (formData.zipFile) {
+                const toastId = toast.loading("Uploading project file...");
+                try {
+                    const fileData = new FormData();
+                    fileData.append("file", formData.zipFile);
 
-            // With no-cors, we can't check response.ok. 
-            // The response type will be 'opaque'. 
-            // If the fetch didn't throw, we assume it went through.
-            toast.success("Project Submitted Successfully!");
+                    const uploadResponse = await axios.post(
+                        `${backendUrl}/api/upload/project`,
+                        fileData,
+                        {
+                            headers: {
+                                "Content-Type": "multipart/form-data",
+                            },
+                        }
+                    );
 
-            // Reset form
-            setFormData({
-                fullName: "",
-                email: "",
-                contactNumber: "",
-                domain: "",
-                reviewDate: "",
-                reviewMode: "",
-                projectTitle: "",
-                githubLink: "",
-                linkedinLink: "",
-                zipFile: null,
-                videoLink: "",
-            });
+                    if (uploadResponse.data.success) {
+                        zipFileUrl = uploadResponse.data.fileUrl;
+                        toast.update(toastId, { render: "File uploaded successfully!", type: "success", isLoading: false, autoClose: 2000 });
+                    } else {
+                        throw new Error(uploadResponse.data.message || "File upload failed");
+                    }
+                } catch (uploadError) {
+                    console.error("Upload Error:", uploadError);
+                    toast.update(toastId, { render: "File upload failed. Please try again.", type: "error", isLoading: false, autoClose: 3000 });
+                    setIsSubmitting(false);
+                    return;
+                }
+            }
+
+            // 2. Submit to Backend (which saves to DB and sends to Sheet)
+            const submissionData = {
+                ...formData,
+                zipFileUrl: zipFileUrl, // Send URL
+            };
+            // Delete raw file object before sending JSON
+            delete submissionData.zipFile;
+
+            const response = await axios.post(
+                `${backendUrl}/api/project/submit`,
+                submissionData
+            );
+
+            if (response.data.success) {
+                toast.success(response.data.message);
+
+                // Optional: Show sheet sync status warning if it failed but DB save worked
+                if (!response.data.sheetSync?.success) {
+                    toast.warning("Project saved, but sheet sync failed: " + response.data.sheetSync?.message);
+                }
+
+                // Reset form
+                setFormData({
+                    fullName: "",
+                    email: "",
+                    contactNumber: "",
+                    domain: "",
+                    reviewDate: "",
+                    reviewMode: "",
+                    projectTitle: "",
+                    githubLink: "",
+                    linkedinLink: "",
+                    zipFile: null,
+                    videoLink: "",
+                });
+            } else {
+                toast.error(response.data.message || "Submission failed");
+            }
 
         } catch (error) {
-            console.error("Error!", error.message);
-            // If using no-cors, we might not catch fetch errors easily, but generic error:
-            toast.error("Submission failed. Please check your connection or script URL.");
+            console.error("Error!", error);
+            toast.error(error.response?.data?.message || "Submission failed. Please check your connection.");
+        } finally {
+            setIsSubmitting(false);
         }
     };
+
+    if (loadingAccess) {
+        return <div className="flex justify-center items-center h-screen">Loading...</div>;
+    }
 
     return (
 
@@ -110,6 +183,21 @@ const ProjectSubmission = () => {
 
                     {/* Form Card */}
                     <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+                        {/* Status Banner */}
+                        {!projectSubmissionUnlocked && (
+                            <div className="mb-6 bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
+                                <div className="p-1 bg-amber-100 rounded-full text-amber-600">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-semibold text-amber-800">Project Submission Locked</h3>
+                                    <p className="text-sm text-amber-700 mt-1">
+                                        Your Team Leader has not unlocked project submission for you yet. Please request access to submit your project.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
                         <form onSubmit={handleSubmit} className="space-y-6">
 
                             {/* Full Name */}
@@ -126,7 +214,8 @@ const ProjectSubmission = () => {
                                         onChange={handleChange}
                                         placeholder="Your answer"
                                         required
-                                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100 outline-none transition-all placeholder-gray-400"
+                                        disabled={!projectSubmissionUnlocked}
+                                        className={`w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100 outline-none transition-all placeholder-gray-400 ${!projectSubmissionUnlocked && "bg-gray-50 text-gray-400"}`}
                                     />
                                 </div>
                             </div>
@@ -145,7 +234,8 @@ const ProjectSubmission = () => {
                                         onChange={handleChange}
                                         placeholder="Your answer"
                                         required
-                                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100 outline-none transition-all placeholder-gray-400"
+                                        disabled={!projectSubmissionUnlocked}
+                                        className={`w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100 outline-none transition-all placeholder-gray-400 ${!projectSubmissionUnlocked && "bg-gray-50 text-gray-400"}`}
                                     />
                                 </div>
                             </div>
@@ -164,7 +254,8 @@ const ProjectSubmission = () => {
                                         onChange={handleChange}
                                         placeholder="Your answer"
                                         required
-                                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100 outline-none transition-all placeholder-gray-400"
+                                        disabled={!projectSubmissionUnlocked}
+                                        className={`w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100 outline-none transition-all placeholder-gray-400 ${!projectSubmissionUnlocked && "bg-gray-50 text-gray-400"}`}
                                     />
                                 </div>
                             </div>
@@ -183,7 +274,8 @@ const ProjectSubmission = () => {
                                         onChange={handleChange}
                                         placeholder="Your answer"
                                         required
-                                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100 outline-none transition-all placeholder-gray-400"
+                                        disabled={!projectSubmissionUnlocked}
+                                        className={`w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100 outline-none transition-all placeholder-gray-400 ${!projectSubmissionUnlocked && "bg-gray-50 text-gray-400"}`}
                                     />
                                 </div>
                             </div>
@@ -201,7 +293,8 @@ const ProjectSubmission = () => {
                                         value={formData.reviewDate}
                                         onChange={handleChange}
                                         required
-                                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100 outline-none transition-all text-gray-600"
+                                        disabled={!projectSubmissionUnlocked}
+                                        className={`w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100 outline-none transition-all text-gray-600 ${!projectSubmissionUnlocked && "bg-gray-50 text-gray-400"}`}
                                     />
                                 </div>
                             </div>
@@ -214,9 +307,10 @@ const ProjectSubmission = () => {
                                 <div className="flex flex-col sm:flex-row gap-4">
                                     <label className={`
                   flex-1 flex items-center justify-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all
-                  ${formData.reviewMode === "Offline"
-                                            ? "border-cyan-500 bg-cyan-50 text-cyan-700"
-                                            : "border-gray-200 hover:border-cyan-200 text-gray-600"}
+                  ${!projectSubmissionUnlocked ? "bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed" :
+                                            formData.reviewMode === "Offline"
+                                                ? "border-cyan-500 bg-cyan-50 text-cyan-700"
+                                                : "border-gray-200 hover:border-cyan-200 text-gray-600"}
                 `}>
                                         <input
                                             type="radio"
@@ -224,6 +318,7 @@ const ProjectSubmission = () => {
                                             value="Offline"
                                             checked={formData.reviewMode === "Offline"}
                                             onChange={handleChange}
+                                            disabled={!projectSubmissionUnlocked}
                                             className="hidden"
                                         />
                                         <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${formData.reviewMode === "Offline" ? "border-cyan-500" : "border-gray-300"}`}>
@@ -234,9 +329,10 @@ const ProjectSubmission = () => {
 
                                     <label className={`
                   flex-1 flex items-center justify-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all
-                  ${formData.reviewMode === "Online"
-                                            ? "border-cyan-500 bg-cyan-50 text-cyan-700"
-                                            : "border-gray-200 hover:border-cyan-200 text-gray-600"}
+                  ${!projectSubmissionUnlocked ? "bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed" :
+                                            formData.reviewMode === "Online"
+                                                ? "border-cyan-500 bg-cyan-50 text-cyan-700"
+                                                : "border-gray-200 hover:border-cyan-200 text-gray-600"}
                 `}>
                                         <input
                                             type="radio"
@@ -244,6 +340,7 @@ const ProjectSubmission = () => {
                                             value="Online"
                                             checked={formData.reviewMode === "Online"}
                                             onChange={handleChange}
+                                            disabled={!projectSubmissionUnlocked}
                                             className="hidden"
                                         />
                                         <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${formData.reviewMode === "Online" ? "border-cyan-500" : "border-gray-300"}`}>
@@ -268,7 +365,8 @@ const ProjectSubmission = () => {
                                         onChange={handleChange}
                                         placeholder="Your answer"
                                         required
-                                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100 outline-none transition-all placeholder-gray-400"
+                                        disabled={!projectSubmissionUnlocked}
+                                        className={`w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100 outline-none transition-all placeholder-gray-400 ${!projectSubmissionUnlocked && "bg-gray-50 text-gray-400"}`}
                                     />
                                 </div>
                             </div>
@@ -287,7 +385,8 @@ const ProjectSubmission = () => {
                                         onChange={handleChange}
                                         placeholder="Your answer"
                                         required
-                                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100 outline-none transition-all placeholder-gray-400"
+                                        disabled={!projectSubmissionUnlocked}
+                                        className={`w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100 outline-none transition-all placeholder-gray-400 ${!projectSubmissionUnlocked && "bg-gray-50 text-gray-400"}`}
                                     />
                                 </div>
                             </div>
@@ -306,7 +405,8 @@ const ProjectSubmission = () => {
                                         onChange={handleChange}
                                         placeholder="Your answer"
                                         required
-                                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100 outline-none transition-all placeholder-gray-400"
+                                        disabled={!projectSubmissionUnlocked}
+                                        className={`w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100 outline-none transition-all placeholder-gray-400 ${!projectSubmissionUnlocked && "bg-gray-50 text-gray-400"}`}
                                     />
                                 </div>
                             </div>
@@ -325,7 +425,8 @@ const ProjectSubmission = () => {
                                         onChange={handleChange}
                                         placeholder="Paste your video drive link here"
                                         required
-                                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100 outline-none transition-all placeholder-gray-400"
+                                        disabled={!projectSubmissionUnlocked}
+                                        className={`w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100 outline-none transition-all placeholder-gray-400 ${!projectSubmissionUnlocked && "bg-gray-50 text-gray-400"}`}
                                     />
                                 </div>
                             </div>
@@ -335,13 +436,13 @@ const ProjectSubmission = () => {
                                 <label className="block text-sm font-semibold text-gray-700">
                                     Upload Zip File <span className="text-red-500">*</span>
                                 </label>
-                                <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 hover:border-cyan-500 transition-colors bg-gray-50/50">
+                                <div className={`border-2 border-dashed border-gray-300 rounded-xl p-6 transition-colors ${!projectSubmissionUnlocked ? "bg-gray-100 cursor-not-allowed" : "bg-gray-50/50 hover:border-cyan-500"}`}>
                                     <div className="flex flex-col items-center justify-center text-center">
                                         <FileUp className="text-gray-400 mb-2" size={32} />
                                         <p className="text-sm text-gray-600 mb-1">
                                             Upload 1 supported file. Max 100 MB.
                                         </p>
-                                        <label className="cursor-pointer mt-2 inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50 text-cyan-600 font-medium transition-all">
+                                        <label className={`cursor-pointer mt-2 inline-flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg shadow-sm font-medium transition-all ${!projectSubmissionUnlocked ? "bg-gray-200 text-gray-500 cursor-not-allowed" : "bg-white hover:bg-gray-50 text-cyan-600"}`}>
                                             <FileUp size={16} />
                                             <span>Add file</span>
                                             <input
@@ -351,6 +452,7 @@ const ProjectSubmission = () => {
                                                 accept=".zip,.rar,.7z"
                                                 className="hidden"
                                                 required
+                                                disabled={!projectSubmissionUnlocked}
                                             />
                                         </label>
                                         {formData.zipFile && (
@@ -367,10 +469,31 @@ const ProjectSubmission = () => {
                             <div className="pt-4">
                                 <button
                                     type="submit"
-                                    className="w-full bg-gradient-to-r from-cyan-600 to-cyan-500 text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-cyan-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2"
+                                    disabled={isSubmitting || !projectSubmissionUnlocked}
+                                    className={`w-full font-bold py-4 rounded-xl shadow-lg transition-all duration-200 flex items-center justify-center gap-2 
+                                        ${!projectSubmissionUnlocked
+                                            ? "bg-gray-400 text-white cursor-not-allowed"
+                                            : isSubmitting
+                                                ? "bg-gradient-to-r from-cyan-600 to-cyan-500 opacity-70 cursor-not-allowed"
+                                                : "bg-gradient-to-r from-cyan-600 to-cyan-500 text-white hover:shadow-cyan-500/30 hover:scale-[1.02] active:scale-[0.98]"
+                                        }`}
                                 >
-                                    <Send size={20} />
-                                    Submit Project
+                                    {isSubmitting ? (
+                                        <>
+                                            <Loader2 size={20} className="animate-spin" />
+                                            Submitting...
+                                        </>
+                                    ) : !projectSubmissionUnlocked ? (
+                                        <>
+                                            <LockIcon size={20} />
+                                            Need Access from Team Lead
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Send size={20} />
+                                            Submit Project
+                                        </>
+                                    )}
                                 </button>
                             </div>
 
