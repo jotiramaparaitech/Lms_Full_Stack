@@ -20,6 +20,8 @@ import attendanceRoutes from "./routes/attendanceRoutes.js";
 import subscribeRoutes from "./routes/subscribeRoutes.js";
 import supportRoutes from "./routes/supportRoutes.js";
 import webhookRouter from "./routes/webhookRoutes.js";
+import uploadRouter from "./routes/uploadRoutes.js";
+import projectRouter from "./routes/projectRoutes.js";
 
 import admin from "./configs/firebase.js";
 
@@ -99,6 +101,8 @@ app.use("/api/attendance", express.json(), requireAuth(), attendanceRoutes);
 
 app.use("/api", subscribeRoutes);
 app.use("/api", supportRoutes);
+app.use("/api/upload", uploadRouter);
+app.use("/api/project", projectRouter);
 
 // ------------------ SOCKET.IO ------------------
 const io = new Server(server, {

@@ -3,9 +3,9 @@ import axios from "axios";
 import { AppContext } from "../../context/AppContext";
 import StudentLayout from "../../components/student/StudentLayout";
 import { toast } from "react-toastify";
-import { 
-  User, Mail, Target, TrendingUp, Edit2, Lock, Unlock, Users,
-  ClipboardList, ChevronDown, ChevronUp, Calendar 
+import {
+  User, Mail, Target, TrendingUp, Edit2, Lock as LockIcon, Unlock as UnlockIcon, Users,
+  ClipboardList, ChevronDown, ChevronUp, Calendar
 } from "lucide-react";
 
 const StudentInfo = () => {
@@ -39,7 +39,7 @@ const StudentInfo = () => {
         const sortedTests = (res.data.tests || []).sort((a, b) => {
           return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
         });
-        
+
         setStudentTests(prev => ({
           ...prev,
           [studentId]: sortedTests
@@ -60,7 +60,7 @@ const StudentInfo = () => {
       ...prev,
       [studentId]: !prev[studentId]
     }));
-    
+
     // Fetch tests if not already loaded and expanding
     if (!expandedTests[studentId] && !studentTests[studentId]) {
       fetchStudentTests(studentId);
@@ -98,21 +98,21 @@ const StudentInfo = () => {
   const updateProgress = async (studentId, newProgress, teamId = null) => {
     // Optimistic Update
     const previousStudents = [...students];
-    
+
     if (teamId) {
       // Update for specific team
       setStudents((prev) =>
         prev.map((s) => {
           if (s.userId === studentId) {
-            const updatedTeams = s.teams.map(t => 
-              t.teamId === teamId 
+            const updatedTeams = s.teams.map(t =>
+              t.teamId === teamId
                 ? { ...t, progress: typeof newProgress === 'number' ? newProgress : t.progress, lorUnlocked: typeof newProgress === 'object' ? newProgress.lorUnlocked ?? t.lorUnlocked : t.lorUnlocked }
                 : t
             );
             // Update overall progress to max of all teams
             const maxProgress = Math.max(...updatedTeams.map(t => t.progress));
-            return { 
-              ...s, 
+            return {
+              ...s,
               teams: updatedTeams,
               progress: maxProgress,
               lorUnlocked: updatedTeams.some(t => t.lorUnlocked)
@@ -142,7 +142,7 @@ const StudentInfo = () => {
         ...(typeof newProgress === "number" && { progress: newProgress }),
         ...(typeof newProgress === "object" ? newProgress : {}),
       };
-      
+
       if (teamId) {
         payload.teamId = teamId;
       }
@@ -190,13 +190,17 @@ const StudentInfo = () => {
     updateProgress(studentId, { lorUnlocked: !currentStatus }, teamId);
   };
 
+  const handleProjectAccessToggle = (studentId, currentStatus, teamId) => {
+    updateProgress(studentId, { projectSubmissionUnlocked: !currentStatus }, teamId);
+  };
+
   useEffect(() => {
     if (isTeamLeader) fetchStudentInfo();
   }, [isTeamLeader]);
 
   // Filter students based on selected team
-  const filteredStudents = selectedTeamId === "all" 
-    ? students 
+  const filteredStudents = selectedTeamId === "all"
+    ? students
     : students.filter(s => s.teams?.some(t => t.teamId === selectedTeamId));
 
   if (!isTeamLeader) {
@@ -270,7 +274,7 @@ const StudentInfo = () => {
             </div>
             <h3 className="text-lg font-semibold text-gray-800 mb-2">No Students Found</h3>
             <p className="text-gray-600">
-              {selectedTeamId === "all" 
+              {selectedTeamId === "all"
                 ? "There are no students in your teams yet."
                 : "No students in this team."}
             </p>
@@ -304,11 +308,10 @@ const StudentInfo = () => {
                     {s.teams.map((team, idx) => (
                       <span
                         key={idx}
-                        className={`text-xs px-2 py-0.5 rounded-full ${
-                          team.teamId === selectedTeamId || selectedTeamId === "all"
-                            ? "bg-blue-100 text-blue-700"
-                            : "bg-gray-100 text-gray-600"
-                        }`}
+                        className={`text-xs px-2 py-0.5 rounded-full ${team.teamId === selectedTeamId || selectedTeamId === "all"
+                          ? "bg-blue-100 text-blue-700"
+                          : "bg-gray-100 text-gray-600"
+                          }`}
                       >
                         {team.teamName}
                       </span>
@@ -341,7 +344,7 @@ const StudentInfo = () => {
                 {/* ================= TEST SECTION WITH DROPDOWN ================= */}
                 <div className="mb-4 border border-indigo-100 rounded-lg overflow-hidden">
                   {/* Test Header - Clickable */}
-                  <div 
+                  <div
                     onClick={() => toggleTestExpansion(s.userId)}
                     className="flex items-center justify-between p-3 bg-indigo-50 cursor-pointer hover:bg-indigo-100 transition-colors"
                   >
@@ -396,27 +399,26 @@ const StudentInfo = () => {
                                       {test.score}/{test.totalQuestions}
                                     </td>
                                     <td className="px-2 py-1.5">
-                                      <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
-                                        test.percentage >= 70 ? 'bg-green-100 text-green-700' :
+                                      <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${test.percentage >= 70 ? 'bg-green-100 text-green-700' :
                                         test.percentage >= 40 ? 'bg-yellow-100 text-yellow-700' :
-                                        'bg-red-100 text-red-700'
-                                      }`}>
+                                          'bg-red-100 text-red-700'
+                                        }`}>
                                         {test.percentage}%
                                       </span>
                                     </td>
-                                  
+
                                   </tr>
                                 ))}
                               </tbody>
                             </table>
                           </div>
-                          
+
                           {/* Test Summary */}
                           <div className="mt-3 pt-2 border-t border-gray-100 flex justify-between text-xs">
                             <span className="text-gray-600">
                               Average: {
-                                (studentTests[s.userId].reduce((acc, test) => acc + test.percentage, 0) / 
-                                studentTests[s.userId].length).toFixed(1)
+                                (studentTests[s.userId].reduce((acc, test) => acc + test.percentage, 0) /
+                                  studentTests[s.userId].length).toFixed(1)
                               }%
                             </span>
                             <span className="text-gray-600">
@@ -429,7 +431,7 @@ const StudentInfo = () => {
                           No tests available
                         </p>
                       )}
-                      
+
                       {/* Refresh button */}
                       {studentTests[s.userId] && (
                         <button
@@ -446,49 +448,75 @@ const StudentInfo = () => {
                   )}
                 </div>
 
+                {/* Attendance Display */}
+                <div className="flex items-center justify-between mb-4 px-1">
+                  <div className="flex items-center gap-2">
+                    <Calendar size={14} className="text-gray-500" />
+                    <span className="text-sm font-medium text-gray-700">Attendance</span>
+                  </div>
+                  <span className="text-sm font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
+                    {s.attendanceDays || 0} Days
+                  </span>
+                </div>
+
                 {/* Progress & LOR */}
                 <div>
+                  {/* Project Submission Toggle */}
+                  <div className="flex items-center justify-between mb-4 bg-gray-50 p-3 rounded-lg border border-gray-100">
+                    <div className="flex items-center gap-2">
+                      {s.projectSubmissionUnlocked ? (
+                        <UnlockIcon size={16} className="text-green-600" />
+                      ) : (
+                        <LockIcon size={16} className="text-amber-500" />
+                      )}
+                      <span className="text-sm font-medium text-gray-700">Project Submission Access</span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const teamId = selectedTeamId === "all" && s.teams?.length > 0
+                          ? s.teams[0].teamId
+                          : selectedTeamId;
+                        handleProjectAccessToggle(s.userId, s.projectSubmissionUnlocked, teamId);
+                      }}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${s.projectSubmissionUnlocked ? 'bg-green-500' : 'bg-gray-300'
+                        }`}
+                    >
+                      <span
+                        className={`${s.projectSubmissionUnlocked ? 'translate-x-6' : 'translate-x-1'
+                          } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+                      />
+                    </button>
+                  </div>
+
                   {/* LOR Toggle */}
                   <div className="flex items-center justify-between mb-4 bg-gray-50 p-3 rounded-lg border border-gray-100">
                     <div className="flex items-center gap-2">
                       {s.lorUnlocked ? (
-                        <Unlock size={16} className="text-green-600" />
+                        <UnlockIcon size={16} className="text-green-600" />
                       ) : (
-                        <Lock size={16} className="text-amber-500" />
+                        <LockIcon size={16} className="text-amber-500" />
                       )}
                       <span className="text-sm font-medium text-gray-700">LOR Access</span>
                     </div>
                     <button
                       onClick={() => {
                         // If viewing all teams, update the first team
-                        const teamId = selectedTeamId === "all" && s.teams?.length > 0 
-                          ? s.teams[0].teamId 
+                        const teamId = selectedTeamId === "all" && s.teams?.length > 0
+                          ? s.teams[0].teamId
                           : selectedTeamId;
                         handleLorToggle(s.userId, s.lorUnlocked, teamId);
                       }}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
-                        s.lorUnlocked ? 'bg-green-500' : 'bg-gray-300'
-                      }`}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${s.lorUnlocked ? 'bg-green-500' : 'bg-gray-300'
+                        }`}
                     >
                       <span
-                        className={`${
-                          s.lorUnlocked ? 'translate-x-6' : 'translate-x-1'
-                        } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+                        className={`${s.lorUnlocked ? 'translate-x-6' : 'translate-x-1'
+                          } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
                       />
                     </button>
                   </div>
 
-                  {/* Attendance Display */}
-                  <div className="flex items-center justify-between mb-4 px-1">
-                    <div className="flex items-center gap-2">
-                      <Calendar size={14} className="text-gray-500" />
-                      <span className="text-sm font-medium text-gray-700">Attendance</span>
-                    </div>
-                    <span className="text-sm font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
-                      {s.attendanceDays || 0} Days
-                    </span>
-                  </div>
-                  
+
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <TrendingUp size={14} className="text-gray-500" />
@@ -522,8 +550,8 @@ const StudentInfo = () => {
                         />
                         <button
                           onClick={() => {
-                            const teamId = selectedTeamId === "all" && s.teams?.length > 0 
-                              ? s.teams[0].teamId 
+                            const teamId = selectedTeamId === "all" && s.teams?.length > 0
+                              ? s.teams[0].teamId
                               : selectedTeamId;
                             handleEditSave(s.userId, teamId);
                           }}
@@ -544,8 +572,8 @@ const StudentInfo = () => {
                       <div className="grid grid-cols-4 gap-2">
                         <button
                           onClick={() => {
-                            const teamId = selectedTeamId === "all" && s.teams?.length > 0 
-                              ? s.teams[0].teamId 
+                            const teamId = selectedTeamId === "all" && s.teams?.length > 0
+                              ? s.teams[0].teamId
                               : selectedTeamId;
                             handleQuickUpdate(s.userId, -10, teamId);
                           }}
@@ -555,8 +583,8 @@ const StudentInfo = () => {
                         </button>
                         <button
                           onClick={() => {
-                            const teamId = selectedTeamId === "all" && s.teams?.length > 0 
-                              ? s.teams[0].teamId 
+                            const teamId = selectedTeamId === "all" && s.teams?.length > 0
+                              ? s.teams[0].teamId
                               : selectedTeamId;
                             handleQuickUpdate(s.userId, -5, teamId);
                           }}
@@ -566,8 +594,8 @@ const StudentInfo = () => {
                         </button>
                         <button
                           onClick={() => {
-                            const teamId = selectedTeamId === "all" && s.teams?.length > 0 
-                              ? s.teams[0].teamId 
+                            const teamId = selectedTeamId === "all" && s.teams?.length > 0
+                              ? s.teams[0].teamId
                               : selectedTeamId;
                             handleQuickUpdate(s.userId, 5, teamId);
                           }}
@@ -577,8 +605,8 @@ const StudentInfo = () => {
                         </button>
                         <button
                           onClick={() => {
-                            const teamId = selectedTeamId === "all" && s.teams?.length > 0 
-                              ? s.teams[0].teamId 
+                            const teamId = selectedTeamId === "all" && s.teams?.length > 0
+                              ? s.teams[0].teamId
                               : selectedTeamId;
                             handleQuickUpdate(s.userId, 10, teamId);
                           }}
@@ -600,8 +628,8 @@ const StudentInfo = () => {
                         </button>
                         <button
                           onClick={() => {
-                            const teamId = selectedTeamId === "all" && s.teams?.length > 0 
-                              ? s.teams[0].teamId 
+                            const teamId = selectedTeamId === "all" && s.teams?.length > 0
+                              ? s.teams[0].teamId
                               : selectedTeamId;
                             updateProgress(s.userId, 100, teamId);
                           }}

@@ -22,6 +22,7 @@ const teamSchema = new mongoose.Schema(
         // ✅ NEW FIELDS
         progress: { type: Number, default: 0 },
         projectName: { type: String, default: "" },
+        projectSubmissionUnlocked: { type: Boolean, default: false },
         lorUnlocked: { type: Boolean, default: false },
 
         joinedAt: { type: Date, default: Date.now },
