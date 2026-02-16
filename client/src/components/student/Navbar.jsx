@@ -84,22 +84,16 @@ const Navbar = () => {
           onClick={() => navigate("/")}
         >
           <motion.img
-            whileHover={{ scale: 1.08 }}
-            transition={{ type: "spring", stiffness: 250, damping: 20 }}
+            whileHover={{ scale: 1.05 }}
+            transition={{ type: "spring", stiffness: 300, damping: 20 }}
             src={assets.logo}
             alt="Aparaitech Logo"
-            className="w-12 sm:w-14 md:w-16 drop-shadow-lg transition-all duration-300 animate-heartbeat"
+            className="w-10 sm:w-12 md:w-14 drop-shadow-md transition-all duration-300"
           />
-          <div className="relative ml-2 group cursor-pointer">
-            <span className="valentine-text text-xl sm:text-2xl md:text-3xl whitespace-nowrap font-black tracking-widest">
+          <div className="ml-2 cursor-pointer">
+            <span className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800 tracking-wide">
               APARAITECH
             </span>
-            {/* Valentine's Hearts Decorations */}
-            <span className="heart-float text-xl" style={{ top: '-15px', right: '-15px', animationDelay: '0s' }}>❤️</span>
-            <span className="heart-float text-2xl" style={{ bottom: '-10px', left: '-10px', animationDelay: '1s' }}>💖</span>
-            <span className="heart-float text-lg" style={{ top: '-20px', left: '20%', animationDelay: '0.5s' }}>💕</span>
-            <span className="heart-float text-xl" style={{ top: '-15px', right: '30%', animationDelay: '1.5s' }}>💘</span>
-            <span className="heart-float text-lg" style={{ bottom: '-5px', right: '10px', animationDelay: '2s' }}>💗</span>
           </div>
         </div>
 
