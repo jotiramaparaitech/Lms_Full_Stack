@@ -212,6 +212,7 @@ export const submitTest = async (req, res) => {
 
     let correctCount = 0;
     
+    // Calculate results and preserve the full question data for the frontend
     const processedAnswers = questionsData.map((q) => {
       const isCorrect = q.selectedOption === q.correctOption;
       if (isCorrect) correctCount++;
@@ -219,6 +220,7 @@ export const submitTest = async (req, res) => {
           questionText: q.questionText,
           selectedOption: q.selectedOption,
           correctOption: q.correctOption,
+          options: q.options || [], // <--- ✅ ADDED: Capture options from frontend
           isCorrect 
       };
     });
@@ -249,7 +251,8 @@ export const submitTest = async (req, res) => {
       score: correctCount,
       total,
       percentage: percentage.toFixed(2),
-      resultId: testResult._id
+      resultId: testResult._id,
+      results: processedAnswers // <--- ADDED THIS LINE (Frontend needs it immediately)
     });
 
   } catch (error) {
@@ -264,11 +267,15 @@ export const getHistory = async (req, res) => {
     const auth = req.auth();
     if (!auth?.userId) return res.status(401).json({ success: false, message: "Unauthorized" });
 
-    const history = await TestResult.find({ studentId: auth.userId }).sort({ attemptDate: -1 });
+    // Optimization: .select("-answers") excludes the heavy answers array
+    const history = await TestResult.find({ studentId: auth.userId })
+      .sort({ attemptDate: -1 })
+      .select("-answers");
 
     res.status(200).json({ success: true, history });
 
   } catch (error) {
+    console.error("History Error:", error);
     res.status(500).json({ success: false, message: "Error fetching history" });
   }
 };

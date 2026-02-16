@@ -9,6 +9,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import TestDashboard from "../../components/TestDashboard";
 import TestInterface from "../../components/TestInterface";
 import TestResult from "../../components/TestResult";
+import TestAnalysis from "../../components/TestAnalysis"; // <--- IMPORTED ANALYSIS COMPONENT
 
 // ✅ Reverted to Custom Loader
 import LoadingView from "../../components/LoadingView"; 
@@ -23,7 +24,7 @@ const Tests = () => {
   } = useContext(AppContext);
 
   // --- STATES ---
-  const [phase, setPhase] = useState("dashboard"); // dashboard, loading, testing, result
+  const [phase, setPhase] = useState("dashboard"); // dashboard, loading, testing, result, analysis
   const [history, setHistory] = useState([]); 
   const [topic, setTopic] = useState({ domain: "", subtopic: "" });
   const [difficulty, setDifficulty] = useState("Medium");
@@ -85,66 +86,68 @@ const Tests = () => {
 
   // --- ACTIONS ---
   const handleGenerate = async (
-  selectedDomain = topic.domain, 
-  selectedTopic = topic.subtopic,
-  diff = difficulty 
-) => {
-  if (!selectedDomain) {
-    toast.error("Please select a domain");
-    return;
-  }
-
-  if (dailyCount >= maxDailyLimit) {
-    toast.error(`Daily limit of ${maxDailyLimit} tests reached`);
-    return;
-  }
-
-  setSelectedDifficulty(diff); // ✅ freeze difficulty
-
-  setLoading(true);
-  setPhase("loading");
-  
-  try {
-    const finalTopic = selectedTopic || "general assessment";
-    const token = await getToken();
-    const { data } = await axios.post(
-      `${backendUrl}/api/assessment/generate`,
-      { 
-        domain: selectedDomain, 
-        topic: finalTopic,
-        difficulty: diff 
-      },
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    
-    setTopic({ domain: selectedDomain, subtopic: finalTopic });
-    setQuestions(data.data);
-    setPhase("testing");
-    
-    if (data.isFallback) {
-      toast('Serving from backup question bank', { 
-        icon: '📂',
-        position: isMobile ? 'top-center' : 'top-right'
-      });
+    selectedDomain = topic.domain, 
+    selectedTopic = topic.subtopic,
+    diff = difficulty 
+  ) => {
+    if (!selectedDomain) {
+      toast.error("Please select a domain");
+      return;
     }
 
-  } catch (error) {
-    console.error(error);
-    toast.error("Failed to generate test.", {
-      position: isMobile ? 'top-center' : 'top-right'
-    });
-    setPhase("dashboard");
-  } finally {
-    setLoading(false);
-  }
-};
+    if (dailyCount >= maxDailyLimit) {
+      toast.error(`Daily limit of ${maxDailyLimit} tests reached`);
+      return;
+    }
+
+    setSelectedDifficulty(diff); // ✅ freeze difficulty
+
+    setLoading(true);
+    setPhase("loading");
+    
+    try {
+      const finalTopic = selectedTopic || "general assessment";
+      const token = await getToken();
+      const { data } = await axios.post(
+        `${backendUrl}/api/assessment/generate`,
+        { 
+          domain: selectedDomain, 
+          topic: finalTopic,
+          difficulty: diff 
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      setTopic({ domain: selectedDomain, subtopic: finalTopic });
+      setQuestions(data.data);
+      setPhase("testing");
+      
+      if (data.isFallback) {
+        toast('Serving from backup question bank', { 
+          icon: '📂',
+          position: isMobile ? 'top-center' : 'top-right'
+        });
+      }
+
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to generate test.", {
+        position: isMobile ? 'top-center' : 'top-right'
+      });
+      setPhase("dashboard");
+    } finally {
+      setLoading(false);
+    }
+  };
 
 
   const handleSubmit = async () => {
+    // ✅ UPDATE: We now send the 'options' array along with the answer
     const submissionData = questions.map((q, idx) => ({
       questionText: q.question,
       selectedOption: answers[idx] || "Skipped",
       correctOption: q.answer,
+      options: q.options // <--- THIS IS THE KEY FIX
     }));
 
     try {
@@ -177,14 +180,12 @@ const Tests = () => {
     setQuestions([]);
     setAnswers({});
     setTopic({ domain: "", subtopic: "" });
+    setResult(null); // Clear result data on exit
   };
 
   return (
     <StudentLayout>
-      {/* ✅ FIX 1: Main Container Constraints
-         - w-full max-w-full: Ensures it takes available space but NEVER exceeds it.
-         - overflow-x-hidden: Cuts off any rogue elements trying to scroll horizontally.
-      */}
+      {/* ✅ FIX 1: Main Container Constraints */}
       <div className="min-h-screen bg-gray-50 p-3 sm:p-4 md:p-6 font-sans w-full max-w-full overflow-x-hidden">
         
         {/* Header - Mobile Responsive */}
@@ -211,7 +212,8 @@ const Tests = () => {
                 <span className="hidden sm:inline">Tests Today: {dailyCount}/{maxDailyLimit}</span>
               </div>
               
-              {phase !== "dashboard" && isMobile && (
+              {/* Back button hidden during analysis to enforce "Done" flow */}
+              {phase !== "dashboard" && phase !== "analysis" && isMobile && (
                 <button
                   onClick={() => phase === "testing" ? setPhase("dashboard") : resetTest()}
                   className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors whitespace-nowrap"
@@ -234,6 +236,7 @@ const Tests = () => {
                   {phase === "loading" && "Generating..."}
                   {phase === "testing" && `${Object.keys(answers).length}/${questions.length}`}
                   {phase === "result" && "Completed"}
+                  {phase === "analysis" && "Reviewing"}
                 </div>
               </div>
             </div>
@@ -289,6 +292,16 @@ const Tests = () => {
               topic={topic}
               difficulty={selectedDifficulty}
               onReset={resetTest}
+              onAnalyze={() => setPhase("analysis")} // <--- TRIGGERS NEW PHASE
+              isMobile={isMobile}
+            />
+          )}
+
+          {phase === "analysis" && result && (
+            <TestAnalysis
+              key="analysis"
+              result={result}
+              onDone={resetTest} // <--- Returns to Dashboard
               isMobile={isMobile}
             />
           )}

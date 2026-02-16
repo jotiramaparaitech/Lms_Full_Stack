@@ -1,7 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 
-const TestResult = ({ result, topic, difficulty, onReset, isMobile = false }) => {
+const TestResult = ({ result, topic, difficulty, onReset, onAnalyze, isMobile = false }) => {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -69,10 +69,6 @@ const TestResult = ({ result, topic, difficulty, onReset, isMobile = false }) =>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Difficulty</span>
-                {/* UPDATED LINE BELOW: 
-                   Checks result.difficulty first (matches Dashboard history logic), 
-                   then falls back to topic.difficulty, then defaults to "Medium" 
-                */}
                 <span className="font-semibold text-gray-900 capitalize">
                   {result.difficulty || difficulty || "Medium"}
                 </span>
@@ -85,12 +81,22 @@ const TestResult = ({ result, topic, difficulty, onReset, isMobile = false }) =>
           </div>
         )}
 
-        <button
-          onClick={onReset}
-          className="w-full py-3 sm:py-4 bg-gray-900 text-white rounded-lg sm:rounded-xl font-bold hover:bg-gray-800 transition-colors shadow-lg hover:shadow-xl text-sm sm:text-base"
-        >
-          {isMobile ? 'Go to Dashboard' : 'Return to Dashboard'}
-        </button>
+        <div className="space-y-3">
+          {/* New Review Button */}
+          <button
+            onClick={onAnalyze}
+            className="w-full py-3 sm:py-4 bg-white text-gray-900 border-2 border-gray-200 rounded-lg sm:rounded-xl font-bold hover:bg-gray-50 hover:border-gray-300 transition-colors text-sm sm:text-base"
+          >
+            View Analysis
+          </button>
+
+          <button
+            onClick={onReset}
+            className="w-full py-3 sm:py-4 bg-gray-900 text-white rounded-lg sm:rounded-xl font-bold hover:bg-gray-800 transition-colors shadow-lg hover:shadow-xl text-sm sm:text-base"
+          >
+            {isMobile ? 'Return to Dashboard' : 'Return to Dashboard'}
+          </button>
+        </div>
 
       </div>
     </motion.div>

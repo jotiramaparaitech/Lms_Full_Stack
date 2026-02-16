@@ -27,6 +27,7 @@ const testResultSchema = new mongoose.Schema({
     questionText: { type: String, required: true },
     selectedOption: { type: String, required: true },
     correctOption: { type: String, required: true },
+    options: [{ type: String }], // <--- ✅ ADDED: Store the options so we can display them in analysis
     isCorrect: { type: Boolean, required: true }
   }],
 
