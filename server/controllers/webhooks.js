@@ -81,8 +81,8 @@ export const clerkWebhooks = async (req, res) => {
           _id: data.id,
           email: data.email_addresses[0].email_address,
           name: data.first_name + " " + data.last_name,
-          name: data.first_name + " " + data.last_name,
           imageUrl: data.image_url,
+          role: data.public_metadata?.role || "student", // ✅ Sync user role
           isTeamLeader: data.public_metadata?.isTeamLeader || false, // ✅ Sync isTeamLeader
         };
         await User.findByIdAndUpdate(data.id, userData, { upsert: true, new: true });

@@ -964,16 +964,26 @@ export const getAllTeamsForAdmin = async (req, res) => {
       });
     }
 
-    // Verify user is actually an admin
+    // Verify user is actually an admin, educator OR team leader
     const user = await User.findById(userId);
-    if (user?.role !== 'admin' && user?.role !== 'educator') {
+    const isGlobalAdmin = user?.role === 'admin' || user?.role === 'educator';
+    const isTeamLeader = user?.isTeamLeader;
+
+    if (!isGlobalAdmin && !isTeamLeader) {
       return res.status(403).json({
         success: false,
-        message: "Access denied. Admin only.",
+        message: "Access denied. Admin, Educator, or Team Leader only.",
       });
     }
 
-    const teams = await Team.find({})
+    let query = {};
+
+    // If user is a Team Leader but NOT an Admin/Educator, restrict to their own teams
+    if (isTeamLeader && !isGlobalAdmin) {
+      query = { leader: userId };
+    }
+
+    const teams = await Team.find(query)
       .select("_id name leader members createdAt")
       .sort({ createdAt: -1 })
       .lean();
